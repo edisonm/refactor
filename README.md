@@ -1,4 +1,4 @@
 refactor
 ========
 
-Refactor Tools for SWI-Prolog 
+Refactoring Tools for SWI-Prolog 

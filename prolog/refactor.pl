@@ -1,19 +1,48 @@
+/*  Part of Refactoring Tools for SWI-Prolog
+
+    Author:        Edison Mera Menendez
+    E-mail:        efmera@gmail.com
+    WWW:           https://github.com/edisonm/refactor, http://www.swi-prolog.org
+    Copyright (C): 2013, Process Design Center, Breda, The Netherlands.
+
+    This program is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation; either version 2
+    of the License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public
+    License along with this library; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+    As a special exception, if you link this library with other files,
+    compiled with a Free Software compiler, to produce an executable, this
+    library does not by itself cause the resulting executable to be covered
+    by the GNU General Public License. This exception does not however
+    invalidate any other reasons why the executable file might be covered by
+    the GNU General Public License.
+*/
+
 :- module(refactor, [refactor/2,
 		     rename_variable/4,
 		     replace_term/4,
 		     replace_goal/4,
-		     replace_sentence/4,
+		     replace_sentence/3,
 		     expand_term/4,
 		     expand_goal/4,
-		     expand_sentence/4,
+		     expand_sentence/3,
 		     replace_term_id/4,
 		     unfold_goal/3,
 		     rename_predicate/3]).
 
 :- use_module(library(readutil)).
 :- use_module(library(prolog_codewalk)).
-:- use_module(tools(file_changes)).
-:- use_module(tools(term_info)).
+:- use_module(library(file_changes)).
+:- use_module(library(term_info)).
 
 :- dynamic file_commands_db/2.
 
@@ -34,20 +63,19 @@ refactor(Rule, Action) :-
 
 rename_variable(Caller, OldName, NewName, Action) :-
     refactor(meta_expansion(term, Caller, _,
-			    rename_variable_helper(OldName, NewName)),
-		Action).
+			    rename_variable_helper(OldName, NewName)), Action).
 
-rename_variable_helper(OldName, NewName, T, Dict, _C, _, E) :-
+rename_variable_helper(OldName, NewName, _, T, Dict, _, E) :-
     \+ memberchk(NewName=_,Dict),
     memberchk(OldName=V,Dict),
     V==T,
     E='$VAR'(NewName).
 
 :- meta_predicate replace_term(?,?,?,+).
-replace_term_id(Caller, Term, Target, Action) :-
-    replace_term(Caller, Term, Target, Action),
+replace_term_id(Caller, Term, Expansion, Action) :-
+    replace_term(Caller, Term, Expansion, Action),
     functor(Term, F0, A0),
-    functor(Target, F, A),
+    functor(Expansion, F, A),
     replace_term(Caller, F0/A0, F/A, Action).
 
 % BUG: This have to be applied only once --EMM
@@ -63,7 +91,7 @@ rename_predicate(M:Name0/Arity, Name, Action) :-
 		Action),
     replace_term(M:_, Name0/Arity, Name/Arity, Action). % Replace PIs
 
-rename_predicate_helper(P0, H0, H, T, _, _:T0, P, E) :-
+rename_predicate_helper(P0, H0, H, _:T0, T, _, P, E) :-
     nonvar(T),
     T==T0,
     ( T = P0 ->
@@ -74,43 +102,46 @@ rename_predicate_helper(P0, H0, H, T, _, _:T0, P, E) :-
       P = (M:H0 = B), E = (M:H :- B)
     ).
 
-replace(Level, Caller, Term0, Target, Action) :-
-    level_term(Level, Term0, Term),
-    copy_term(Term0, Ref),
-    refactor(meta_expansion(Level, Caller, Ref,
-			    source_expansion_helper(Caller, Term, Target)),
-		Action).
-
-replace_term(Caller, Term, Target, Action) :-
-    replace(term, Caller, Term, Target, Action).
-
-replace_sentence(Caller, Term, Target, Action) :-
-    replace(sent, Caller, Term, Target, Action).
-
-:- meta_predicate replace_goal(?,0,?,+).
-replace_goal(Caller, Term, Target, Action) :-
-    replace(goal, Caller, Term, Target, Action).
-
 level_term(goal, _:Term, Term) :- !.
 level_term(_,      Term, Term).
 
+replace(Level, Caller, Term0, Expansion, Action) :-
+    level_term(Level, Term0, Term),
+    copy_term(Term0, Ref),
+    refactor(meta_expansion(Level, Caller, Ref,
+			    source_expansion_helper(Caller, Term, Expansion)),
+		Action).
+
+replace_term(Caller, Term, Expansion, Action) :-
+    replace(term, Caller, Term, Expansion, Action).
+
+replace_sentence(M:Term, Expansion, Action) :-
+    replace(sent, M:Term, Term, Expansion, Action).
+
+:- meta_predicate replace_goal(?,0,?,+).
+replace_goal(Caller, Term, Expansion, Action) :-
+    replace(goal, Caller, Term, Expansion, Action).
+
 :- meta_predicate expand(+,?,?,5,-).
-% Expander(+Term, +Dict, +Caller, -Pattern, -Expansion)
+% Expander(+Caller, ?Term, +Dict, -Pattern, -Expansion)
 expand(Level, Caller, Term, Expander, Action) :-
     refactor(meta_expansion(Level, Caller, Term, Expander), Action).
 
 expand_term(Caller, Term, Expander, Action) :-
     expand(term, Caller, Term, Expander, Action).
 
-expand_sentence(Caller, Term, Expander, Action) :-
-    expand(sent, Caller, Term, Expander, Action).
+:- meta_predicate expand_sentence(+,4,-).
+% Expander(+Dict, +Term, -Pattern, -Expansion)
+expand_sentence(M:Term, Expander, Action) :-
+    expand(sent, M:Term, Term, expand_sentence_helper(Expander), Action).
+
+:- meta_predicate expand_sentence_helper(4,+,+,+,-,-).
+expand_sentence_helper(Expander, M:Term, Term, Dict, Pattern, Expansion) :-
+    call(Expander, M:Term, Dict, Pattern, Expansion).
 
 :- meta_predicate expand_goal(?,0,?,+).
 expand_goal(Caller, Term, Expander, Action) :-
     expand(goal, Caller, Term, Expander, Action).
-
-% rename_predicate(Module:F/A, NewName, Action) :-
-%     refactor(source_expansion(term, Term, Module:Term, Target), Action).
 
 :- meta_predicate unfold_goal(?,0,+).
 % NOTE: Only works if exactly one clause match
@@ -146,7 +177,7 @@ collect_expansion_commands(Level, Caller, Term, Expander, FileCommands) :-
 %% ANCILLARY PREDICATES:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-source_expansion_helper(Caller, Term, Expansion, _, _, Caller, Term, Expansion).
+source_expansion_helper(Caller, Pattern, Expansion, Caller, _, _, Pattern, Expansion).
 
 apply_file_commands(Pairs, FileChanges) :-
     keysort(Pairs, Sorted),
@@ -168,13 +199,13 @@ apply_commands(File-Commands, File-Changes) :-
 		      text_desc(0, Text, Changes),
 		      text_desc(_, Remaining, Remaining)).
 
-:- meta_predicate get_file_commands(?, ?,?,5,-,-).
+:- meta_predicate get_file_commands(?,?,?,5,-,-).
 get_file_commands(Level, M:Caller, Ref, Expander, File, Commands) :-
     current_module(M),
     M \= user,
     module_property(M, class(user)),
-    get_term_info(M, Caller, File, Term, [variable_names(Dict),
-					  subterm_positions(TermPos)]),
+    get_term_info(M, Caller, File, Term,
+		  [variable_names(Dict), subterm_positions(TermPos)]),
     substitute_term_level(Level, TermPos, Term, 1200, Dict, M:Caller, Ref,
 			  Expander, Commands, []).
 
@@ -275,7 +306,7 @@ substitute_term(Expander, Term, Priority, Dict, Caller, TermPos) -->
 :- meta_predicate calculate_expansion(4,?,?,?,?,?,-,-).
 calculate_expansion(Expander, Term, Dict, Caller, TermPos,
 		    Params, Pattern, Expansion) :-
-    call(Expander, Term, Dict, Caller, Pattern, Expansion),
+    call(Expander, Caller, Term, Dict, Pattern, Expansion),
     \+ Pattern \= Term,
     subst_term(TermPos, Params, Pattern, Term).
 
@@ -411,6 +442,9 @@ rportray('$substitute_by'(Params, ArgPos), _) :-
     maplist(put, List),
     !.
 rportray('$substitute_by'(_, _), _).
+rportray('$LIST'(L), Opt) :- memberchk(priority(N), Opt), maplist(write_r(N), L).
+rportray('$TEXT'(T), Opt) :- memberchk(priority(N), Opt), write_t(N, T).
+% rportray('$BODY'(B), Opt) :- memberchk(priority(N), Opt), print_b(N, T, _File, _Pos).
 
 :- use_module(library(listing),[]).
 
@@ -438,28 +472,81 @@ print_expansion_list([T|L], N, File, Pos0) -->
 
 %% print_expansion(?Term:term, N:integer, File:atom, Pos0:integer, SkipTo:integer, Pos:integer).
 
-print_expansion(Term, N, _, _) --> {var(Term), !, write_r(Term, N)}, [].
+print_expansion(Term, N, _, _) --> {var(Term), !, write_r(N, Term)}, [].
+print_expansion('$,NL', N, File, Pos0) --> % Print a comma + indented new line
+    {write(',')},
+    print_expansion('$NL', N, File, Pos0).
+print_expansion('$BODY'(Term), N, File, Pos) --> % Print as a body
+    {write_b(Term, N, File, Pos)}.
+print_expansion('$NL', _, File, Pos0) --> % Print an indented new line
+    { prolog_codewalk:filepos_line(File, Pos0, _, LinePos),
+      nl,
+      line_pos(LinePos)
+    }.
 print_expansion('$LIST'(List), N, File, Pos0) -->
     print_expansion_list(List, N, File, Pos0).
 print_expansion('$TEXT'(Term), N, File, Pos0) -->
     print_expansion('$TEXT'(Term, 0), N, File, Pos0).
 print_expansion('$TEXT'(Term, Delta), N, _, _) -->
-    {write_term(Term, [spacing(next_argument),
-		       numbervars(true),
-		       priority(N)
-		      ])},
+    {write_t(N, Term)},
     inc(Delta).
-print_expansion(Term, N, _, _) --> {write_r(Term, N)}.
+print_expansion(Term, N, _, _) --> {write_r(N, Term)}.
 
-write_r(Term, N) :-
-    write_r_2(Term, N, rportray).
+write_b((A, B), N, File, Pos0) :-
+    !,
+    current_op(NC, 'xfy', ','),
+    ( N < NC ->
+      write('( '),
+      Pos1 is Pos0 + 2
+    ; Pos1 is Pos0
+    ),
+    write_r(NC, A),
+    prolog_codewalk:filepos_line(File, Pos1, _, LinePos),
+    print_expansion_nps(B, NC, LinePos),
+    ( N < NC -> write(')')
+    ; true
+    ).
+write_b(Term, N, _, _) :- write_r(N, Term).
 
-:- meta_predicate write_r_2(?,+,2).
-write_r_2(Term, N, PortrayGoal) :-
+print_expansion_nps(Term, NC, LinePos) :- var(Term), !,
+    print_expansion_np(Term, NC, LinePos).
+print_expansion_nps((A, B), NC, LinePos) :- !,
+    print_expansion_nps(A, NC, LinePos),
+    print_expansion_nps(B, NC, LinePos).
+print_expansion_nps(Term, NC, LinePos) :-
+    print_expansion_np(Term, NC, LinePos).
+
+print_expansion_np(Term, NC, LinePos) :-
+    write(','),
+    nl,
+    line_pos(LinePos),
+    write_r(NC, Term).
+
+line_pos(0) :- !.
+line_pos(LinePos) :-
+    LinePos >= 8,
+    !,
+    write('\t'),
+    LinePos1 is LinePos - 8,
+    line_pos(LinePos1).
+line_pos(LinePos) :-
+    LinePos >= 1,
+    write(' '),
+    LinePos1 is LinePos - 1,
+    line_pos(LinePos1).
+
+write_r(N, Term) :-  write_r_2(N, Term, rportray).
+
+write_t(N, Term) :-
+    write_term(Term, [spacing(next_argument),
+		      numbervars(true),
+		      priority(N)]).
+
+:- meta_predicate write_r_2(+,?,2).
+write_r_2(N, Term, PortrayGoal) :-
     Options = [portray_goal(PortrayGoal),
 	       spacing(next_argument),
 	       numbervars(true),
 	       quoted(true),
-	       priority(N)
-	      ],
+	       priority(N)],
     write_term(Term, Options).
