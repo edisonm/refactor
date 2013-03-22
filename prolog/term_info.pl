@@ -27,7 +27,7 @@
     the GNU General Public License.
 */
 
-:- module(term_info, [get_term_info/5]).
+:- module(term_info, [get_term_info/4]).
 
 % BUG: Files are not uniques
 module_files(M, Files) :-
@@ -49,18 +49,18 @@ module_file_2(M, File0, File) :-
     source_file_property(File0, includes(File1,_)),
     module_file_2(M, File1, File).
 
-get_term_info(M, Ref, File, Term, Options) :-
+get_term_info(M, Term, File, Options) :-
     module_files(M, Files),
     member(File, Files),
-    get_term_info_file(Ref, File, Term, [module(M)|Options]).
+    get_term_info_file(Term, File, [module(M)|Options]).
 
-get_term_info_file(Ref, File, Term, Options) :-
+get_term_info_file(Term, File, Options) :-
     catch(setup_call_cleanup(open(File, read, In),
-			     get_term_info_fd(Ref, In, Term, Options),
+			     get_term_info_fd(In, Term, Options),
 			     close(In)),
 	  E, (print_message(error, E), fail)).
 
-get_term_info_fd(Ref, In, Term, Options) :-
+get_term_info_fd(In, Ref, Options) :-
     repeat,
     catch(read_term(In, Term, Options),
 	  E, (print_message(error, E), fail)),
