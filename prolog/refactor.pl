@@ -62,8 +62,7 @@ refactor(Rule, Action) :-
 % :- pred rename_variable(?Term,+OldName:atom,+NewName:atom,+Action:t_action).
 
 rename_variable(Caller, OldName, NewName, Action) :-
-    refactor(meta_expansion(term, Caller, _,
-			    rename_variable_helper(OldName, NewName)), Action).
+    expand(term, Caller, _, rename_variable_helper(OldName, NewName), Action).
 
 rename_variable_helper(OldName, NewName, _, T, Dict, _, E) :-
     \+ memberchk(NewName=_,Dict),
@@ -108,9 +107,8 @@ level_term(_,      Term, Term).
 replace(Level, Caller0, Ref0, Expansion, Action) :-
     level_term(Level, Ref0, Term),
     copy_term(Caller0-Ref0, Caller-Ref),
-    refactor(meta_expansion(Level, Caller, Ref,
-			    source_expansion_helper(Term, Expansion)),
-		Action).
+    expand(Level, Caller, Ref,
+	   source_expansion_helper(Term, Expansion), Action).
 
 replace_term(Caller, Term, Expansion, Action) :-
     replace(term, Caller, Term, Expansion, Action).
@@ -127,6 +125,7 @@ replace_goal(Caller, Term, Expansion, Action) :-
 expand(Level, Caller, Term, Expander, Action) :-
     refactor(meta_expansion(Level, Caller, Term, Expander), Action).
 
+:- meta_predicate expand_term(?,?,5,-).
 expand_term(Caller, Term, Expander, Action) :-
     expand(term, Caller, Term, Expander, Action).
 
@@ -140,8 +139,8 @@ expand_sentence_helper(Expander, M:Term, Term, Dict, Pattern, Expansion) :-
     call(Expander, M:Term, Dict, Pattern, Expansion).
 
 :- meta_predicate expand_goal(?,0,?,+).
-expand_goal(Caller, Term, Expander, Action) :-
-    expand(goal, Caller, Term, Expander, Action).
+expand_goal(Caller, Goal, Expander, Action) :-
+    expand(goal, Caller, Goal, Expander, Action).
 
 :- meta_predicate unfold_goal(?,0,+).
 % NOTE: Only works if exactly one clause match
@@ -161,6 +160,7 @@ meta_expansion(Level, Caller, Term, Expander, FileChanges) :-
     collect_expansion_commands(Level, Caller, Term, Expander, FileCommands),
     apply_file_commands(FileCommands, FileChanges).
 
+:- meta_predicate collect_expansion_commands(+,?,?,5,-).
 collect_expansion_commands(goal, Caller, Term, Expander, FileCommands) :- !,
     prolog_walk_code([trace_reference(Term),
 		      infer_meta_predicates(false),
@@ -207,7 +207,7 @@ apply_commands(File-Commands, File-Changes) :-
 		      text_desc(0, Text, Changes),
 		      text_desc(_, Remaining, Remaining)).
 
-:- meta_predicate get_file_commands(4,?,5,-,-).
+:- meta_predicate get_file_commands(4,?,-,-).
 get_file_commands(Substituter, M:Term, File, Commands) :-
     current_module(M),
     M \= user,
@@ -251,7 +251,7 @@ term_priority(Term, N, Priority) :-
     ; Priority = 1200
     ).
 
-:- meta_predicate substitute_term_args(?,+,?,?,+,?,?,5,?,?).
+:- meta_predicate substitute_term_args(?,+,?,+,+,?,5,?,?).
 substitute_term_args([PA|PAs], N0, Term, Dict, Caller, Ref, Expander) -->
     ( {arg(N0, Term, Arg)},
       {term_priority(Term, N0, Priority)},
@@ -478,13 +478,14 @@ apply_change(print(Priority, Term, SkipTo), Pos1, Text, File,
 
 inc(Delta, Pos0, Pos) :- Pos is Pos0 + Delta.
 
+:- meta_predicate print_expansion_list(+,2,+,+,+,?,?).
 print_expansion_list([], _, _, _, _) --> [].
 print_expansion_list([T|L], PG, N, File, Pos0) -->
     print_expansion(T, PG, N, File, Pos0),
     print_expansion_list(L, PG, N, File, Pos0).
 
 %% print_expansion(?Term:term, N:integer, File:atom, Pos0:integer, SkipTo:integer, Pos:integer).
-
+:- meta_predicate print_expansion(?,2,+,+,+,?,?).
 print_expansion(Term, PG, N, _, _) --> {var(Term), !, write_r(N, PG, Term)}, [].
 print_expansion('$,NL', PG, N, File, Pos0) --> % Print a comma + indented new line
     {write(',')},
@@ -513,6 +514,7 @@ bin_op(Term, Op, Left, Right, A, B) :-
     arg(1, Term, A),
     arg(2, Term, B).
 
+:- meta_predicate write_b(?,2,+,+,+).
 write_b(Term, PG, N, File, Pos0) :-
     ( prolog_listing:term_needs_braces(Term, N)
     -> write('( '),
@@ -524,6 +526,8 @@ write_b(Term, PG, N, File, Pos0) :-
 
 and_layout(T) :- T = (_,_).
 
+:- meta_predicate write_b1(?,2,+,*,*).
+
 write_b1(Term, PG, _, File, Pos) :-
     prolog_listing:or_layout(Term), !,
     write_b_layout(Term, PG, or,  File, Pos).
@@ -532,6 +536,7 @@ write_b1(Term, PG, _, File, Pos) :-
     write_b_layout(Term, PG, and, File, Pos).
 write_b1(Term, PG, N, _, _) :- write_r(N, PG, Term).
 
+:- meta_predicate write_b_layout(*,2,*,*,*).
 write_b_layout(Term, PG, Layout, File, Pos) :-
     bin_op(Term, Op, Left, Right, A, B),
     !,
