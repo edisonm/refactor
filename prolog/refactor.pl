@@ -37,7 +37,8 @@
 		     expand_sentence/3,
 		     replace_term_id/4,
 		     unfold_goal/3,
-		     rename_predicate/3]).
+		     rename_predicate/3,
+		     remove_useless_exports/2]).
 
 :- use_module(library(readutil)).
 :- use_module(library(prolog_codewalk)).
@@ -54,6 +55,28 @@ refactor(Rule, Action) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Most used refactoring scenarios:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+remove_useless_exports(M, Action) :-
+    expand_sentence(M:(:-module(_,_)), remove_useless_exports_module, Action),
+    expand_sentence(M:(:-export(_)),   remove_useless_exports_export, Action).
+
+remove_useless_exports_module(M:(:-module(_, L)), _, (:- module(X, _)),
+			      (:- module(X, N))) :-
+    findall(E, (member(E,L), being_used(E, M)), N).
+
+remove_useless_exports_export(M:(:- export(K)), _, _, Exp) :-
+    once(list_sequence(L, K)),
+    findall(E,(member(E,L),being_used(E,M)),N),
+    ( N = []           -> Exp = '$RM'
+    ; list_sequence(N,S), Exp = (:- export(S))
+    ).
+
+list_sequence([], []).
+list_sequence([E|L], S) :- list_sequence_2(L, E, S).
+
+list_sequence_2([E|L], E0, (E0, S)) :- list_sequence_2(L, E, S).
+list_sequence_2([], E, E).
+
+being_used(F/A,M) :- functor(H,F,A),predicate_property(C:H,imported_from(M)), C \= user.
 
 % :- regtype t_action/1.
 % t_action(save).
@@ -65,6 +88,7 @@ rename_variable(Caller, OldName, NewName, Action) :-
     expand(term, Caller, _, rename_variable_helper(OldName, NewName), Action).
 
 rename_variable_helper(OldName, NewName, _, T, Dict, _, E) :-
+    var(T),
     \+ memberchk(NewName=_,Dict),
     memberchk(OldName=V,Dict),
     V==T,
@@ -323,6 +347,7 @@ refactor_hack('$TEXT'(_,_)).
 refactor_hack('$BODY'(_)).
 refactor_hack('$NL'(_)).
 refactor_hack('$,NL'(_)).
+refactor_hack('$RM').
 
 expansion_commands_term(term_position(_, _, FFrom, FTo, SubPos),
 			Term, Priority, Pattern, Expansion) -->
@@ -501,6 +526,8 @@ print_expansion('$LIST'(List), PG, N, File, Pos0) -->
     print_expansion_list(List, PG, N, File, Pos0).
 print_expansion('$TEXT'(Term), PG, N, File, Pos0) -->
     print_expansion('$TEXT'(Term, 0), PG, N, File, Pos0).
+% BUG: assuming no spaces between Term, full stop and new line:
+print_expansion('$RM', _, _, _, _) --> inc(2).
 print_expansion('$TEXT'(Term, Delta), _, N, _, _) -->
     {write_t(N, Term)},
     inc(Delta).
