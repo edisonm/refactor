@@ -31,12 +31,14 @@
 
 % BUG: Files are not uniques
 module_files(M, Files) :-
-    findall(File, module_file(M, File), UFiles),
+    module_file_list(M, UFilesL),
+    append(UFilesL, UFiles),
     sort(UFiles, Files).
 
-module_file(M, File) :-
-    module_file_1(M, File0),
-    module_file_2(M, File0, File).
+module_file_list(M, Files) :-
+    findall(F, module_file_1(M, F), UFiles),
+    sort(UFiles, Files0),
+    module_files_2(Files0, M, Files).
 
 module_file_1(M, File) :-
     module_property(M, file(File)).
@@ -44,10 +46,16 @@ module_file_1(M, File) :-
     '$load_context_module'(File, M, _),
     \+ module_property(_, file(File)).
 
-module_file_2(_, File, File).
-module_file_2(M, File0, File) :-
-    source_file_property(File0, includes(File1,_)),
-    module_file_2(M, File1, File).
+includes(File, Files) :-
+    findall(F, source_file_property(File, includes(F, _)), Files).
+    
+module_files_2(Files0, M, [Files0|Tail]) :-
+    maplist(includes, Files0, FilesL),
+    append(FilesL, Files),
+    ( Files = [] -> Tail = []
+    ; sort(Files, Sorted),
+      module_files_2(Sorted, M, Tail)
+    ).
 
 get_term_info(M, Term, File, Options) :-
     module_files(M, Files),
