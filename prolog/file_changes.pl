@@ -33,7 +33,7 @@ do_file_changes(Action, FileChanges) :-
     maplist(do_file_change(Action), FileChanges).
 
 do_file_change(save, File-Changes) :-
-    ( \+ access_file(File, exist), Changes==[] -> true
+    ( \+ exists_file(File), Changes==[] -> true
     ; open(File, write, Fd, []),
       format(Fd, '~s', [Changes]),
       close(Fd)
