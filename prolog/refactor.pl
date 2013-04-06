@@ -51,7 +51,7 @@
 	refactor(1,+),
 	expand_term(+,+,5,+),
 	expand_sentence(+,4,-),
-	expand_goal(?,0,5,+),
+	expand_goal(?,0,?,+),
 	unfold_goal(?,0,+).
 
 refactor(Rule, Action) :-
@@ -167,8 +167,8 @@ expand_sentence(M:Term, Expander, Action) :-
 expand_sentence_helper(Expander, M:Term, Term, Dict, Pattern, Expansion) :-
     call(Expander, M:Term, Dict, Pattern, Expansion).
 
-expand_goal(Caller, Goal, Expander, Action) :-
-    expand(goal, Caller, Goal, Expander, Action).
+expand_goal(Caller, Term, Expander, Action) :-
+    expand(goal, Caller, Term, Expander, Action).
 
 % NOTE: Only works if exactly one clause match
 unfold_goal(Module, MGoal, Action) :-
