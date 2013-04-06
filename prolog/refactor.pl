@@ -46,7 +46,13 @@
 
 :- dynamic file_commands_db/2.
 
-:- meta_predicate refactor(1,+).
+:- meta_predicate
+	refactor(1,+),
+	expand_term(+,+,5,+),
+	expand_sentence(+,4,-),
+	expand_goal(?,0,?,+),
+	unfold_goal(?,0,+).
+
 refactor(Rule, Action) :-
     call(Rule, FileChanges),
     do_file_changes(Action, FileChanges).
@@ -130,7 +136,6 @@ expand(Level, Caller, Term, Expander, Action) :-
 expand_term(Caller, Term, Expander, Action) :-
     expand(term, Caller, Term, Expander, Action).
 
-:- meta_predicate expand_sentence(+,4,-).
 % Expander(+Dict, +Term, -Pattern, -Expansion)
 expand_sentence(M:Term, Expander, Action) :-
     expand(sent, M:Term, Term, expand_sentence_helper(Expander), Action).
@@ -139,11 +144,9 @@ expand_sentence(M:Term, Expander, Action) :-
 expand_sentence_helper(Expander, M:Term, Term, Dict, Pattern, Expansion) :-
     call(Expander, M:Term, Dict, Pattern, Expansion).
 
-:- meta_predicate expand_goal(?,0,?,+).
 expand_goal(Caller, Term, Expander, Action) :-
     expand(goal, Caller, Term, Expander, Action).
 
-:- meta_predicate unfold_goal(?,0,+).
 % NOTE: Only works if exactly one clause match
 unfold_goal(Module, MGoal, Action) :-
     findall(clause(MGoal, Body0), clause(MGoal, Body0), [clause(MGoal, Body0)]),
@@ -455,7 +458,7 @@ rportray(_, '$TEXT'(T), Opt0) :- !,
     subtract(Opt0, [quoted(true), portray_goal(_)], Opt),
     write_term(T, Opt).
 rportray(Pos-Remaining, '$BODY'(B), Opt) :-
-    memberchk(priority(N), Opt), 
+    memberchk(priority(N), Opt),
     write_b(B, rportray(Pos-Remaining), N, _File, Pos).
 
 term_write(Opt, Term) :- write_term(Term, Opt).
@@ -465,7 +468,7 @@ term_write(Opt, Term) :- write_term(Term, Opt).
 apply_change(print(Priority, Term, SkipTo), Pos1, Text, File,
 	     text_desc(Pos0, Remaining0, Tail0),
 	     text_desc(Pos,  Remaining,  Tail)) :-
-    cut_text(Pos0, Pos1, Remaining0, Remaining1, CutText), % 
+    cut_text(Pos0, Pos1, Remaining0, Remaining1, CutText), %
     append(CutText, Tail1, Tail0),			   % Accept
     findall(t(Tail1, Tail, Pos),
 	    ( numbervars(Term, 0, _, [singletons(true)]),
