@@ -28,6 +28,7 @@
 */
 
 :- module(term_info, [get_term_info/4]).
+:- use_module(library(prolog_source)).
 
 % BUG: Files are not uniques
 module_files(M, Files) :-
@@ -55,16 +56,18 @@ get_term_info(M, Term, File, Options) :-
     get_term_info_file(Term, File, [module(M)|Options]).
 
 get_term_info_file(Term, File, Options) :-
-    catch(setup_call_cleanup(open(File, read, In),
-			     get_term_info_fd(In, Term, Options),
-			     close(In)),
+	catch(setup_call_cleanup(
+		  ( prolog_canonical_source(File, Path),
+		    prolog_open_source(Path, In)
+		  ),
+		  get_term_info_fd(In, Term, Options),
+		  prolog_close_source(In)),
 	  E, (print_message(error, E), fail)).
 
 get_term_info_fd(In, Ref, Options) :-
     repeat,
-    catch(read_term(In, Term, Options),
-	  E, (print_message(error, E), fail)),
-    ( Term = end_of_file ->
+    prolog_read_source_term(In, Term, _Expanded, Options),
+    ( Term == end_of_file ->
       !,
       fail
     ; subsumes_term(Ref, Term),
