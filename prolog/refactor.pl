@@ -175,7 +175,7 @@ collect_expansion_commands(term, Caller, Ref, Into, Expander, FileCommands) :-
     style_check(-atom),
     _:Term = Caller,
     findall(File-Commands,
-	    get_file_commands(substitute_term_rec(Term, 1200, Ref, Caller, Into, Expander),
+	    get_file_commands(substitute_term_rec(Term, 1200, Ref, Into, Expander),
 			      Caller, File, Commands),
 	    FileCommands).
 collect_expansion_commands(sent, Caller, Ref, Into, Expander, FileCommands) :-
@@ -222,20 +222,20 @@ get_file_commands(Substituter, M:Term, File, Commands) :-
 
 :- meta_predicate substitute_term_rec(+,+,?,+,5,+,+,?,?).
 
-substitute_term_rec(Term, Priority, Ref, Caller, Into, Expander, Dict, TermPos) -->
+substitute_term_rec(Term, Priority, Ref, Into, Expander, Dict, TermPos) -->
     {subsumes_term(Ref, Term), Ref = Term},
     substitute_term(Priority, Term, Into, Expander, Dict, TermPos),
     !.
-substitute_term_rec(Term, _, Ref, Caller, Into, Expander, Dict, TermPos) -->
-    substitute_term_into(TermPos, Term, Dict, Caller, Ref, Into, Expander).
+substitute_term_rec(Term, _, Ref, Into, Expander, Dict, TermPos) -->
+    substitute_term_into(TermPos, Term, Dict, Ref, Into, Expander).
 
 :- meta_predicate substitute_term_into(+,?,+,?,?,5,?,?).
-substitute_term_into(term_position(_, _, _, _, CP), Term, Dict, Caller, Ref,
+substitute_term_into(term_position(_, _, _, _, CP), Term, Dict, Ref,
 		     Into, Expander) --> !,
-    substitute_term_args(CP, 1, Term, Dict, Caller, Ref, Into, Expander).
-substitute_term_into(list_position(_, _, EP, TP), Term, Dict, Caller, Ref,
+    substitute_term_args(CP, 1, Term, Dict, Ref, Into, Expander).
+substitute_term_into(list_position(_, _, EP, TP), Term, Dict, Ref,
 		     Into, Expander) --> !,
-    substitute_term_list(EP, TP, Term, Dict, Caller, Ref, Into, Expander).
+    substitute_term_list(EP, TP, Term, Dict, Ref, Into, Expander).
 
 :- use_module(library(listing), []).
 
@@ -256,23 +256,23 @@ term_priority(Term, N, Priority) :-
     ).
 
 :- meta_predicate substitute_term_args(?,+,?,?,+,?,?,5,?,?).
-substitute_term_args([PA|PAs], N0, Term, Dict, Caller, Ref, Into, Expander) -->
+substitute_term_args([PA|PAs], N0, Term, Dict, Ref, Into, Expander) -->
     ( {arg(N0, Term, Arg)},
       {term_priority(Term, N0, Priority)},
-      substitute_term_rec(Arg, Priority, Ref, Caller, Into, Expander, Dict, PA)
+      substitute_term_rec(Arg, Priority, Ref, Into, Expander, Dict, PA)
     ; {N is N0 + 1},
-      substitute_term_args(PAs, N, Term, Dict, Caller, Ref, Into, Expander)
+      substitute_term_args(PAs, N, Term, Dict, Ref, Into, Expander)
     ).
 
 :- meta_predicate substitute_term_list(?,?,?,+,?,?,5,?,?).
-substitute_term_list([EP|EPs], TP, [Elem|Term], Dict, Caller, Ref, Into, Expander) -->
+substitute_term_list([EP|EPs], TP, [Elem|Term], Dict, Ref, Into, Expander) -->
     ( {term_priority([_|_], 1, Priority)},
-      substitute_term_rec(Elem, Priority, Ref, Caller, Into, Expander, Dict, EP)
-    ; substitute_term_list(EPs, TP, Term, Dict, Caller, Ref, Into, Expander)
+      substitute_term_rec(Elem, Priority, Ref, Into, Expander, Dict, EP)
+    ; substitute_term_list(EPs, TP, Term, Dict, Ref, Into, Expander)
     ).
-substitute_term_list([], TP, Tail, Dict, Caller, Ref, Into, Expander) -->
+substitute_term_list([], TP, Tail, Dict, Ref, Into, Expander) -->
     {term_priority([_|_], 2, Priority)},
-    substitute_term_rec(Tail, Priority, Ref, Caller, Into, Expander, Dict, TP).
+    substitute_term_rec(Tail, Priority, Ref, Into, Expander, Dict, TP).
 
 :- public collect_file_commands/7.
 % NOTE: Goal and Caller unified here to improve performance -- EMM
