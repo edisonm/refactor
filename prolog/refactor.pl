@@ -51,7 +51,7 @@
 	refactor(1,+),
 	expand_term(+,+,5,+),
 	expand_sentence(+,4,-),
-	expand_goal(?,0,?,+),
+	expand_goal(?,0,5,+),
 	unfold_goal(?,0,+).
 
 refactor(Rule, Action) :-
@@ -330,7 +330,7 @@ substitute_term(Priority, Term, Caller, Expander, Dict, TermPos) -->
 			 TermPos, Pattern, Expansion)},
     expansion_commands_term(TermPos, Term, Priority, Pattern, Expansion).
 
-:- meta_predicate calculate_expansion(4, ?, ?, ?, ?, -, -).
+:- meta_predicate calculate_expansion(5, ?, ?, ?, ?, -, -).
 calculate_expansion(Expander, Term, Dict, Caller, TermPos, Pattern, Expansion) :-
     call(Expander, Caller, Term, Dict, Pattern, Expansion),
     \+ Pattern \= Term,
