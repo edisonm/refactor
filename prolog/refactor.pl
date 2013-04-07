@@ -128,7 +128,7 @@ replace_sentence(M:Term, Expansion, Action) :-
 replace_goal(Caller, Term, Expansion, Action) :-
     replace(goal, Caller, Term, Expansion, Action).
 
-:- meta_predicate expand(+,?,?,5,-).
+:- meta_predicate expand(+,?,?,?,0,-).
 % Expander(+Caller, ?Term, +Dict, -Pattern, -Expansion)
 expand(Level, Caller, Term, Into, Expander, Action) :-
     refactor(meta_expansion(Level, Caller, Term, Into, Expander), Action).
@@ -138,11 +138,7 @@ expand_term(Caller, Term, Into, Expander, Action) :-
 
 % Expander(+Dict, +Term, -Pattern, -Expansion)
 expand_sentence(M:Term, Into, Expander, Action) :-
-    expand(sent, M:Term, Term, Into, expand_sentence_helper(Expander), Action).
-
-:- meta_predicate expand_sentence_helper(4,+,+,+,-,-).
-expand_sentence_helper(Expander, M:Term, Term, Dict, Pattern, Expansion) :-
-    call(Expander, M:Term, Dict, Pattern, Expansion).
+    expand(sent, M:Term, Term, Into, Expander, Action).
 
 expand_goal(Caller, Goal, Into, Expander, Action) :-
     expand(goal, Caller, Goal, Into, Expander, Action).
@@ -181,7 +177,7 @@ collect_expansion_commands(term, Caller, Ref, Into, Expander, FileCommands) :-
 collect_expansion_commands(sent, Caller, Ref, Into, Expander, FileCommands) :-
     style_check(-atom),
     findall(File-Commands,
-	    get_file_commands(substitute_term(1200, Ref, Caller, Into, Expander),
+	    get_file_commands(substitute_term(1200, Ref, Into, Expander),
 			      Caller, File, Commands),
 	    FileCommands).
 
