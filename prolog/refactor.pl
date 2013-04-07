@@ -200,22 +200,25 @@ apply_commands(File-Commands, File-Changes) :-
 		      text_desc(_, Remaining, Remaining)).
 
 :- meta_predicate get_file_commands(4,?,5,-,-).
-get_file_commands(Substituter, M:Term, File, Commands) :-
+get_file_commands(Substituter, M:SentencePattern, File, Commands) :-
     current_module(M),
     M \= user,
     module_property(M, class(user)),
-    get_term_info(M, Term, File,
+    get_term_info(M, SentencePattern, Sentence, File,
 		  [variable_names(Dict), subterm_positions(TermPos)]),
+    SentencePattern = Sentence,
     phrase(call(Substituter, Dict, TermPos), Commands).
 
 :- meta_predicate substitute_term_rec(+,+,?,+,5,+,+,?,?).
 
 substitute_term_rec(Term, Priority, Ref, Into, Expander, Dict, TermPos) -->
-    {subsumes_term(Ref, Term), Ref = Term},
-    substitute_term(Priority, Term, Into, Expander, Dict, TermPos),
-    !.
+	{ subsumes_term(Ref, Term),
+	  copy_term(Ref-Into, Pattern-Replacement),
+	  Ref = Term
+	},
+	substitute_term(Priority, Term, Pattern, Replacement, Expander, Dict, TermPos), !.
 substitute_term_rec(Term, _, Ref, Into, Expander, Dict, TermPos) -->
-    substitute_term_into(TermPos, Term, Dict, Ref, Into, Expander).
+	substitute_term_into(TermPos, Term, Dict, Ref, Into, Expander).
 
 :- meta_predicate substitute_term_into(+,?,+,?,?,5,?,?).
 substitute_term_into(term_position(_, _, _, _, CP), Term, Dict, Ref,
@@ -291,7 +294,7 @@ calculate_commands(Expander, M:Term, Into, Dict, From, File) -->
 
 :- meta_predicate substitute_term(+,?,+,5,+,+,?,?).
 
-substitute_term(Priority, Term, Into, Expander, Dict, TermPos) -->
+substitute_term(Priority, Term, Pattern, Into, Expander, Dict, TermPos) -->
     { calculate_expansion(Expander, Term, Dict, TermPos, Pattern)
     },
     expansion_commands_term(TermPos, Term, Priority, Pattern, Into).
@@ -390,13 +393,16 @@ subst_list([Pos|Poss], Tail, [E|Es], [C|Cs]) :-
     subst_term(Pos, E, C),
     subst_list(Poss, Tail, Es, Cs).
 
-%%	subst_term(+Position, +Pattern, +Into)
+%%	subst_term(+Position, +Pattern, +Term)
 %
-%	Here, Pattern is a term that may   hold variables. It is matched
+%	Here, Pattern is a term  that   holds  variables.  It is matched
 %	against a position term and  if  there   is  a  variable  in the
-%	pattern, this is unified  to   a  '$substitute_by'(Pos, TermTo),
-%	indicating that this position must  be   replaced  by the target
-%	TermTo.
+%	pattern, this is unified to   a  '$substitute_by'(Pos, SubTerm),
+%	indicating that this position currently holds SubTerm.
+%
+%	@param Position is a subterm-position term for Term
+%	@param Term is a source term
+%	@param Pattern is a substitution pattern
 
 subst_term(Pos, Var, Term) :- var(Var), !, Var = '$substitute_by'(Pos, Term).
 subst_term(_, '$substitute_by'(_, _), _) :- !. %Avoid aliasing loops
