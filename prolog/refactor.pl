@@ -108,9 +108,6 @@ rename_predicate_helper(P0, H0, H, P, E) :-
       P = (M:H0 = B), E = (M:H :- B)
     ).
 
-level_term(goal, _:Term, Term) :- !.
-level_term(_,      Term, Term).
-
 replace(Level, Sentence, From, Into, Action) :-
     refactor(meta_expansion(Level, Sentence, From, Into, true),
 	     Action).
