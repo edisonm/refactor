@@ -291,10 +291,10 @@ calculate_commands(Expander, M:Term, Into, Dict, From, File) -->
 
 :- meta_predicate substitute_term(+,?,+,5,+,+,?,?).
 
-substitute_term(Priority, Term, Expansion, Expander, Dict, TermPos) -->
-    {calculate_expansion(Expander, Term, Dict,
-			 TermPos, Pattern)},
-    expansion_commands_term(TermPos, Term, Priority, Pattern, Expansion).
+substitute_term(Priority, Term, Into, Expander, Dict, TermPos) -->
+    { calculate_expansion(Expander, Term, Dict, TermPos, Pattern)
+    },
+    expansion_commands_term(TermPos, Term, Priority, Pattern, Into).
 
 :- meta_predicate calculate_expansion(5, ?, ?, ?, ?, -, -).
 calculate_expansion(Expander, Term, Dict, TermPos, Pattern) :-
@@ -389,6 +389,14 @@ subst_list([], Tail, E, C) :-
 subst_list([Pos|Poss], Tail, [E|Es], [C|Cs]) :-
     subst_term(Pos, E, C),
     subst_list(Poss, Tail, Es, Cs).
+
+%%	subst_term(+Position, +Pattern, +Into)
+%
+%	Here, Pattern is a term that may   hold variables. It is matched
+%	against a position term and  if  there   is  a  variable  in the
+%	pattern, this is unified  to   a  '$substitute_by'(Pos, TermTo),
+%	indicating that this position must  be   replaced  by the target
+%	TermTo.
 
 subst_term(Pos, Var, Term) :- var(Var), !, Var = '$substitute_by'(Pos, Term).
 subst_term(_, '$substitute_by'(_, _), _) :- !. %Avoid aliasing loops
