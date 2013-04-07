@@ -92,14 +92,14 @@ rename_predicate(M:Name0/Arity, Name, Action) :-
     H  =.. [Name|Args],
     functor(P0, Name0, Arity),
     replace_goal(_, M:H0, H, Action), % Replace calls
-    expand_term(_:Term, Term,
-		rename_predicate_helper(P0, H0,H), % Replace heads
+    expand_term(_:Term, Term, Into,
+		rename_predicate_helper(P0,H0,H,Term,Into), % Replace heads
 		Action),
     replace_term(M:_, Name0/Arity, Name/Arity, Action). % Replace PIs
 
-rename_predicate_helper(P0, H0, H, _:T0, T, _, P, E) :-
-    nonvar(T),
-    T==T0,
+rename_predicate_helper(P0, H0, H, P, E) :-
+%    nonvar(T),
+%    T==T0,
     ( T = P0 ->
       P = H0, E = H
     ; T = (P0 :- _) ->
@@ -111,12 +111,9 @@ rename_predicate_helper(P0, H0, H, _:T0, T, _, P, E) :-
 level_term(goal, _:Term, Term) :- !.
 level_term(_,      Term, Term).
 
-replace(Level, Caller0, Ref0, Expansion, Action) :-
-    level_term(Level, Ref0, Term),
-    copy_term(Caller0-Ref0, Caller-Ref),
-    refactor(meta_expansion(Level, Caller, Ref,
-			    source_expansion_helper(Term, Expansion)),
-		Action).
+replace(Level, Sentence, From, Into, Action) :-
+    refactor(meta_expansion(Level, Sentence, From, Into, true),
+	     Action).
 
 replace_term(Caller, Term, Expansion, Action) :-
     replace(term, Caller, Term, Expansion, Action).
@@ -184,8 +181,6 @@ collect_expansion_commands(sent, Caller, Ref, Into, Expander, FileCommands) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% ANCILLARY PREDICATES:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-source_expansion_helper(Pattern, Expansion, _, _, _, Pattern, Expansion).
 
 apply_file_commands(Pairs, FileChanges) :-
     keysort(Pairs, Sorted),
