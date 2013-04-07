@@ -270,8 +270,9 @@ substitute_term_list([], TP, Tail, Dict, Ref, Into, Expander) -->
 :- meta_predicate collect_file_commands(?,?,0,?,?,?).
 collect_file_commands(Caller, Term, Into, Expander, Callee, Caller, From) :-
     Dict = [],			% TODO: Calculate Dict
+    copy_term(Term-Into, Pattern-Replacement),
     Term = Callee,
-    calculate_commands(Expander, Callee, Into, Dict, From, File, Commands, []),
+    calculate_commands(Expander, Callee, Pattern, Replacement, Dict, From, File, Commands, []),
     assertz(file_commands_db(File, Commands)).
 
 :- multifile
@@ -283,14 +284,14 @@ prolog:message(acheck(refactor(Goal, From))) -->
     ['Unable to refactor ~w, no term position information available'-[Goal], nl].
 
 :- meta_predicate calculate_commands(4,?,?,?,?,?,?,?).
-calculate_commands(Expander, M:Term, Into, Dict, From, File) -->
+calculate_commands(Expander, M:Term, Pattern, Into, Dict, From, File) -->
     { From = clause_term_position(ClauseRef, TermPos) ->
       clause_property(ClauseRef, file(File))
     ; From = file_term_position(File, TermPos) -> true
     ; print_message(error, acheck(refactor(M:Term, From))),
       fail
     },
-    substitute_term(1200, Term, Into, Expander, Dict, TermPos).
+    substitute_term(1200, Term, Pattern, Into, Expander, Dict, TermPos).
 
 :- meta_predicate substitute_term(+,?,+,5,+,+,?,?).
 
