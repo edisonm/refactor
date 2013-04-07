@@ -192,7 +192,7 @@ collect_expansion_commands(goal, Caller, Term, Expander, FileCommands) :- !,
     prolog_walk_code([trace_reference(Term),
 		      infer_meta_predicates(false),
 		      evaluate(false),
-		      on_trace(collect_file_commands(Caller, Expander))]),
+		      on_trace(collect_file_commands(Caller, Term, Expander))]),
     findall(File-Commands, retract(file_commands_db(File, Commands)), FileCommands).
 collect_expansion_commands(term, Caller, Ref, Expander, FileCommands) :-
     style_check(-atom),
@@ -297,12 +297,13 @@ substitute_term_list([], TP, Tail, Dict, Caller, Ref, Expander) -->
     {term_priority([_|_], 2, Priority)},
     substitute_term_rec(Tail, Priority, Ref, Caller, Expander, Dict, TP).
 
-:- export(collect_file_commands/5).
+:- public collect_file_commands/6.
 % NOTE: Goal and Caller unified here to improve performance -- EMM
-:- meta_predicate collect_file_commands(?,4,?,?,?).
-collect_file_commands(Caller, Expander, Ref, Caller, From) :-
+:- meta_predicate collect_file_commands(?,?,5,?,?,?).
+collect_file_commands(Caller, Term, Expander, Callee, Caller, From) :-
     Dict = [],			% TODO: Calculate Dict
-    calculate_commands(Expander, Ref, Dict, Caller, From, File, Commands, []),
+    Term = Callee,
+    calculate_commands(Expander, Callee, Dict, Caller, From, File, Commands, []),
     assertz(file_commands_db(File, Commands)).
 
 :- multifile
