@@ -179,19 +179,31 @@ collect_expansion_commands(goal, Caller, Term, Into, Expander, FileCommands) :-
 	    FileCommands).
 collect_expansion_commands(term, Caller, Ref, Into, Expander, FileCommands) :-
     style_check(-atom),
-    _:Term = Caller,
+    M:SentencePattern = Caller,
     findall(File-Commands,
-	    get_file_commands(substitute_term_rec(Term, 1200,
-						  Ref, Into, Expander),
-			      Caller, File, Commands),
+	    ( refactor_module(M),
+	      get_term_info(M, SentencePattern, Sentence, File,
+			    [ variable_names(Dict),
+			      subterm_positions(TermPos)
+			    ]),
+	      phrase(substitute_term_rec(Sentence, 1200,
+					 Ref, Into, Expander, Dict, TermPos),
+		     Commands)
+	    ),
 	    FileCommands).
 collect_expansion_commands(sent, Caller, Ref, Into, Expander, FileCommands) :-
     style_check(-atom),
-    _:Term = Caller,
+    M:SentencePattern = Caller,
     findall(File-Commands,
-	    get_file_commands(substitute_term_norec(Term, 1200,
-						    Ref, Into, Expander),
-			      Caller, File, Commands),
+	    ( refactor_module(M),
+	      get_term_info(M, SentencePattern, Sentence, File,
+			    [ variable_names(Dict),
+			      subterm_positions(TermPos)
+			    ]),
+	      phrase(substitute_term_norec(Sentence, 1200,
+					   Ref, Into, Expander, Dict, TermPos),
+		     Commands)
+	    ),
 	    FileCommands).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -217,18 +229,15 @@ apply_commands(File-Commands, File-Changes) :-
 		      text_desc(0, Text, Changes),
 		      text_desc(_, Remaining, Remaining)).
 
-:- meta_predicate get_file_commands(4,?,5,-,-).
+%%	refactor_module(?M)
+%
+%	True when M is a module we should refactor.
 
-%%	get_file_commands(:Substituter, +Sentence, -File, -Commands)
+refactor_module(M) :-
+	current_module(M),
+	M \= user,				% Dubious --JW
+	module_property(M, class(user)).
 
-get_file_commands(Substituter, M:SentencePattern, File, Commands) :-
-    current_module(M),
-    M \= user,				% Dubious --JW
-    module_property(M, class(user)),
-    get_term_info(M, SentencePattern, Sentence, File,
-		  [variable_names(Dict), subterm_positions(TermPos)]),
-    SentencePattern = Sentence,
-    phrase(call(Substituter, Dict, TermPos), Commands).
 
 %%	substitute_term_rec(+SrcTerm, +Priority, +Pattern, -Into,
 %			    :Expander, +Dict, +TermPos)// is nondet.
