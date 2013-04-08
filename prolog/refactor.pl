@@ -302,11 +302,23 @@ substitute_term_list([], TP, Tail, Dict, Ref, Into, Expander) -->
 :- public collect_file_commands/7.
 % NOTE: Goal and Caller unified here to improve performance -- EMM
 :- meta_predicate collect_file_commands(?,?,0,?,?,?).
-collect_file_commands(Caller, Term, Into, Expander, Callee, Caller, From) :-
+
+%%	collect_file_commands(+Sentence, +Pattern, +Into, :Expander,
+%%			      +Callee, +Caller, +Location)
+%
+%	Called from prolog_walk_code/1 on a call  from Caller to Callee.
+%	The parameters Sentence to Expander are provided by the on_trace
+%	closure  passed  to  prolog_walk_code/1.    Callee,  Caller  and
+%	Location are added by prolog_walk_code/1.
+
+collect_file_commands(CallerPattern, Pattern, Into, Expander, Callee, Caller, From) :-
     Dict = [],			% TODO: Calculate Dict
-    copy_term(Term-Into, Pattern-Replacement),
-    Term = Callee,
-    calculate_commands(Expander, Callee, Pattern, Replacement, Dict, From, File, Commands, []),
+    subsumes_term(CallerPattern, Caller),
+    % Unify these?
+    copy_term(t(Pattern,Into,Expander),
+	      t(PatternCopy,IntoCopy,Expander)),
+    Pattern = Callee,
+    calculate_commands(Expander, Callee, PatternCopy, IntoCopy, Dict, From, File, Commands, []),
     assertz(file_commands_db(File, Commands)).
 
 :- multifile
@@ -318,7 +330,7 @@ prolog:message(acheck(refactor(Goal, From))) -->
     ['Unable to refactor ~w, no term position information available'-[Goal], nl].
 
 :- meta_predicate calculate_commands(4,?,?,?,?,?,?,?).
-calculate_commands(Expander, M:Term, Pattern, Into, Dict, From, File) -->
+calculate_commands(Expander, M:Term, M:Pattern, Into, Dict, From, File) -->
     { From = clause_term_position(ClauseRef, TermPos) ->
       clause_property(ClauseRef, file(File))
     ; From = file_term_position(File, TermPos) -> true
