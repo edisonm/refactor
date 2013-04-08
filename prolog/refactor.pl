@@ -229,7 +229,7 @@ get_file_commands(Substituter, M:SentencePattern, File, Commands) :-
 %	Into in SrcTerm. This predicate must  be cautious about handling
 %	bindings:
 %
-%	  - Overall bindings to not affect further substitutions because
+%	  - Overall bindings do not affect further substitutions because
 %	    we are managed by findall/3 in collect_expansion_commands/6.
 %	  - Pattern must not be instantiated by either unification with
 %	    SrcTerm or the execution of Expander.  This is needed for
