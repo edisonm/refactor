@@ -303,6 +303,17 @@ calculate_commands(Expander, M:Term, Pattern, Into, Dict, From, File) -->
 
 :- meta_predicate substitute_term(+,?,+,5,+,+,?,?).
 
+%%	substitute_term(+Priority, +SrcTerm, +Pattern, +Into,
+%%			:Expander, +Dict, +TermPos)
+%
+%	Substitute occurences of Pattern with Into after calling
+%	expansion.
+%
+%	@param SrcTerm is the term as read from the source
+%	@param Dict is the variable name assignment in SrcTerm
+%	@param TermPos is the term layout of SrcTerm
+%	@param Priority is the environment operator priority
+
 substitute_term(Priority, Term, Pattern, Into, Expander, Dict, TermPos) -->
     { calculate_expansion(Expander, Term, Dict, TermPos, Pattern)
     },
