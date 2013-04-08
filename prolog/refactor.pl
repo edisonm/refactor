@@ -132,7 +132,8 @@ expand(Level, Caller, Term, Into, Expander, Action) :-
 expand_term(Caller, Term, Into, Expander, Action) :-
     expand(term, Caller, Term, Into, Expander, Action).
 
-% Expander(+Dict, +Term, -Pattern, -Expansion)
+%%	expand_sentence(?Sentence, ?Into, :Expander, +Action).
+
 expand_sentence(M:Term, Into, Expander, Action) :-
     expand(sent, M:Term, Term, Into, Expander, Action).
 
@@ -177,13 +178,16 @@ collect_expansion_commands(term, Caller, Ref, Into, Expander, FileCommands) :-
     style_check(-atom),
     _:Term = Caller,
     findall(File-Commands,
-	    get_file_commands(substitute_term_rec(Term, 1200, Ref, Into, Expander),
+	    get_file_commands(substitute_term_rec(Term, 1200,
+						  Ref, Into, Expander),
 			      Caller, File, Commands),
 	    FileCommands).
 collect_expansion_commands(sent, Caller, Ref, Into, Expander, FileCommands) :-
     style_check(-atom),
+    _:Term = Caller,
     findall(File-Commands,
-	    get_file_commands(substitute_term(1200, Ref, Into, Expander),
+	    get_file_commands(substitute_term_norec(Term, 1200,
+						    Ref, Into, Expander),
 			      Caller, File, Commands),
 	    FileCommands).
 
@@ -222,6 +226,23 @@ get_file_commands(Substituter, M:SentencePattern, File, Commands) :-
 		  [variable_names(Dict), subterm_positions(TermPos)]),
     SentencePattern = Sentence,
     phrase(call(Substituter, Dict, TermPos), Commands).
+
+%%	substitute_term_rec(+SrcTerm, +Priority, +Pattern, -Into,
+%			    :Expander, +Dict, +TermPos)// is nondet.
+%
+%	None-recursive version of substitute_term_rec//7.
+
+substitute_term_norec(Term, Priority, Pattern, Into,
+		      Expander, Dict, TermPos) -->
+	{ subsumes_term(Pattern, Term),
+	  copy_term(t(Pattern,Into,Expander),
+		    t(PatternCopy,IntoCopy,Expander)),
+	  Pattern = Term
+	},
+	substitute_term(Priority, Term,
+			PatternCopy, IntoCopy, Expander,
+			Dict, TermPos), !.
+
 
 :- meta_predicate substitute_term_rec(+,+,?,+,5,+,+,?,?).
 
