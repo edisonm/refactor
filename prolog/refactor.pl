@@ -223,37 +223,30 @@ get_file_commands(Substituter, M:SentencePattern, File, Commands) :-
 :- meta_predicate substitute_term_rec(+,+,?,+,5,+,+,?,?).
 
 %%	substitute_term_rec(+SrcTerm, +Priority, +Pattern, -Into,
-%			    :Expander, +Dict, +TermPos)
+%			    :Expander, +Dict, +TermPos)// is nondet.
 %
-%	Compute the recursive substitution  from   SrcTerm  into Into if
-%	SrcTerm subsumes Pattern and Expander is true. This predicate is
-%	called with SrcTerm bound to the sentence that has been matched.
-%	It recurses through the sentence until   it finds a subterm that
-%	subsumes Pattern. After such a  match,   it  must  carry out the
-%	substitution. Now, we must  be   careful  about  instantiations.
-%	Notably:
+%	True when the DCG list contains   a  substitution for Pattern by
+%	Into in SrcTerm. This predicate must   be cautios about handling
+%	bindings:
 %
-%	  - We must not instantiate the pattern (see substitute_term/7)
-%	  - Calling Expander may test the environment and instantiate
-%	    the replacement.  Bindings should not escape from this
-%	    environment to avoid influence on further replacements.
+%	  - Overall bindings to not affect further substitutions because
+%	    we are managed by findall/3 in collect_expansion_commands/6.
+%	  - Pattern must not be instantiated by either unification with
+%	    SrcTerm or the execution of Expander.  This is needed for
+%	    substitute_term/7 to find the correct replacements.
 %
-%	Note that Sentence is already  bound   to  the sentence that was
-%	read. Sentence should  *not*  share   variables  with  the  term
-%	pattern. Otherwise, bindings from  Sentence   are  safe  because
-%	processing is failure driven at the sentence level.
-%
-%	Therefore, we need to copy Pattern and   Into  and these need to
-%	remain sharing with Expander.
+%	To avoid binding Pattern, we need to copy Pattern and Into while
+%	maintaining sharing with Expander.  Next,   we  can safely unify
+%	Pattern with the SrcTerm.
 
-substitute_term_rec(Term, Priority, Ref, Into, Expander, Dict, TermPos) -->
-	{ subsumes_term(Ref, Term),
-	  copy_term(t(Ref,Into,Expander),
-		    t(Pattern,Replacement,Expander)),
-	  Ref = Term
+substitute_term_rec(Term, Priority, Pattern, Into, Expander, Dict, TermPos) -->
+	{ subsumes_term(Pattern, Term),
+	  copy_term(t(Pattern,Into,Expander),
+		    t(PatternCopy,IntoCopy,Expander)),
+	  Pattern = Term
 	},
 	substitute_term(Priority, Term,
-			Pattern, Replacement, Expander,
+			PatternCopy, IntoCopy, Expander,
 			Dict, TermPos), !.
 substitute_term_rec(Term, _, Ref, Into, Expander, Dict, TermPos) -->
 	substitute_term_into(TermPos, Term, Dict, Ref, Into, Expander).
