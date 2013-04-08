@@ -27,45 +27,17 @@
     the GNU General Public License.
 */
 
-:- module(term_info, [get_term_info/4]).
+:- module(included_files, [included_files/3]).
 
-:- use_module(library(included_files)).
+includes([])           --> [].
+includes([File|Files]) -->
+    findall(I, source_file_property(File, includes(I, _))),
+    includes(Files).
 
-% BUG: Files are not uniques
-module_files(M, Files) :-
-    module_file_list(M, UFilesL),
-    append(UFilesL, UFiles),
-    sort(UFiles, Files).
-
-module_file_list(M, Files) :-
-    findall(F, module_file_1(M, F), UFiles),
-    sort(UFiles, Files0),
-    included_files(Files0, Files, [Files0]).
-
-module_file_1(M, File) :-
-    module_property(M, file(File)).
-module_file_1(M, File) :-
-    '$load_context_module'(File, M, _),
-    \+ module_property(_, file(File)).
-
-get_term_info(M, Term, File, Options) :-
-    module_files(M, Files),
-    member(File, Files),
-    get_term_info_file(Term, File, [module(M)|Options]).
-
-get_term_info_file(Term, File, Options) :-
-    catch(setup_call_cleanup(open(File, read, In),
-			     get_term_info_fd(In, Term, Options),
-			     close(In)),
-	  E, (print_message(error, E), fail)).
-
-get_term_info_fd(In, Ref, Options) :-
-    repeat,
-    catch(read_term(In, Term, Options),
-	  E, (print_message(error, E), fail)),
-    ( Term = end_of_file ->
-      !,
-      fail
-    ; subsumes_term(Ref, Term),
-      Ref = Term
+included_files(Files, List, Tail) :-
+    includes(Files, Included, []),
+    ( Included = [] -> List = Tail
+    ; sort(Included, Sorted),
+      List = [Sorted|List1],
+      included_files(Sorted, List1, Tail)
     ).
