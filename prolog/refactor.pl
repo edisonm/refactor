@@ -44,7 +44,7 @@
 :- use_module(library(file_changes)).
 :- use_module(library(term_info)).
 
-:- dynamic file_commands_db/2.
+:- thread_local file_commands_db/2.
 
 :- meta_predicate
 	refactor(1,+),
@@ -163,12 +163,16 @@ meta_expansion(Level, Caller, Term, Into, Expander, FileChanges) :-
 			       FileCommands),
     apply_file_commands(FileCommands, FileChanges).
 
-collect_expansion_commands(goal, Caller, Term, Into, Expander, FileCommands) :- !,
-    prolog_walk_code([trace_reference(Term),
-		      infer_meta_predicates(false),
-		      evaluate(false),
-		      on_trace(collect_file_commands(Caller, Term, Into, Expander))]),
-    findall(File-Commands, retract(file_commands_db(File, Commands)), FileCommands).
+collect_expansion_commands(goal, Caller, Term, Into, Expander, FileCommands) :-
+    prolog_walk_code(
+	[ trace_reference(Term),
+	  infer_meta_predicates(false),
+	  evaluate(false),
+	  on_trace(collect_file_commands(Caller, Term, Into, Expander))
+	]),
+    findall(File-Commands,
+	    retract(file_commands_db(File, Commands)),
+	    FileCommands).
 collect_expansion_commands(term, Caller, Ref, Into, Expander, FileCommands) :-
     style_check(-atom),
     _:Term = Caller,
