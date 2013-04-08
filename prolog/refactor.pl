@@ -213,10 +213,12 @@ get_file_commands(Substituter, M:SentencePattern, File, Commands) :-
 
 substitute_term_rec(Term, Priority, Ref, Into, Expander, Dict, TermPos) -->
 	{ subsumes_term(Ref, Term),
-	  copy_term(Ref-Into, Pattern-Replacement),
+	  copy_term(t(Ref,Into,Expander),
+		    t(Pattern,Replacement,Expander2)),
+	  Expander2 = Expander,
 	  Ref = Term
 	},
-	substitute_term(Priority, Term, Pattern, Replacement, Expander, Dict, TermPos), !.
+	substitute_term(Priority, Term, Pattern, Replacement, Expander2, Dict, TermPos), !.
 substitute_term_rec(Term, _, Ref, Into, Expander, Dict, TermPos) -->
 	substitute_term_into(TermPos, Term, Dict, Ref, Into, Expander).
 
