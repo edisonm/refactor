@@ -198,8 +198,7 @@ apply_file_commands(Pairs, FileChanges) :-
 compact_group(Key-LList, Key-Uniques) :-
     append(LList, List),
     List \== [],
-    sort(List, Sorted),
-    collapse_list(Sorted, Uniques).
+    sort(List, Uniques).
 
 apply_commands(File-Commands, File-Changes) :-
     read_file_to_codes(File, Text, []),
@@ -455,18 +454,6 @@ subst_term(list_position(_, _, Elms, Tail), Term, CTerm) :- !,
     subst_list(Elms, Tail, Term, CTerm).
 subst_term(none, T, T) :- !.
 subst_term(_, T, T).
-
-collapse_list([], []).
-collapse_list([E|L], R) :-
-    collapse_list2(L, E, R).
-
-collapse_list2([], E, [E]).
-collapse_list2([E|L], E0, R0) :-
-    collapse_elem(E, E0, R0, R),
-    collapse_list2(L, E, R).
-
-collapse_elem(E, E, R,     R) :- !.
-collapse_elem(_, E, [E|R], R).
 
 apply_pos_changes([], _, _) --> [].
 apply_pos_changes([Pos-Changes|PosChanges], Text, File) -->
