@@ -226,7 +226,7 @@ get_file_commands(Substituter, M:SentencePattern, File, Commands) :-
 %			    :Expander, +Dict, +TermPos)// is nondet.
 %
 %	True when the DCG list contains   a  substitution for Pattern by
-%	Into in SrcTerm. This predicate must   be cautios about handling
+%	Into in SrcTerm. This predicate must  be cautious about handling
 %	bindings:
 %
 %	  - Overall bindings to not affect further substitutions because
