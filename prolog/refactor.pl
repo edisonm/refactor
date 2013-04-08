@@ -127,6 +127,8 @@ replace_goal(Caller, Term, Expansion, Action) :-
 expand(Level, Caller, Term, Into, Expander, Action) :-
     refactor(meta_expansion(Level, Caller, Term, Into, Expander), Action).
 
+%%	expand_term(?Sentence, ?Term, ?Replacement, :Expander, +Action)
+
 expand_term(Caller, Term, Into, Expander, Action) :-
     expand(term, Caller, Term, Into, Expander, Action).
 
@@ -149,7 +151,13 @@ unfold_goal(Module, MGoal, Action) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 :- meta_predicate meta_expansion(+,?,?,-,0,-).
-% Expander(+Term, +Dict, +Caller, -Pattern, -Expansion)
+
+%%	meta_expansion(+Level, +Sentence, +Term, +Into,
+%%		       :Expander, -FileChanges) is det
+%
+%	Expand  terms  that  subsume  Term  in  sentences  that  subsume
+%	Sentence into Into if Expander is true.
+
 meta_expansion(Level, Caller, Term, Into, Expander, FileChanges) :-
     collect_expansion_commands(Level, Caller, Term, Into, Expander,
 			       FileCommands),
@@ -200,9 +208,12 @@ apply_commands(File-Commands, File-Changes) :-
 		      text_desc(_, Remaining, Remaining)).
 
 :- meta_predicate get_file_commands(4,?,5,-,-).
+
+%%	get_file_commands(:Substituter, +Sentence, -File, -Commands)
+
 get_file_commands(Substituter, M:SentencePattern, File, Commands) :-
     current_module(M),
-    M \= user,
+    M \= user,				% Dubious --JW
     module_property(M, class(user)),
     get_term_info(M, SentencePattern, Sentence, File,
 		  [variable_names(Dict), subterm_positions(TermPos)]),
@@ -211,8 +222,8 @@ get_file_commands(Substituter, M:SentencePattern, File, Commands) :-
 
 :- meta_predicate substitute_term_rec(+,+,?,+,5,+,+,?,?).
 
-%%	substitute_term_rec(+SrcTerm, +Priority, +Pattern, -Into,
-%%			    :Expander, +Dict, +TermPos)
+%%	substitute_term_rec(+Sentence, +Priority, +Pattern, -Into,
+%			    :Expander, +Dict, +TermPos)
 %
 %	Compute the recursive substitution from SrcTerm into Into if
 %	SrcTerm subsumes Pattern and Expander is true.
@@ -224,7 +235,9 @@ substitute_term_rec(Term, Priority, Ref, Into, Expander, Dict, TermPos) -->
 	  Expander2 = Expander,
 	  Ref = Term
 	},
-	substitute_term(Priority, Term, Pattern, Replacement, Expander2, Dict, TermPos), !.
+	substitute_term(Priority, Term,
+			Pattern, Replacement, Expander2,
+			Dict, TermPos), !.
 substitute_term_rec(Term, _, Ref, Into, Expander, Dict, TermPos) -->
 	substitute_term_into(TermPos, Term, Dict, Ref, Into, Expander).
 
