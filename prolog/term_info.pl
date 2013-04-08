@@ -32,26 +32,24 @@
 	    get_term_info/5
 	  ]).
 :- use_module(library(prolog_source)).
+:- use_module(library(included_files)).
 
 % BUG: Files are not uniques
 module_files(M, Files) :-
-    findall(File, module_file(M, File), UFiles),
+    module_file_list(M, UFilesL),
+    append(UFilesL, UFiles),
     sort(UFiles, Files).
 
-module_file(M, File) :-
-    module_file_1(M, File0),
-    module_file_2(M, File0, File).
+module_file_list(M, Files) :-
+    findall(F, module_file_1(M, F), UFiles),
+    sort(UFiles, Files0),
+    included_files(Files0, Files, [Files0]).
 
 module_file_1(M, File) :-
     module_property(M, file(File)).
 module_file_1(M, File) :-
     '$load_context_module'(File, M, _),
     \+ module_property(_, file(File)).
-
-module_file_2(_, File, File).
-module_file_2(M, File0, File) :-
-    source_file_property(File0, includes(File1,_)),
-    module_file_2(M, File1, File).
 
 get_term_info(M, Pattern, File, Options) :-
 	get_term_info(M, Pattern, Term, File, Options),
@@ -79,5 +77,3 @@ get_term_info_fd(In, Pattern, Term, Options) :-
       fail
     ; subsumes_term(Pattern, Term)
     ).
-
-% match_reference(F/A,   Term) :- functor(Term, F, A).
