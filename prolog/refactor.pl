@@ -211,6 +211,12 @@ get_file_commands(Substituter, M:SentencePattern, File, Commands) :-
 
 :- meta_predicate substitute_term_rec(+,+,?,+,5,+,+,?,?).
 
+%%	substitute_term_rec(+SrcTerm, +Priority, +Pattern, -Into,
+%%			    :Expander, +Dict, +TermPos)
+%
+%	Compute the recursive substitution from SrcTerm into Into if
+%	SrcTerm subsumes Pattern and Expander is true.
+
 substitute_term_rec(Term, Priority, Ref, Into, Expander, Dict, TermPos) -->
 	{ subsumes_term(Ref, Term),
 	  copy_term(t(Ref,Into,Expander),
