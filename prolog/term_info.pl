@@ -27,20 +27,20 @@
     the GNU General Public License.
 */
 
-:- module(term_info, [get_term_info/4]).
-
-:- use_module(library(included_files)).
+:- module(term_info,
+	  [ get_term_info/4,
+	    get_term_info/5
+	  ]).
+:- use_module(library(prolog_source)).
 
 % BUG: Files are not uniques
 module_files(M, Files) :-
-    module_file_list(M, UFilesL),
-    append(UFilesL, UFiles),
+    findall(File, module_file(M, File), UFiles),
     sort(UFiles, Files).
 
-module_file_list(M, Files) :-
-    findall(F, module_file_1(M, F), UFiles),
-    sort(UFiles, Files0),
-    included_files(Files0, Files, [Files0]).
+module_file(M, File) :-
+    module_file_1(M, File0),
+    module_file_2(M, File0, File).
 
 module_file_1(M, File) :-
     module_property(M, file(File)).
@@ -48,24 +48,36 @@ module_file_1(M, File) :-
     '$load_context_module'(File, M, _),
     \+ module_property(_, file(File)).
 
-get_term_info(M, Term, File, Options) :-
+module_file_2(_, File, File).
+module_file_2(M, File0, File) :-
+    source_file_property(File0, includes(File1,_)),
+    module_file_2(M, File1, File).
+
+get_term_info(M, Pattern, File, Options) :-
+	get_term_info(M, Pattern, Term, File, Options),
+	Term = Pattern.
+
+get_term_info(M, Pattern, Term, File, Options) :-
     module_files(M, Files),
     member(File, Files),
-    get_term_info_file(Term, File, [module(M)|Options]).
+    get_term_info_file(Pattern, Term, File, [module(M)|Options]).
 
-get_term_info_file(Term, File, Options) :-
-    catch(setup_call_cleanup(open(File, read, In),
-			     get_term_info_fd(In, Term, Options),
-			     close(In)),
+get_term_info_file(Pattern, Term, File, Options) :-
+	catch(setup_call_cleanup(
+		  ( prolog_canonical_source(File, Path),
+		    prolog_open_source(Path, In)
+		  ),
+		  get_term_info_fd(In, Pattern, Term, Options),
+		  prolog_close_source(In)),
 	  E, (print_message(error, E), fail)).
 
-get_term_info_fd(In, Ref, Options) :-
+get_term_info_fd(In, Pattern, Term, Options) :-
     repeat,
-    catch(read_term(In, Term, Options),
-	  E, (print_message(error, E), fail)),
-    ( Term = end_of_file ->
+    prolog_read_source_term(In, Term, _Expanded, Options),
+    ( Term == end_of_file ->
       !,
       fail
-    ; subsumes_term(Ref, Term),
-      Ref = Term
+    ; subsumes_term(Pattern, Term)
     ).
+
+% match_reference(F/A,   Term) :- functor(Term, F, A).
