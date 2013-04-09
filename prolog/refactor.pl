@@ -38,8 +38,7 @@
 		     replace_term_id/4,
 		     unfold_goal/3,
 		     rename_predicate/3,
-		     (==>)/2,
-		     op(1090, xfx, (==>))
+		     source/2
 		    ]).
 
 :- use_module(library(readutil)).
@@ -255,21 +254,28 @@ substitute_term_norec(Term, Priority, Pattern, Into,
 :- meta_predicate
 	with_context(+, +, 0).
 
-Cond ==> Action :-
-	b_getval(refactor_term_map, Term-Pattern),
-	\+ \+ (Term=Pattern, call(Cond)),
-	call(Action).
+source(Var, Src) :-
+	get_attr(Var, source, SV),
+	subsumes_term(Src, SV),
+	Src = SV.
 
-with_context(Dict, SrcMap, Goal) :-
+with_context(Dict, Src-Pattern, Goal) :-
+	copy_term(Pattern, PatternCopy),
+	term_variables(Pattern, PatternVars),
+	term_variables(PatternCopy, CopyVars),
+	maplist(set_source, PatternVars, CopyVars),
+	PatternCopy = Src,
 	setup_call_cleanup(
-	    ( b_setval(refactor_variable_names, Dict),
-	      b_setval(refactor_term_map, SrcMap)
+	    ( b_setval(refactor_variable_names, Dict)
 	    ),
 	    call(Goal),
-	    ( nb_delete(refactor_variable_names),
-	      nb_delete(refactor_term_map)
+	    ( nb_delete(refactor_variable_names)
 	    )).
 
+source:attr_unify_hook(_,_).
+
+set_source(PV, CV) :-
+	put_attr(PV, source, CV).
 
 :- meta_predicate substitute_term_rec(+,+,?,+,5,+,+,?,?).
 
