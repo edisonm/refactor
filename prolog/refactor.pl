@@ -37,7 +37,10 @@
 		     expand_sentence/4,
 		     replace_term_id/4,
 		     unfold_goal/3,
-		     rename_predicate/3]).
+		     rename_predicate/3,
+		     (==>)/2,
+		     op(1090, xfx, (==>))
+		    ]).
 
 :- use_module(library(readutil)).
 :- use_module(library(prolog_codewalk)).
@@ -153,7 +156,8 @@ expand(Level, Caller, Term, Into, Expander, Action) :-
 expand_term(Caller, Term, Into, Expander, Action) :-
     expand(term, Caller, Term, Into, Expander, Action).
 
-% Expander(+Dict, +Term, -Pattern, -Expansion)
+%%	expand_sentence(?Sentence, ?Into, :Expander, +Action).
+
 expand_sentence(M:Term, Into, Expander, Action) :-
     expand(sent, M:Term, Term, Into, Expander, Action).
 
@@ -192,16 +196,31 @@ collect_expansion_commands(goal, Caller, Term, Into, Expander, FileCommands) :- 
     findall(File-Commands, retract(file_commands_db(File, Commands)), FileCommands).
 collect_expansion_commands(term, Caller, Ref, Into, Expander, FileCommands) :-
     style_check(-atom),
-    _:Term = Caller,
+    M:SentencePattern = Caller,
     findall(File-Commands,
-	    get_file_commands(substitute_term_rec(Term, 1200, Ref, Into, Expander),
-			      Caller, File, Commands),
+	    ( refactor_module(M),
+	      get_term_info(M, SentencePattern, Sentence, File,
+			    [ variable_names(Dict),
+			      subterm_positions(TermPos)
+			    ]),
+	      phrase(substitute_term_rec(Sentence, 1200,
+					 Ref, Into, Expander, Dict, TermPos),
+		     Commands)
+	    ),
 	    FileCommands).
 collect_expansion_commands(sent, Caller, Ref, Into, Expander, FileCommands) :-
     style_check(-atom),
+    M:SentencePattern = Caller,
     findall(File-Commands,
-	    get_file_commands(substitute_term(1200, Ref, Into, Expander),
-			      Caller, File, Commands),
+	    ( refactor_module(M),
+	      get_term_info(M, SentencePattern, Sentence, File,
+			    [ variable_names(Dict),
+			      subterm_positions(TermPos)
+			    ]),
+	      phrase(substitute_term_norec(Sentence, 1200,
+					   Ref, Into, Expander, Dict, TermPos),
+		     Commands)
+	    ),
 	    FileCommands).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -227,18 +246,47 @@ apply_commands(File-Commands, File-Changes) :-
 		      text_desc(0, Text, Changes),
 		      text_desc(_, Remaining, Remaining)).
 
-:- meta_predicate get_file_commands(4,?,5,-,-).
+%%	refactor_module(?M)
+%
+%	True when M is a module we should refactor.
 
-%%	get_file_commands(:Substituter, +Sentence, -File, -Commands)
+refactor_module(M) :-
+	current_module(M),
+	M \= user,				% Dubious --JW
+	module_property(M, class(user)).
 
-get_file_commands(Substituter, M:SentencePattern, File, Commands) :-
-    current_module(M),
-    M \= user,				% Dubious --JW
-    module_property(M, class(user)),
-    get_term_info(M, SentencePattern, Sentence, File,
-		  [variable_names(Dict), subterm_positions(TermPos)]),
-    SentencePattern = Sentence,
-    phrase(call(Substituter, Dict, TermPos), Commands).
+
+%%	substitute_term_rec(+SrcTerm, +Priority, +Pattern, -Into,
+%			    :Expander, +Dict, +TermPos)// is nondet.
+%
+%	None-recursive version of substitute_term_rec//7.
+
+substitute_term_norec(Term, Priority, Pattern, Into,
+		      Expander, Dict, TermPos) -->
+	{ subsumes_term(Pattern, Term),
+	  with_context(Dict, Term-Pattern, Expander)
+	},
+	substitute_term(Priority, Term, Pattern, Into, TermPos), !.
+
+
+:- meta_predicate
+	with_context(+, +, 0).
+
+Cond ==> Action :-
+	b_getval(refactor_term_map, Term-Pattern),
+	\+ \+ (Term=Pattern, call(Cond)),
+	call(Action).
+
+with_context(Dict, SrcMap, Goal) :-
+	setup_call_cleanup(
+	    ( b_setval(refactor_variable_names, Dict),
+	      b_setval(refactor_term_map, SrcMap)
+	    ),
+	    call(Goal),
+	    ( nb_delete(refactor_variable_names),
+	      nb_delete(refactor_term_map)
+	    )).
+
 
 :- meta_predicate substitute_term_rec(+,+,?,+,5,+,+,?,?).
 
@@ -261,13 +309,9 @@ get_file_commands(Substituter, M:SentencePattern, File, Commands) :-
 
 substitute_term_rec(Term, Priority, Pattern, Into, Expander, Dict, TermPos) -->
 	{ subsumes_term(Pattern, Term),
-	  copy_term(t(Pattern,Into,Expander),
-		    t(PatternCopy,IntoCopy,Expander)),
-	  Pattern = Term
+	  with_context(Dict, Term-Pattern, Expander)
 	},
-	substitute_term(Priority, Term,
-			PatternCopy, IntoCopy, Expander,
-			Dict, TermPos), !.
+	substitute_term(Priority, Term, Pattern, Into, TermPos), !.
 substitute_term_rec(Term, _, Ref, Into, Expander, Dict, TermPos) -->
 	substitute_term_into(TermPos, Term, Dict, Ref, Into, Expander).
 
@@ -319,12 +363,21 @@ substitute_term_list([], TP, Tail, Dict, Ref, Into, Expander) -->
 :- public collect_file_commands/7.
 % NOTE: Goal and Caller unified here to improve performance -- EMM
 :- meta_predicate collect_file_commands(?,?,0,?,?,?).
-collect_file_commands(Caller, Term, Into, Expander, Callee, Caller, From) :-
-    Dict = [],			% TODO: Calculate Dict
-    copy_term(Term-Into, Pattern-Replacement),
-    Term = Callee,
-    calculate_commands(Expander, Callee, Pattern, Replacement, Dict, From, File, Commands, []),
-    assertz(file_commands_db(File, Commands)).
+
+%%	collect_file_commands(+Sentence, +Pattern, +Into, :Expander,
+%%			      +Callee, +Caller, +Location)
+%
+%	Called from prolog_walk_code/1 on a call  from Caller to Callee.
+%	The parameters Sentence to Expander are provided by the on_trace
+%	closure  passed  to  prolog_walk_code/1.    Callee,  Caller  and
+%	Location are added by prolog_walk_code/1.
+
+collect_file_commands(CallerPattern, Pattern, Into, Expander,
+		      Callee, Caller, From) :-
+	subsumes_term(CallerPattern, Caller),
+	with_context([], Callee-Pattern, Expander),
+	calculate_commands(Callee, Pattern, Into, From, File, Commands, []),
+	assertz(file_commands_db(File, Commands)).
 
 :- multifile
     prolog:message//1,
@@ -334,20 +387,18 @@ prolog:message(acheck(refactor(Goal, From))) -->
     prolog:message_location(From),
     ['Unable to refactor ~w, no term position information available'-[Goal], nl].
 
-:- meta_predicate calculate_commands(4,?,?,?,?,?,?,?).
-calculate_commands(Expander, M:Term, Pattern, Into, Dict, From, File) -->
+calculate_commands(M:Term, M:Pattern, Into, From, File) -->
     { From = clause_term_position(ClauseRef, TermPos) ->
       clause_property(ClauseRef, file(File))
     ; From = file_term_position(File, TermPos) -> true
     ; print_message(error, acheck(refactor(M:Term, From))),
       fail
     },
-    substitute_term(1200, Term, Pattern, Into, Expander, Dict, TermPos).
+    substitute_term(1200, Term, Pattern, Into, TermPos).
 
 :- meta_predicate substitute_term(+,?,+,5,+,+,?,?).
 
-%%	substitute_term(+Priority, +SrcTerm, +Pattern, +Into,
-%%			:Expander, +Dict, +TermPos)
+%%	substitute_term(+Priority, +SrcTerm, +Pattern, +Into, +TermPos)
 %
 %	Substitute occurences of Pattern with Into after calling
 %	expansion.
@@ -357,18 +408,10 @@ calculate_commands(Expander, M:Term, Pattern, Into, Dict, From, File) -->
 %	@param TermPos is the term layout of SrcTerm
 %	@param Priority is the environment operator priority
 
-substitute_term(Priority, Term, Pattern, Into, Expander, Dict, TermPos) -->
-    { calculate_expansion(Expander, Term, Dict, TermPos, Pattern)
+substitute_term(Priority, Term, Pattern, Into, TermPos) -->
+    { subst_term(TermPos, Pattern, Term)
     },
     expansion_commands_term(TermPos, Term, Priority, Pattern, Into).
-
-:- meta_predicate calculate_expansion(5, ?, ?, ?, ?, -, -).
-calculate_expansion(Expander, Term, Dict, TermPos, Pattern) :-
-	setup_call_cleanup(
-	    b_setval(refactor_variable_names, Dict),
-	    call(Expander),
-	    nb_delete(refactor_variable_names)),
-	subst_term(TermPos, Pattern, Term).
 
 valid_op_type_arity(xf,  1).
 valid_op_type_arity(yf,  1).
