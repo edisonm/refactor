@@ -37,9 +37,7 @@
 		     expand_sentence/4,
 		     replace_term_id/4,
 		     unfold_goal/3,
-		     rename_predicate/3,
-		     (==>)/2,
-		     op(1090, xfx, (==>))
+		     rename_predicate/3
 		    ]).
 
 :- use_module(library(readutil)).
@@ -264,28 +262,38 @@ refactor_module(M) :-
 substitute_term_norec(Term, Priority, Pattern, Into,
 		      Expander, Dict, TermPos) -->
 	{ subsumes_term(Pattern, Term),
-	  with_context(Dict, Term-Pattern, Expander)
+	  with_context(Dict, Term, Pattern, Pattern2, Into, Into2, Expander)
 	},
-	substitute_term(Priority, Term, Pattern, Into, TermPos), !.
+	substitute_term(Priority, Term, Pattern2, Into2, TermPos), !.
 
 
 :- meta_predicate
-	with_context(+, +, 0).
+	with_context(+, +, +, -, +, -, 0).
 
-Cond ==> Action :-
-	b_getval(refactor_term_map, Term-Pattern),
-	\+ \+ (Term=Pattern, call(Cond)),
-	call(Action).
-
-with_context(Dict, SrcMap, Goal) :-
+with_context(Dict, Src, Pattern0, Pattern, Into0, Into, Goal) :-
+	copy_term(Pattern0, Pattern),
+	term_variables(Pattern0, Vars0),
+	term_variables(Pattern, Vars),
+	Pattern0 = Src,
 	setup_call_cleanup(
-	    ( b_setval(refactor_variable_names, Dict),
-	      b_setval(refactor_term_map, SrcMap)
+	    ( b_setval(refactor_variable_names, Dict)
 	    ),
 	    call(Goal),
-	    ( nb_delete(refactor_variable_names),
-	      nb_delete(refactor_term_map)
-	    )).
+	    ( nb_delete(refactor_variable_names)
+	    )),
+	pairs_keys_values(Pairs, Vars0, Vars),
+	map_subterms(Pairs, Into0, Into).
+
+map_subterms(Pairs, T0, T) :-
+	member(X0-X, Pairs),
+	same_term(X0, T0), !,
+	T = X.
+map_subterms(Pairs, T0, T) :-
+	compound(T0), !,
+	T0 =.. [F|Args0],
+	maplist(map_subterms(Pairs), Args0, Args),
+	T =.. [F|Args].
+map_subterms(_, T, T).
 
 
 :- meta_predicate substitute_term_rec(+,+,?,+,5,+,+,?,?).
@@ -309,9 +317,9 @@ with_context(Dict, SrcMap, Goal) :-
 
 substitute_term_rec(Term, Priority, Pattern, Into, Expander, Dict, TermPos) -->
 	{ subsumes_term(Pattern, Term),
-	  with_context(Dict, Term-Pattern, Expander)
+	  with_context(Dict, Term, Pattern, Pattern2, Into, Into2, Expander)
 	},
-	substitute_term(Priority, Term, Pattern, Into, TermPos), !.
+	substitute_term(Priority, Term, Pattern2, Into2, TermPos), !.
 substitute_term_rec(Term, _, Ref, Into, Expander, Dict, TermPos) -->
 	substitute_term_into(TermPos, Term, Dict, Ref, Into, Expander).
 
@@ -375,8 +383,8 @@ substitute_term_list([], TP, Tail, Dict, Ref, Into, Expander) -->
 collect_file_commands(CallerPattern, Pattern, Into, Expander,
 		      Callee, Caller, From) :-
 	subsumes_term(CallerPattern, Caller),
-	with_context([], Callee-Pattern, Expander),
-	calculate_commands(Callee, Pattern, Into, From, File, Commands, []),
+	with_context([], Callee, Pattern, Pattern2, Into, Into2, Expander),
+	calculate_commands(Callee, Pattern2, Into2, From, File, Commands, []),
 	assertz(file_commands_db(File, Commands)).
 
 :- multifile
