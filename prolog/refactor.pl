@@ -38,7 +38,8 @@
 		     replace_term_id/4,
 		     unfold_goal/3,
 		     rename_predicate/3,
-		     refactor_context/2
+		     refactor_context/2,
+		     remove_useless_exports/2
 		    ]).
 
 :- use_module(library(readutil)).
@@ -374,7 +375,6 @@ substitute_term_list([], TP, Tail, Dict, Ref, Into, Expander) -->
     substitute_term_rec(Tail, Priority, Ref, Into, Expander, Dict, TP).
 
 :- public collect_file_commands/7.
-% NOTE: Goal and Caller unified here to improve performance -- EMM
 :- meta_predicate collect_file_commands(?,?,0,?,?,?).
 
 %%	collect_file_commands(+Sentence, +Pattern, +Into, :Expander,
@@ -442,9 +442,19 @@ refactor_hack('$NL'(_)).
 refactor_hack('$,NL'(_)).
 refactor_hack('$RM').
 
+o_length(T, N) :-
+    o_length(T, 0, N).
+
+o_length(V, N, N) :- var(V), !.
+o_length([_|T], N0, N) :- !,
+    N1 is N0 + 1,
+    o_length(T, N1, N).
+o_length(_, N, N).
+
 expansion_commands_term(term_position(_, _, FFrom, FTo, SubPos),
 			Term, Priority, Pattern, Expansion) -->
     { nonvar(Pattern),
+      Term \== Expansion,
       Pattern \= '$substitute_by'(_, _),
       nonvar(Expansion),
       Expansion \= '$substitute_by'(_, _),
@@ -465,9 +475,12 @@ expansion_commands_term(term_position(_, _, FFrom, FTo, SubPos),
     ; [] %% Do nothing to preserve functor layout
     ),
     expansion_commands_args(1, Term, Pattern, Expansion, SubPos).
-expansion_commands_term(list_position(_, _, Elms, Tail), Term, _, Pattern, Expansion) -->
-    {term_priority([_|_], 1, Priority)},
-    expansion_commands_list(Elms, Tail, Term, Priority, Pattern, Expansion),
+expansion_commands_term(list_position(_, _, Elms, TailPos), Term, _, Pattern, Expansion) -->
+    { o_length(Pattern,   N),
+      o_length(Expansion, N),
+      term_priority([_|_], 1, Priority)
+    },
+    expansion_commands_list(Elms, TailPos, Term, Priority, Pattern, Expansion),
     !.
 expansion_commands_term(none, _, _, _, _) --> !, [].
 expansion_commands_term(TermPos, _, Priority, Pattern, Expansion) --> % Overwrite layout
@@ -478,15 +491,19 @@ expansion_commands_term(TermPos, _, Priority, Pattern, Expansion) --> % Overwrit
     ; [From-[print(Priority, Expansion, To)]]
     ).
 
-expansion_commands_list([], Tail, Term, _, Pattern, Expansion) -->
+expansion_commands_list(_TermPos, _TailPos, Term, _, _Pattern, Expansion) -->
+    {Term == Expansion}, !, [].
+expansion_commands_list([], TailPos, Term, _, Pattern, Expansion) -->
     {term_priority([_|_], 2, Priority)},
-    expansion_commands_term(Tail, Term, Priority, Pattern, Expansion).
-expansion_commands_list([Pos|Poss], Tail, [T|Ts], Priority, [P|Ps], Expansion) -->
+    !,
+    expansion_commands_term(TailPos, Term, Priority, Pattern, Expansion).
+expansion_commands_list([Pos|Poss], TailPos, Term, Priority, [P|Ps], Expansion) -->
     { nonvar(Expansion),
-      Expansion = [E|Es]
+      Expansion = [E|Es], Term = [T|Ts]
     },
-    expansion_commands_term(Pos, T, Priority, P, E),
-    expansion_commands_list(Poss, Tail, Ts, Priority, Ps, Es).
+    !,
+    expansion_commands_term(Pos,  T,           Priority, P,  E),
+    expansion_commands_list(Poss, TailPos, Ts, Priority, Ps, Es).
 
 expansion_commands_args(N, Term, Pattern, Expansion, [ArgPos|SubPos]) -->
     { arg(N, Pattern, PArg), !,
