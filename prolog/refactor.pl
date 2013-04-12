@@ -62,20 +62,16 @@ refactor(Rule, Action) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Most used refactoring scenarios:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-remove_useless_exports(M, Action) :-
-    expand_sentence(M:(:-module(_,_)), remove_useless_exports_module, Action),
-    expand_sentence(M:(:-export(_)),   remove_useless_exports_export, Action).
-
-remove_useless_exports_module(M:(:-module(_, L)), _, (:- module(X, _)),
-			      (:- module(X, N))) :-
-    findall(E, (member(E,L), being_used(E, M)), N).
-
-remove_useless_exports_export(M:(:- export(K)), _, _, Exp) :-
-    once(list_sequence(L, K)),
-    findall(E,(member(E,L),being_used(E,M)),N),
-    ( N = []           -> Exp = '$RM'
-    ; list_sequence(N,S), Exp = (:- export(S))
-    ).
+remove_useless_exports(Module, Action) :-
+    expand_sentence(Module:(:-module(M,L)), (:- module(M,N)),
+		    include(being_used(Module), L, N), Action),
+    expand_sentence(Module:(:-export(K)), Exp,
+		    ( once(list_sequence(L, K)),
+		      include(being_used(Module), L, N),
+		      ( N = []           -> Exp = '$RM'
+		      ; list_sequence(N,S), Exp = (:- export(S))
+		      )
+		    ), Action).
 
 list_sequence([], []).
 list_sequence([E|L], S) :- list_sequence_2(L, E, S).
@@ -83,7 +79,9 @@ list_sequence([E|L], S) :- list_sequence_2(L, E, S).
 list_sequence_2([E|L], E0, (E0, S)) :- list_sequence_2(L, E, S).
 list_sequence_2([], E, E).
 
-being_used(F/A,M) :- functor(H,F,A),predicate_property(C:H,imported_from(M)), C \= user.
+being_used(M, F/A) :-
+    functor(H, F, A),
+    predicate_property(C:H, imported_from(M)), C \== user.
 
 % :- regtype t_action/1.
 % t_action(save).
@@ -130,8 +128,7 @@ rename_predicate_helper(P0, H0, H, P, E) :-
     ).
 
 replace(Level, Sentence, From, Into, Action) :-
-    refactor(meta_expansion(Level, Sentence, From, Into, true),
-	     Action).
+    expand(Level, Sentence, From, Into, true, Action).
 
 replace_term(Caller, Term, Expansion, Action) :-
     replace(term, Caller, Term, Expansion, Action).
@@ -166,7 +163,7 @@ unfold_goal(Module, MGoal, Action) :-
     findall(clause(MGoal, Body0), clause(MGoal, Body0), [clause(MGoal, Body0)]),
     MGoal = M:_,
     (Module == M -> Body = Body0 ; Body = M:Body),
-    replace_goal(MGoal, Module:_, Body, Action).
+    replace_goal(Module:_, MGoal, Body, Action).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% RULES (1st argument of refactor/2):
