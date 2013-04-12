@@ -37,7 +37,8 @@
 		     expand_sentence/4,
 		     replace_term_id/4,
 		     unfold_goal/3,
-		     rename_predicate/3
+		     rename_predicate/3,
+		     refactor_context/2
 		    ]).
 
 :- use_module(library(readutil)).
@@ -68,15 +69,12 @@ refactor(Rule, Action) :-
 
 % :- pred rename_variable(?Term,+OldName:atom,+NewName:atom,+Action:t_action).
 
-rename_variable(Caller, OldName, NewName, Action) :-
-    refactor(meta_expansion(term, Caller, _,
-			    rename_variable_helper(OldName, NewName)), Action).
-
-rename_variable_helper(OldName, NewName, _, T, Dict, _, E) :-
-    \+ memberchk(NewName=_,Dict),
-    memberchk(OldName=V,Dict),
-    V==T,
-    E='$VAR'(NewName).
+rename_variable(MSent,Name0,Name,Action) :-
+    expand_term(MSent,Var,'$VAR'(Name),
+		( refactor_context(variable_names, Dict),
+		  \+ memberchk(Name =_,Dict),var(Var),
+		  memberchk(Name0=V,Dict),V==Var
+		), Action).
 
 :- meta_predicate replace_term(?,?,?,+).
 replace_term_id(Caller, Term, Expansion, Action) :-
@@ -249,6 +247,11 @@ substitute_term_norec(Term, Priority, Pattern, Into,
 	},
 	substitute_term(Priority, Term, Pattern2, Into2, TermPos), !.
 
+
+%%	refactor_context(?Name, ?Value) is nondet.
+
+refactor_context(variable_names, Bindings) :-
+	b_getval(refactor_variable_names, Bindings).
 
 :- meta_predicate
 	with_context(+, +, +, -, +, -, 0).
