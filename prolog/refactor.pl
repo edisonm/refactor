@@ -39,7 +39,8 @@
 		     unfold_goal/3,
 		     rename_predicate/3,
 		     refactor_context/2,
-		     remove_useless_exports/2
+		     remove_useless_exports/2,
+		     replace_conjunction/4
 		    ]).
 
 :- use_module(library(readutil)).
@@ -165,6 +166,16 @@ unfold_goal(Module, MGoal, Action) :-
     MGoal = M:_,
     (Module == M -> Body = Body0 ; Body = M:Body),
     replace_goal(Module:_, MGoal, Body, Action).
+
+replace_conjunction(Sentence, Conj, Replacement, Action) :-
+    expand_term(Sentence, Conj, Replacement, true, Action),
+    extend_conj(Conj, Rest, Conj2),
+    extend_conj(Replacement, Rest, Replacement2),
+    expand_term(Sentence, Conj2, Replacement2, true, Action).
+
+extend_conj(Var, Rest, (Var,Rest)) :- var(Var), !.
+extend_conj((A,C0), Rest, (A,C)) :- !, extend_conj(C0, Rest, C).
+extend_conj(Last, Rest, (Last,Rest)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% RULES (1st argument of refactor/2):
