@@ -38,6 +38,7 @@
 		     replace_term_id/4,
 		     unfold_goal/3,
 		     rename_predicate/3,
+		     rename_functor/4,
 		     refactor_context/2,
 		     remove_useless_exports/2,
 		     replace_conjunction/4
@@ -98,7 +99,12 @@ rename_variable(MSent,Name0,Name,Action) :-
 		  memberchk(Name0=V,Dict),V==Var
 		), Action).
 
-:- meta_predicate replace_term(?,?,?,+).
+rename_functor(Caller, Functor/Arity, NewName, Action) :-
+    functor(Term, Functor, Arity),
+    Term =.. [_|Args],
+    Expansion =.. [NewName|Args],
+    replace_term_id(Caller, Term, Expansion, Action).
+    
 replace_term_id(Caller, Term, Expansion, Action) :-
     replace_term(Caller, Term, Expansion, Action),
     functor(Term, F0, A0),
@@ -132,6 +138,7 @@ rename_predicate_helper(P0, H0, H, P, E) :-
 replace(Level, Sentence, From, Into, Action) :-
     expand(Level, Sentence, From, Into, true, Action).
 
+:- meta_predicate replace_term(?,?,?,+).
 replace_term(Caller, Term, Expansion, Action) :-
     replace(term, Caller, Term, Expansion, Action).
 
@@ -266,8 +273,7 @@ refactor_module(M) :-
 	module_property(M, class(user)).
 
 
-%%	substitute_term_rec(+SrcTerm, +Priority, +Pattern, -Into,
-%			    :Expander, +Dict, +TermPos)// is nondet.
+%%	substitute_term_norec(+Term, +Priority, +Pattern, -Into, :Expander, +Dict, +TermPos)// is nondet.
 %
 %	None-recursive version of substitute_term_rec//7.
 
@@ -315,8 +321,7 @@ map_subterms(_, T, T).
 
 :- meta_predicate substitute_term_rec(+,+,?,+,5,+,+,?,?).
 
-%%	substitute_term_rec(+SrcTerm, +Priority, +Pattern, -Into,
-%			    :Expander, +Dict, +TermPos)// is nondet.
+%%	substitute_term_rec(+SrcTerm, +Priority, +Pattern, -Into, :Expander, +Dict, +TermPos)// is nondet.
 %
 %	True when the DCG list contains   a  substitution for Pattern by
 %	Into in SrcTerm. This predicate must  be cautious about handling
