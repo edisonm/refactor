@@ -585,6 +585,7 @@ cut_text(Pos0, Pos, Remaining0, Remaining, Text) :-
       Text = ""
     ).
 
+:- public rportray/3.
 % BUG: printing of parenthesis if required must be done consulting
 % current_op/3 and taking actions.
 rportray(Pos0-Remaining0, '$substitute_by'(ArgPos, Term), Opt) :-
