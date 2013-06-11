@@ -150,7 +150,7 @@ replace_goal(Caller, Term, Expansion, Action) :-
     replace(goal, Caller, Term, Expansion, Action).
 
 :- meta_predicate expand(+,?,?,?,0,-).
-% Expander(+Caller, ?Term, +Dict, -Pattern, -Expansion)
+% Expander(+Caller, ?Term, -Pattern, -Expansion)
 expand(Level, Caller, Term, Into, Expander, Action) :-
     refactor(meta_expansion(Level, Caller, Term, Into, Expander), Action).
 
@@ -220,9 +220,10 @@ collect_expansion_commands(term, Caller, Ref, Into, Expander, FileCommands) :-
 			    [ variable_names(Dict),
 			      subterm_positions(TermPos)
 			    ]),
-	      phrase(substitute_term_rec(Sentence, 1200,
-					 Ref, Into, Expander, Dict, TermPos),
-		     Commands)
+	      with_dict(phrase(substitute_term_rec(Sentence, 1200, Ref, Into,
+						   Expander, TermPos),
+			       Commands),
+			Dict)
 	    ),
 	    FileCommands).
 collect_expansion_commands(sent, Caller, Ref, Into, Expander, FileCommands) :-
@@ -234,11 +235,18 @@ collect_expansion_commands(sent, Caller, Ref, Into, Expander, FileCommands) :-
 			    [ variable_names(Dict),
 			      subterm_positions(TermPos)
 			    ]),
-	      phrase(substitute_term_norec(Sentence, 1200,
-					   Ref, Into, Expander, Dict, TermPos),
-		     Commands)
+	      with_dict(phrase(substitute_term_norec(Sentence, 1200, Ref, Into,
+						     Expander, TermPos),
+			       Commands),
+			Dict)
 	    ),
 	    FileCommands).
+
+:- meta_predicate with_dict(0, +).
+with_dict(Goal, Dict) :-
+    setup_call_cleanup(b_setval(refactor_variable_names, Dict),
+		       Goal,
+		       nb_delete(refactor_variable_names)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% ANCILLARY PREDICATES:
@@ -273,14 +281,13 @@ refactor_module(M) :-
 	module_property(M, class(user)).
 
 
-%%	substitute_term_norec(+Term, +Priority, +Pattern, -Into, :Expander, +Dict, +TermPos)// is nondet.
+%%	substitute_term_norec(+Term, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
 %
-%	None-recursive version of substitute_term_rec//7.
+%	None-recursive version of substitute_term_rec//6.
 
-substitute_term_norec(Term, Priority, Pattern, Into,
-		      Expander, Dict, TermPos) -->
+substitute_term_norec(Term, Priority, Pattern, Into, Expander, TermPos) -->
 	{ subsumes_term(Pattern, Term),
-	  with_context(Dict, Term, Pattern, Pattern2, Into, Into2, Expander)
+	  with_context(Term, Pattern, Pattern2, Into, Into2, Expander)
 	},
 	substitute_term(Priority, Term, Pattern2, Into2, TermPos), !.
 
@@ -291,26 +298,31 @@ refactor_context(variable_names, Bindings) :-
 	b_getval(refactor_variable_names, Bindings).
 
 :- meta_predicate
-	with_context(+, +, +, -, +, -, 0).
+	with_context(+, +, -, +, -, 0).
 
-with_context(Dict, Src, Pattern0, Pattern, Into0, Into, Goal) :-
+with_context(Src, Pattern0, Pattern, Into0, Into, Goal) :-
 	copy_term(Pattern0, Pattern),
 	term_variables(Pattern0, Vars0),
 	term_variables(Pattern, Vars),
 	Pattern0 = Src,
-	setup_call_cleanup(
-	    ( b_setval(refactor_variable_names, Dict)
-	    ),
-	    call(Goal),
-	    ( nb_delete(refactor_variable_names)
-	    )),
-	pairs_keys_values(Pairs, Vars0, Vars),
+	copy_term(Vars0, Vars1),
+	call(Goal),
+	pairs_keys_values(Pairs0, Vars0, Vars1),
+	pairs_keys_values(Pairs, Pairs0, Vars),
 	map_subterms(Pairs, Into0, Into).
 
 map_subterms(Pairs, T0, T) :-
-	member(X0-X, Pairs),
-	same_term(X0, T0), !,
-	T = X.
+	member(X0-X1-X, Pairs),
+	same_term(X0, T0),
+	!,
+	( subsumes_term(X0, X1) ->
+	  T = X
+	; compound(T0),
+	  X1 = X,
+	  T0 =.. [F|Args0],
+	  maplist(map_subterms(Pairs), Args0, Args),
+	  T =.. [F|Args]
+	).
 map_subterms(Pairs, T0, T) :-
 	compound(T0), !,
 	T0 =.. [F|Args0],
@@ -321,7 +333,7 @@ map_subterms(_, T, T).
 
 :- meta_predicate substitute_term_rec(+,+,?,+,5,+,+,?,?).
 
-%%	substitute_term_rec(+SrcTerm, +Priority, +Pattern, -Into, :Expander, +Dict, +TermPos)// is nondet.
+%%	substitute_term_rec(+SrcTerm, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
 %
 %	True when the DCG list contains   a  substitution for Pattern by
 %	Into in SrcTerm. This predicate must  be cautious about handling
@@ -337,21 +349,21 @@ map_subterms(_, T, T).
 %	maintaining sharing with Expander.  Next,   we  can safely unify
 %	Pattern with the SrcTerm.
 
-substitute_term_rec(Term, Priority, Pattern, Into, Expander, Dict, TermPos) -->
+substitute_term_rec(Term, Priority, Pattern, Into, Expander, TermPos) -->
 	{ subsumes_term(Pattern, Term),
-	  with_context(Dict, Term, Pattern, Pattern2, Into, Into2, Expander)
+	  with_context(Term, Pattern, Pattern2, Into, Into2, Expander)
 	},
 	substitute_term(Priority, Term, Pattern2, Into2, TermPos), !.
-substitute_term_rec(Term, _, Ref, Into, Expander, Dict, TermPos) -->
-	substitute_term_into(TermPos, Term, Dict, Ref, Into, Expander).
+substitute_term_rec(Term, _, Ref, Into, Expander, TermPos) -->
+	substitute_term_into(TermPos, Term, Ref, Into, Expander).
 
-:- meta_predicate substitute_term_into(+,?,+,?,?,5,?,?).
-substitute_term_into(term_position(_, _, _, _, CP), Term, Dict, Ref,
+:- meta_predicate substitute_term_into(+,?,?,?,5,?,?).
+substitute_term_into(term_position(_, _, _, _, CP), Term, Ref,
 		     Into, Expander) --> !,
-    substitute_term_args(CP, 1, Term, Dict, Ref, Into, Expander).
-substitute_term_into(list_position(_, _, EP, TP), Term, Dict, Ref,
+    substitute_term_args(CP, 1, Term, Ref, Into, Expander).
+substitute_term_into(list_position(_, _, EP, TP), Term, Ref,
 		     Into, Expander) --> !,
-    substitute_term_list(EP, TP, Term, Dict, Ref, Into, Expander).
+    substitute_term_list(EP, TP, Term, Ref, Into, Expander).
 
 :- use_module(library(listing), []).
 
@@ -371,24 +383,24 @@ term_priority(Term, N, Priority) :-
     ; Priority = 1200
     ).
 
-:- meta_predicate substitute_term_args(?,+,?,?,+,?,?,5,?,?).
-substitute_term_args([PA|PAs], N0, Term, Dict, Ref, Into, Expander) -->
+:- meta_predicate substitute_term_args(?,+,?,?,?,?,5,?,?).
+substitute_term_args([PA|PAs], N0, Term, Ref, Into, Expander) -->
     ( {arg(N0, Term, Arg)},
       {term_priority(Term, N0, Priority)},
-      substitute_term_rec(Arg, Priority, Ref, Into, Expander, Dict, PA)
+      substitute_term_rec(Arg, Priority, Ref, Into, Expander, PA)
     ; {N is N0 + 1},
-      substitute_term_args(PAs, N, Term, Dict, Ref, Into, Expander)
+      substitute_term_args(PAs, N, Term, Ref, Into, Expander)
     ).
 
-:- meta_predicate substitute_term_list(?,?,?,+,?,?,5,?,?).
-substitute_term_list([EP|EPs], TP, [Elem|Term], Dict, Ref, Into, Expander) -->
+:- meta_predicate substitute_term_list(?,?,?,?,?,5,?,?).
+substitute_term_list([EP|EPs], TP, [Elem|Term], Ref, Into, Expander) -->
     ( {term_priority([_|_], 1, Priority)},
-      substitute_term_rec(Elem, Priority, Ref, Into, Expander, Dict, EP)
-    ; substitute_term_list(EPs, TP, Term, Dict, Ref, Into, Expander)
+      substitute_term_rec(Elem, Priority, Ref, Into, Expander, EP)
+    ; substitute_term_list(EPs, TP, Term, Ref, Into, Expander)
     ).
-substitute_term_list([], TP, Tail, Dict, Ref, Into, Expander) -->
+substitute_term_list([], TP, Tail, Ref, Into, Expander) -->
     {term_priority([_|_], 2, Priority)},
-    substitute_term_rec(Tail, Priority, Ref, Into, Expander, Dict, TP).
+    substitute_term_rec(Tail, Priority, Ref, Into, Expander, TP).
 
 :- public collect_file_commands/7.
 :- meta_predicate collect_file_commands(?,?,0,?,?,?).
@@ -404,8 +416,9 @@ substitute_term_list([], TP, Tail, Dict, Ref, Into, Expander) -->
 collect_file_commands(CallerPattern, Pattern, Into, Expander,
 		      Callee, Caller, From) :-
 	subsumes_term(CallerPattern, Caller),
-	with_context([], Callee, Pattern, Pattern2, Into, Into2, Expander),
-	calculate_commands(Callee, Pattern2, Into2, From, File, Commands, []),
+	with_dict((with_context(Callee, Pattern, Pattern2, Into, Into2, Expander),
+		   calculate_commands(Callee, Pattern2, Into2, From, File, Commands, [])
+		  ), []),
 	assertz(file_commands_db(File, Commands)).
 
 :- multifile
@@ -433,7 +446,6 @@ calculate_commands(M:Term, M:Pattern, Into, From, File) -->
 %	expansion.
 %
 %	@param SrcTerm is the term as read from the source
-%	@param Dict is the variable name assignment in SrcTerm
 %	@param TermPos is the term layout of SrcTerm
 %	@param Priority is the environment operator priority
 
@@ -487,7 +499,8 @@ expansion_commands_term(term_position(_, _, FFrom, FTo, SubPos),
     },
     !,
     ( {FP\=FE} ->
-      [FFrom-[print(Priority, FE, FTo)]]
+      {refactor_context(variable_names, Dict)},
+      [FFrom-[print(Priority, FE, Dict, FTo)]]
     ; [] %% Do nothing to preserve functor layout
     ),
     expansion_commands_args(1, Term, Pattern, Expansion, SubPos).
@@ -504,7 +517,8 @@ expansion_commands_term(TermPos, _, Priority, Pattern, Expansion) --> % Overwrit
       arg(2, TermPos, To)
     },
     ( {Pattern == Expansion} -> []
-    ; [From-[print(Priority, Expansion, To)]]
+    ; {refactor_context(variable_names, Dict)},
+      [From-[print(Priority, Expansion, Dict, To)]]
     ).
 
 expansion_commands_list(_TermPos, _TailPos, Term, _, _Pattern, Expansion) -->
@@ -613,17 +627,19 @@ term_write(Opt, Term) :- write_term(Term, Opt).
 
 :- use_module(library(listing),[]).
 
-apply_change(print(Priority, Term, SkipTo), Pos1, Text, File,
+apply_name(Name=Value) :- ignore(Value='$VAR'(Name)).
+
+apply_change(print(Priority, Term, Dict, SkipTo), Pos1, Text, File,
 	     text_desc(Pos0, Remaining0, Tail0),
 	     text_desc(Pos,  Remaining,  Tail)) :-
     cut_text(Pos0, Pos1, Remaining0, Remaining1, CutText), %
     append(CutText, Tail1, Tail0),			   % Accept
     findall(t(Tail1, Tail, Pos),
-	    ( numbervars(Term, 0, _, [singletons(true)]),
+	    ( maplist(apply_name, Dict),
+	      numbervars(Term, 0, _, [singletons(true)]),
 	      with_output_to(codes(Tail1, Tail),
-			     print_expansion(Term, rportray(0-Text), Priority,
-					     File, Pos1, SkipTo, Pos)
-			    )),
+		  print_expansion(Term, rportray(0-Text),
+				  Priority, File, Pos1, SkipTo, Pos))),
 	    [t(Tail1, Tail, Pos)]),		   % Apply
     cut_text(Pos1, Pos, Remaining1, Remaining, _). % Skip
 
