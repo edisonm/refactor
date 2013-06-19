@@ -67,12 +67,14 @@ refactor(Rule, Action) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 remove_useless_exports(Module, Action) :-
     expand_sentence(Module:(:-module(M,L)), (:- module(M,N)),
-		    include(being_used(Module), L, N), Action),
+		    ( include(being_used(Module), L, N),
+		      L \= N
+		    ), Action),
     expand_sentence(Module:(:-export(K)), Exp,
 		    ( once(list_sequence(L, K)),
 		      include(being_used(Module), L, N),
 		      ( N = []           -> Exp = '$RM'
-		      ; list_sequence(N,S), Exp = (:- export(S))
+		      ; L \= N, list_sequence(N,S), Exp = (:- export(S))
 		      )
 		    ), Action).
 
