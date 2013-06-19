@@ -44,6 +44,11 @@
 		     replace_conjunction/4
 		    ]).
 
+% TODO:
+% \footnote{Further versions will allow
+%   \predref{expand\_sentence}{3} to return a list, as
+%   \predref{term\_expansion}{2} does in many Prolog dialects.}
+
 :- use_module(library(readutil)).
 :- use_module(library(prolog_codewalk)).
 :- use_module(library(file_changes)).
