@@ -473,6 +473,7 @@ refactor_hack('$LIST'(_)).
 refactor_hack('$TEXT'(_)).
 refactor_hack('$TEXT'(_,_)).
 refactor_hack('$BODY'(_)).
+refactor_hack('$BODY'(_,_)).
 refactor_hack('$NL'(_)).
 refactor_hack('$,NL'(_)).
 refactor_hack('$RM').
@@ -606,10 +607,10 @@ cut_text(Pos0, Pos, Remaining0, Remaining, Text) :-
       Text = ""
     ).
 
-:- public rportray/3.
+:- public rportray/4.
 % BUG: printing of parenthesis if required must be done consulting
 % current_op/3 and taking actions.
-rportray(Pos0-Remaining0, '$substitute_by'(ArgPos, Term), Opt) :-
+rportray(Pos0-Remaining0, _, '$substitute_by'(ArgPos, Term), Opt) :-
     arg(1, ArgPos, From),
     arg(2, ArgPos, To),
     cut_text(Pos0, From, Remaining0, Remaining1, _),
@@ -620,15 +621,18 @@ rportray(Pos0-Remaining0, '$substitute_by'(ArgPos, Term), Opt) :-
     ; format('~s', [Text])
     ),
     !.
-rportray(_, '$substitute_by'(_, _), _) :- !.
-rportray(_, '$LIST'(L), Opt) :- !,
+rportray(_, _, '$substitute_by'(_, _), _) :- !.
+rportray(_, _, '$LIST'(L), Opt) :- !,
     maplist(term_write(Opt), L).
-rportray(_, '$TEXT'(T), Opt0) :- !,
+rportray(_, _, '$TEXT'(T), Opt0) :- !,
     subtract(Opt0, [quoted(true), portray_goal(_)], Opt),
     write_term(T, Opt).
-rportray(Pos-Remaining, '$BODY'(B), Opt) :-
+rportray(Pos-Remaining, File, '$BODY'(B, Offs), Opt) :-
     memberchk(priority(N), Opt),
-    write_b(B, rportray(Pos-Remaining), N, _File, Pos).
+    write_b(B, rportray(Pos-Remaining, File), N, Offs, File, Pos).
+rportray(Pos-Remaining, File, '$BODY'(B), Opt) :-
+    memberchk(priority(N), Opt),
+    write_b(B, rportray(Pos-Remaining, File), N, 0, File, Pos).
 
 term_write(Opt, Term) :- write_term(Term, Opt).
 
@@ -645,7 +649,7 @@ apply_change(print(Priority, Term, Dict, SkipTo), Pos1, Text, File,
 	    ( maplist(apply_name, Dict),
 	      numbervars(Term, 0, _, [singletons(true)]),
 	      with_output_to(codes(Tail1, Tail),
-		  print_expansion(Term, rportray(0-Text),
+		  print_expansion(Term, rportray(0-Text, File),
 				  Priority, File, Pos1, SkipTo, Pos))),
 	    [t(Tail1, Tail, Pos)]),		   % Apply
     cut_text(Pos1, Pos, Remaining1, Remaining, _). % Skip
@@ -663,8 +667,10 @@ print_expansion(Term, PG, N, _, _) --> {var(Term), !, write_r(N, PG, Term)}, [].
 print_expansion('$,NL', PG, N, File, Pos0) --> % Print a comma + indented new line
     {write(',')},
     print_expansion('$NL', PG, N, File, Pos0).
+print_expansion('$BODY'(Term, Offs), PG, N, File, Pos) --> % Print as a body
+    {write_b(Term, PG, N, Offs, File, Pos)}.
 print_expansion('$BODY'(Term), PG, N, File, Pos) --> % Print as a body
-    {write_b(Term, PG, N, File, Pos)}.
+    {write_b(Term, PG, N, 0, File, Pos)}.
 print_expansion('$NL', _, _, File, Pos0) --> % Print an indented new line
     { prolog_codewalk:filepos_line(File, Pos0, _, LinePos),
       nl,
@@ -689,32 +695,33 @@ bin_op(Term, Op, Left, Right, A, B) :-
     arg(1, Term, A),
     arg(2, Term, B).
 
-write_b(Term, PG, N, File, Pos0) :-
+write_b(Term, PG, N, Offs, File, Pos0) :-
     ( prolog_listing:term_needs_braces(Term, N)
     -> write('( '),
       Pos is Pos0 + 2,
-      write_b1(Term, PG, N, File, Pos),
+      write_b1(Term, PG, N, Offs, File, Pos),
       write(')')
-    ; write_b1(Term, PG, N, File, Pos0)
+    ; write_b1(Term, PG, N, Offs, File, Pos0)
     ).
 
 and_layout(T) :- T = (_,_).
 
-write_b1(Term, PG, _, File, Pos) :-
+write_b1(Term, PG, _, Offs, File, Pos) :-
     prolog_listing:or_layout(Term), !,
-    write_b_layout(Term, PG, or,  File, Pos).
-write_b1(Term, PG, _, File, Pos) :-
+    write_b_layout(Term, PG, or,  Offs, File, Pos).
+write_b1(Term, PG, _, Offs, File, Pos) :-
     and_layout(Term), !,
-    write_b_layout(Term, PG, and, File, Pos).
-write_b1(Term, PG, N, _, _) :- write_r(N, PG, Term).
+    write_b_layout(Term, PG, and, Offs, File, Pos).
+write_b1(Term, PG, N, _, _, _) :- write_r(N, PG, Term).
 
-write_b_layout(Term, PG, Layout, File, Pos) :-
+write_b_layout(Term, PG, Layout, Offs, File, Pos) :-
     bin_op(Term, Op, Left, Right, A, B),
     !,
-    write_b(A, PG, Left, File, Pos),
-    prolog_codewalk:filepos_line(File, Pos, _, LinePos),
+    write_b(A, PG, Left, Offs, File, Pos),
+    prolog_codewalk:filepos_line(File, Pos, _, LinePos0),
+    LinePos is Offs + LinePos0,
     nl_indent(Layout, Op, LinePos),
-    write_b(B, PG, Right, File, Pos).
+    write_b(B, PG, Right, Offs, File, Pos).
 
 nl_indent(or, Op, LinePos0) :-
     nl,
