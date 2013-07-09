@@ -625,7 +625,7 @@ rportray(_, _, '$substitute_by'(_, _), _) :- !.
 rportray(_, _, '$LIST'(L), Opt) :- !,
     maplist(term_write(Opt), L).
 rportray(_, _, '$TEXT'(T), Opt0) :- !,
-    subtract(Opt0, [quoted(true), portray_goal(_)], Opt),
+    subtract(Opt0, [quoted(true), portray_goal(_), priority(_)], Opt),
     write_term(T, Opt).
 rportray(Pos-Remaining, File, '$BODY'(B, Offs), Opt) :-
     memberchk(priority(N), Opt),
@@ -682,8 +682,8 @@ print_expansion('$TEXT'(Term), PG, N, File, Pos0) -->
     print_expansion('$TEXT'(Term, 0), PG, N, File, Pos0).
 % BUG: assuming no spaces between Term, full stop and new line:
 print_expansion('$RM', _, _, _, _) --> inc(2).
-print_expansion('$TEXT'(Term, Delta), _, N, _, _) -->
-    {write_t(N, Term)},
+print_expansion('$TEXT'(Term, Delta), _, _, _, _) -->
+    {write_t(Term)},
     inc(Delta).
 print_expansion(Term, PG, N, _, _) --> {write_r(N, PG, Term)}.
 
@@ -747,10 +747,9 @@ line_pos(LinePos) :-
     LinePos1 is LinePos - 1,
     line_pos(LinePos1).
 
-write_t(N, Term) :-
+write_t(Term) :-
     write_term(Term, [spacing(next_argument),
-		      numbervars(true),
-		      priority(N)]).
+		      numbervars(true)]).
 
 :- meta_predicate write_r(+,2,?).
 write_r(N, PortrayGoal, Term) :-
