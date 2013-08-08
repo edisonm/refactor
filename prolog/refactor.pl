@@ -124,23 +124,13 @@ rename_predicate(M:Name0/Arity, Name, Action) :-
     functor(H0, Name0, Arity),
     H0 =.. [Name0|Args],
     H  =.. [Name|Args],
-    functor(P0, Name0, Arity),
     replace_goal(_, M:H0, H, Action), % Replace calls
-    expand_term(_:Term, Term, Into,
-		rename_predicate_helper(P0,H0,H,Term,Into), % Replace heads
-		Action),
+    % Replace heads:
+    expand_sentence(_:(  H0 :- B),   (H :- B), Action),
+    expand_sentence(_:(M:H0 :- B), (M:H :- B), Action),
+    expand_sentence(_:H0, H, Action),
+    expand_sentence(_:(M:H0), (M:H), Action),
     replace_term(M:_, Name0/Arity, Name/Arity, Action). % Replace PIs
-
-rename_predicate_helper(P0, H0, H, P, E) :-
-%    nonvar(T),
-%    T==T0,
-    ( T = P0 ->
-      P = H0, E = H
-    ; T = (P0 :- _) ->
-      P = (H0 :- B), E = (H :- B)
-    ; T = (M:P0 :- B) ->
-      P = (M:H0 = B), E = (M:H :- B)
-    ).
 
 replace(Level, Sentence, From, Into, Action) :-
     expand(Level, Sentence, From, Into, true, Action).
@@ -500,9 +490,10 @@ expansion_commands_term(term_position(_, _, FFrom, FTo, SubPos),
       ( valid_op_type_arity(TypeOp, A),
 	current_op(PrecedenceP, TypeOp, FP),
 	current_op(PrecedenceE, TypeOp, FE),
-	PrecedenceP >= PrecedenceE
-      ; \+ current_op(PrecedenceP, _, FP),
-	\+ current_op(PrecedenceE, _, FE)
+	( PrecedenceP >= PrecedenceE
+	; \+ current_op(PrecedenceP, _, FP),
+	  \+ current_op(PrecedenceE, _, FE)
+	)
       )
     },
     !,
