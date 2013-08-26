@@ -34,7 +34,7 @@
 :- use_module(library(prolog_source)).
 :- use_module(library(included_files)).
 
-% BUG: Files are not uniques
+% NOTE: Files are not uniques, therefore I have to sort
 module_files(M, Files) :-
     module_file_list(M, UFilesL),
     append(UFilesL, UFiles),

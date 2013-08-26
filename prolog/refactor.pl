@@ -41,13 +41,9 @@
 		     rename_functor/4,
 		     refactor_context/2,
 		     remove_useless_exports/2,
-		     replace_conjunction/4
+		     replace_conjunction/4,
+		     replace_conjunction/5
 		    ]).
-
-% TODO:
-% \footnote{Further versions will allow
-%   \predref{expand\_sentence}{3} to return a list, as
-%   \predref{term\_expansion}{2} does in many Prolog dialects.}
 
 :- use_module(library(readutil)).
 :- use_module(library(prolog_codewalk)).
@@ -126,10 +122,10 @@ rename_predicate(M:Name0/Arity, Name, Action) :-
     H  =.. [Name|Args],
     replace_goal(_, M:H0, H, Action), % Replace calls
     % Replace heads:
-    expand_sentence(_:(  H0 :- B),   (H :- B), Action),
-    expand_sentence(_:(M:H0 :- B), (M:H :- B), Action),
-    expand_sentence(_:H0, H, Action),
-    expand_sentence(_:(M:H0), (M:H), Action),
+    expand_sentence(_:(  H0 :- B),   (H :- B), true, Action),
+    expand_sentence(_:(M:H0 :- B), (M:H :- B), true, Action),
+    expand_sentence(_:H0, H, true, Action),
+    expand_sentence(_:(M:H0), (M:H), true, Action),
     replace_term(M:_, Name0/Arity, Name/Arity, Action). % Replace PIs
 
 replace(Level, Sentence, From, Into, Action) :-
@@ -157,6 +153,11 @@ expand_term(Caller, Term, Into, Expander, Action) :-
     expand(term, Caller, Term, Into, Expander, Action).
 
 %%	expand_sentence(?Sentence, ?Into, :Expander, +Action).
+%
+% TODO:
+% \footnote{Further versions will allow
+%   \predref{expand\_sentence}{3} to return a list, as
+%   \predref{term\_expansion}{2} does in many Prolog dialects.}
 
 expand_sentence(M:Term, Into, Expander, Action) :-
     expand(sent, M:Term, Term, Into, Expander, Action).
@@ -171,11 +172,15 @@ unfold_goal(Module, MGoal, Action) :-
     (Module == M -> Body = Body0 ; Body = M:Body),
     replace_goal(Module:_, MGoal, Body, Action).
 
-replace_conjunction(Sentence, Conj, Replacement, Action) :-
-    expand_term(Sentence, Conj, Replacement, true, Action),
+:- meta_predicate replace_conjunction(?, ?, ?, 0, +).
+replace_conjunction(Sentence, Conj, Replacement, Expander, Action) :-
+    expand_term(Sentence, Conj, Replacement, Expander, Action),
     extend_conj(Conj, Rest, Conj2),
     extend_conj(Replacement, Rest, Replacement2),
-    expand_term(Sentence, Conj2, Replacement2, true, Action).
+    expand_term(Sentence, Conj2, Replacement2, Expander, Action).
+
+replace_conjunction(Sentence, Conj, Replacement, Action) :-
+    replace_conjunction(Sentence, Conj, Replacement, true, Action).
 
 extend_conj(Var, Rest, (Var,Rest)) :- var(Var), !.
 extend_conj((A,C0), Rest, (A,C)) :- !, extend_conj(C0, Rest, C).
@@ -433,7 +438,22 @@ calculate_commands(M:Term, M:Pattern, Into, From, File) -->
     ; print_message(error, acheck(refactor(M:Term, From))),
       fail
     },
-    substitute_term(1200, Term, Pattern, Into, TermPos).
+    {trim_term(Term, TTerm, TermPos, TTermPos)},
+    substitute_term(1200, TTerm, Pattern, Into, TTermPos).
+
+trim_term(Term, TTerm,
+	  term_position(From, To, FFrom, FTo, SubPos),
+	  term_position(From, To, FFrom, FTo, TSubPos)) :-
+    Term =.. [F|Args],
+    gtrace,
+    trim_term_list(SubPos, Args, TSubPos, TArgs),
+    TTerm =.. [F|TArgs].
+
+trim_term_list([], [], [], []).
+trim_term_list([0-0|SubPosL], [_|Args], TSubPosL, TArgsL) :- !,
+    trim_term_list(SubPosL, Args, TSubPosL, TArgsL).
+trim_term_list([SubPos|SubPosL], [Arg|Args], [SubPos|TSubPosL], [Arg|TArgsL]) :-
+    trim_term_list(SubPosL, Args, TSubPosL, TArgsL).
 
 :- meta_predicate substitute_term(+,?,+,5,+,+,?,?).
 
