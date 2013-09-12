@@ -250,6 +250,12 @@ with_dict(Goal, Dict) :-
 		       Goal,
 		       nb_delete(refactor_variable_names)).
 
+:- meta_predicate with_pattern(0, +).
+with_pattern(Goal, Pattern) :-
+    setup_call_cleanup(b_setval(refactor_pattern, Pattern),
+		       Goal,
+		       nb_delete(refactor_pattern)).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% ANCILLARY PREDICATES:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -298,24 +304,27 @@ substitute_term_norec(Term, Priority, Pattern, Into, Expander, TermPos) -->
 
 refactor_context(variable_names, Bindings) :-
 	b_getval(refactor_variable_names, Bindings).
+refactor_context(pattern, Pattern) :-
+	b_getval(refactor_pattern, Pattern).
 
 :- meta_predicate
 	with_context(+, +, -, +, -, 0).
 
 with_context(Src, Pattern0, Pattern, Into0, Into, Goal) :-
 	copy_term(Pattern0, Pattern),
-	term_variables(Pattern0, Vars0),
-	term_variables(Pattern, Vars),
 	Pattern0 = Src,
-	copy_term(Vars0, Vars1),
-	call(Goal),
+	copy_term(Pattern0, Pattern1), % Track changes in Pattern0
+	with_pattern(Goal, Pattern),   % Allow changes in Pattern
+	term_variables(Pattern, Vars), % Variable bindings in Pattern
+	copy_term(Pattern-Vars, Pattern0-Vars0),
+	copy_term(Pattern-Vars, Pattern1-Vars1),
 	pairs_keys_values(Pairs0, Vars0, Vars1),
 	pairs_keys_values(Pairs, Pairs0, Vars),
 	map_subterms(Pairs, Into0, Into).
 
 map_subterms(Pairs, T0, T) :-
 	member(X0-X1-X, Pairs),
-	same_term(X0, T0),
+	same_term(X0, T0), % ===/2
 	!,
 	( subsumes_term(X0, X1) ->
 	  T = X
@@ -445,7 +454,6 @@ trim_term(Term, TTerm,
 	  term_position(From, To, FFrom, FTo, SubPos),
 	  term_position(From, To, FFrom, FTo, TSubPos)) :-
     Term =.. [F|Args],
-    gtrace,
     trim_term_list(SubPos, Args, TSubPos, TArgs),
     TTerm =.. [F|TArgs].
 
