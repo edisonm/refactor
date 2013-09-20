@@ -767,8 +767,7 @@ line_pos(LinePos) :-
     line_pos(LinePos1).
 
 write_t(Term) :-
-    write_term(Term, [spacing(next_argument),
-		      numbervars(true)]).
+    write_term(Term, [spacing(next_argument), numbervars(true)]).
 
 :- meta_predicate write_r(+,2,?).
 write_r(N, PortrayGoal, Term) :-
