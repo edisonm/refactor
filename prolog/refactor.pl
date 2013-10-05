@@ -310,17 +310,20 @@ refactor_context(pattern, Pattern) :-
 :- meta_predicate
 	with_context(+, +, -, +, -, 0).
 
+:- use_module(library(gcb)).
+
 with_context(Src, Pattern0, Pattern, Into0, Into, Goal) :-
-	copy_term(Pattern0, Pattern),
+	copy_term(Pattern0, Pattern1),
 	Pattern0 = Src,
-	copy_term(Pattern0, Pattern1), % Track changes in Pattern0
-	with_pattern(Goal, Pattern),   % Allow changes in Pattern
-	term_variables(Pattern, Vars), % Variable bindings in Pattern
-	copy_term(Pattern-Vars, Pattern0-Vars0),
-	copy_term(Pattern-Vars, Pattern1-Vars1),
+	copy_term(Pattern0, Pattern2),	% Track changes in Pattern0
+	with_pattern(Goal, Pattern1),   % Allow changes in Pattern
+	term_variables(Pattern1, Vars), % Variable bindings in Pattern
+	copy_term(Pattern1-Vars, Pattern0-Vars0),
+	copy_term(Pattern1-Vars, Pattern2-Vars1),
 	pairs_keys_values(Pairs0, Vars0, Vars1),
 	pairs_keys_values(Pairs, Pairs0, Vars),
-	map_subterms(Pairs, Into0, Into).
+	map_subterms(Pairs, Into0, Into1),
+	greatest_common_binding(Pattern1, Into1, Pattern, Into, _, _).
 
 map_subterms(Pairs, T0, T) :-
 	member(X0-X1-X, Pairs),
@@ -334,7 +337,7 @@ map_subterms(Pairs, T0, T) :-
 	  maplist(map_subterms(Pairs), Args0, Args),
 	  T =.. [F|Args]
 	).
-map_subterms(Pairs, T0, T) :-
+map_subterms(Pairs,T0, T) :-
 	compound(T0), !,
 	T0 =.. [F|Args0],
 	maplist(map_subterms(Pairs), Args0, Args),
