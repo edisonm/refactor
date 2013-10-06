@@ -323,7 +323,8 @@ with_context(Src, Pattern0, Pattern, Into0, Into, Goal) :-
 	pairs_keys_values(Pairs0, Vars0, Vars1),
 	pairs_keys_values(Pairs, Pairs0, Vars),
 	map_subterms(Pairs, Into0, Into1),
-	greatest_common_binding(Pattern1, Into1, Pattern, Into, _, _).
+	Pattern1=Pattern,Into1=Into.
+	% greatest_common_binding(Pattern1, Into1, Pattern, Into, _, _).
 
 map_subterms(Pairs, T0, T) :-
 	member(X0-X1-X, Pairs),
@@ -337,7 +338,7 @@ map_subterms(Pairs, T0, T) :-
 	  maplist(map_subterms(Pairs), Args0, Args),
 	  T =.. [F|Args]
 	).
-map_subterms(Pairs,T0, T) :-
+map_subterms(Pairs, T0, T) :-
 	compound(T0), !,
 	T0 =.. [F|Args0],
 	maplist(map_subterms(Pairs), Args0, Args),
@@ -478,8 +479,7 @@ trim_term_list([SubPos|SubPosL], [Arg|Args], [SubPos|TSubPosL], [Arg|TArgsL]) :-
 %	@param Priority is the environment operator priority
 
 substitute_term(Priority, Term, Pattern, Into, TermPos) -->
-    { subst_term(TermPos, Pattern, Term)
-    },
+    {subst_term(TermPos, Pattern, Term)},
     expansion_commands_term(TermPos, Term, Priority, Pattern, Into).
 
 valid_op_type_arity(xf,  1).
@@ -517,21 +517,21 @@ expansion_commands_term(term_position(_, _, FFrom, FTo, SubPos),
       Expansion \= '$substitute_by'(_, _),
       \+ refactor_hack(Expansion),
       functor(Pattern, FP, A),
-      functor(Expansion, FE, A),
-      ( valid_op_type_arity(TypeOp, A),
+      functor(Expansion, FE, A)
+    },
+    ( {FP==FE}
+    ->[] %% Do nothing to preserve functor layout
+      { FP\=FE,
+	valid_op_type_arity(TypeOp, A),
 	current_op(PrecedenceP, TypeOp, FP),
 	current_op(PrecedenceE, TypeOp, FE),
 	( PrecedenceP >= PrecedenceE
 	; \+ current_op(PrecedenceP, _, FP),
 	  \+ current_op(PrecedenceE, _, FE)
 	)
-      )
-    },
-    !,
-    ( {FP\=FE} ->
-      {refactor_context(variable_names, Dict)},
+      }
+    ->{refactor_context(variable_names, Dict)},
       [FFrom-[print(Priority, FE, Dict, FTo)]]
-    ; [] %% Do nothing to preserve functor layout
     ),
     expansion_commands_args(1, Term, Pattern, Expansion, SubPos).
 expansion_commands_term(list_position(_, _, Elms, TailPos), Term, _, Pattern, Expansion) -->
@@ -542,12 +542,14 @@ expansion_commands_term(list_position(_, _, Elms, TailPos), Term, _, Pattern, Ex
     expansion_commands_list(Elms, TailPos, Term, Priority, Pattern, Expansion),
     !.
 expansion_commands_term(none, _, _, _, _) --> !, [].
-expansion_commands_term(TermPos, _, Priority, Pattern, Expansion) --> % Overwrite layout
-    { arg(1, TermPos, From),	% BUG: can drop comments
-      arg(2, TermPos, To)
-    },
-    ( {Pattern == Expansion} -> []
-    ; {refactor_context(variable_names, Dict)},
+expansion_commands_term(TermPos, _, Priority, Pattern, Expansion) -->
+				% Overwrite layout
+    ( {Pattern == Expansion}
+    ->[]
+    ; { arg(1, TermPos, From),	% BUG: can drop comments
+	arg(2, TermPos, To),
+	refactor_context(variable_names, Dict)
+      },
       [From-[print(Priority, Expansion, Dict, To)]]
     ).
 
