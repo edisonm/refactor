@@ -2,8 +2,8 @@ name(refactor).
 version('0.0.2').
 title('Refactoring Tools for SWI-Prolog').
 keywords([refactor]).
-author('Edison Mera Menendez', 'http://edisonm.dyndns.org/').
-packager('Edison Mera Menendez', 'http://edisonm.dyndns.org/').
-maintainer('Edison Mera Menendez', 'http://edisonm.dyndns.org/').
+author('Edison Mera Menendez', 'http://www.edisonm.com/').
+packager('Edison Mera Menendez', 'http://www.edisonm.com/').
+maintainer('Edison Mera Menendez', 'http://www.edisonm.com/').
 home('https://github.com/edisonm/refactor').
 download('https://github.com/edisonm/refactor.git').
