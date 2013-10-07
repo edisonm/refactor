@@ -49,6 +49,7 @@
 :- use_module(library(prolog_codewalk)).
 :- use_module(library(file_changes)).
 :- use_module(library(term_info)).
+:- use_module(library(gcb)).
 
 :- thread_local file_commands_db/2.
 
@@ -310,8 +311,6 @@ refactor_context(pattern, Pattern) :-
 :- meta_predicate
 	with_context(+, +, -, +, -, 0).
 
-:- use_module(library(gcb)).
-
 with_context(Src, Pattern0, Pattern, Into0, Into, Goal) :-
 	copy_term(Pattern0, Pattern1),
 	Pattern0 = Src,
@@ -323,8 +322,7 @@ with_context(Src, Pattern0, Pattern, Into0, Into, Goal) :-
 	pairs_keys_values(Pairs0, Vars0, Vars1),
 	pairs_keys_values(Pairs, Pairs0, Vars),
 	map_subterms(Pairs, Into0, Into1),
-	Pattern1=Pattern,Into1=Into.
-	% greatest_common_binding(Pattern1, Into1, Pattern, Into, _, _).
+	greatest_common_binding(Pattern1, Into1, Pattern, Into).
 
 map_subterms(Pairs, T0, T) :-
 	member(X0-X1-X, Pairs),
@@ -521,7 +519,7 @@ expansion_commands_term(term_position(_, _, FFrom, FTo, SubPos),
     },
     ( {FP==FE}
     ->[] %% Do nothing to preserve functor layout
-      { FP\=FE,
+    ; { FP\=FE,
 	valid_op_type_arity(TypeOp, A),
 	current_op(PrecedenceP, TypeOp, FP),
 	current_op(PrecedenceE, TypeOp, FE),
