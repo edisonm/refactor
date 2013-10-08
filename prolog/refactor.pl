@@ -188,6 +188,21 @@ extend_conj((A,C0), Rest, (A,C)) :- !, extend_conj(C0, Rest, C).
 extend_conj(Last, Rest, (Last,Rest)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+curr_style(Style, CurrStyle) :-
+    arg(1, Style, Name),
+    ( style_check(?Name)
+    ->CurrStyle = +Name
+    ; CurrStyle = -Name
+    ).
+
+with_styles(Goal, StyleL) :-
+    maplist(curr_style, StyleL, OldStyleL),
+    setup_call_cleanup(maplist(style_check, StyleL),
+		       Goal,
+		       maplist(style_check, OldStyleL)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% RULES (1st argument of refactor/2):
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -200,8 +215,9 @@ extend_conj(Last, Rest, (Last,Rest)).
 %	Sentence into Into if Expander is true.
 
 meta_expansion(Level, Caller, Term, Into, Expander, FileChanges) :-
-    collect_expansion_commands(Level, Caller, Term, Into, Expander,
-			       FileCommands),
+    with_styles(collect_expansion_commands(Level, Caller, Term, Into,
+					   Expander, FileCommands),
+		[-atom, -singleton]), % At this point we are not interested in styles
     apply_file_commands(FileCommands, FileChanges).
 
 collect_expansion_commands(goal, Caller, Term, Into, Expander, FileCommands) :-
@@ -211,11 +227,13 @@ collect_expansion_commands(goal, Caller, Term, Into, Expander, FileCommands) :-
 	  evaluate(false),
 	  on_trace(collect_file_commands(Caller, Term, Into, Expander))
 	]),
-    findall(File-Commands,
-	    retract(file_commands_db(File, Commands)),
-	    FileCommands).
-collect_expansion_commands(term, Caller, Ref, Into, Expander, FileCommands) :-
-    style_check(-atom),
+    findall(F-C, retract(file_commands_db(F, C)), FileCommands).
+collect_expansion_commands(term, Caller, Term, Into, Expander, FileCommands) :-
+    collect_ec_term_level(term, Caller, Term, Into, Expander, FileCommands).
+collect_expansion_commands(sent, Caller, Term, Into, Expander, FileCommands) :-
+    collect_ec_term_level(sent, Caller, Term, Into, Expander, FileCommands).
+
+collect_ec_term_level(Level, Caller, Term, Into, Expander, FileCommands) :-
     M:SentencePattern = Caller,
     findall(File-Commands,
 	    ( refactor_module(M),
@@ -223,27 +241,17 @@ collect_expansion_commands(term, Caller, Ref, Into, Expander, FileCommands) :-
 			    [ variable_names(Dict),
 			      subterm_positions(TermPos)
 			    ]),
-	      with_dict(phrase(substitute_term_rec(Sentence, 1200, Ref, Into,
-						   Expander, TermPos),
+	      with_dict(phrase(substitute_term_level(Level, Sentence, 1200, Term,
+						     Into, Expander, TermPos),
 			       Commands),
 			Dict)
 	    ),
 	    FileCommands).
-collect_expansion_commands(sent, Caller, Ref, Into, Expander, FileCommands) :-
-    style_check(-atom),
-    M:SentencePattern = Caller,
-    findall(File-Commands,
-	    ( refactor_module(M),
-	      get_term_info(M, SentencePattern, Sentence, File,
-			    [ variable_names(Dict),
-			      subterm_positions(TermPos)
-			    ]),
-	      with_dict(phrase(substitute_term_norec(Sentence, 1200, Ref, Into,
-						     Expander, TermPos),
-			       Commands),
-			Dict)
-	    ),
-	    FileCommands).
+
+substitute_term_level(term, Sent, Priority, Term, Into, Expander, TermPos) -->
+    substitute_term_rec(Sent, Priority, Term, Into, Expander, TermPos).
+substitute_term_level(sent, Sent, Priority, Term, Into, Expander, TermPos) -->
+    substitute_term_norec(Sent, Priority, Term, Into, Expander, TermPos).
 
 :- meta_predicate with_dict(0, +).
 with_dict(Goal, Dict) :-
