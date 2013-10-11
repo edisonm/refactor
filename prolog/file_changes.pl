@@ -56,9 +56,23 @@ diff_file_change(ExtraOptions, File-Changes) :-
     format(Fd, '~s', [Changes]),
     close(Fd),
     make_relative(File, RFile),
-    atomic_list_concat(['diff -ruN',
-			' --label "', RFile, ' (source)" ', File,
-			' --label "', RFile, ' (target)" ', TmpFile
-		       | ExtraOptions], Command),
-    shell(Command, _),
+    atomic_list_concat([RFile, ' (source)'], FLabel),
+    atomic_list_concat([RFile, ' (target)'], TLabel),
+    process_create(path(diff),
+		   ['-ruN',
+		    '--label', FLabel, File,
+		    '--label', TLabel, TmpFile
+		   | ExtraOptions],
+		   [stdout(pipe(Out))]),
+    dump_output(Out),
     delete_file(TmpFile).
+
+dump_output(Out) :-
+    read_line_to_codes(Out, Line1),
+    dump_output(Line1, Out).
+
+dump_output(end_of_file, _) :- !.
+dump_output(Codes, Out) :-
+    format('~s~n', [Codes]),
+    dump_output(Out).
+    
