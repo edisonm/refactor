@@ -1,5 +1,5 @@
-:- module(gcb, [greatest_common_binding/4,
-		greatest_common_binding/7,
+:- module(gcb, [greatest_common_binding/5,
+		greatest_common_binding/8,
 		substitute_list/3]).
 
 % ?- greatest_common_binding(h(f(A)),g(A,f(A)),T,I,B,[]).
@@ -21,37 +21,48 @@ common_vars(Term, Into, Vars) :-
     term_variables(Into, VInto),
     subtract_eq(VInto, VTerm, Vars).
 
-greatest_common_binding(Term0, Into0, Term, Into) :-
-    common_vars(Term0, Into0, Vars0),
-    greatest_common_binding(Term0, Term0, Into0, Vars0, Term, Into, _).
+greatest_common_binding(Term0, Into0, Term, Into, Unifier) :-
+    greatest_common_binding(Term0, _, Term0, Into0, Term, Into, Unifier, []).
 
-greatest_common_binding(SubTerm, Term0, Into0, Vars0, Term, Into, Vars) :-
-    ( (var(SubTerm);var(Into0)) ->
-      Term=Term0, Into=Into0
-    ; substitute(Var=SubTerm, Into0, Into),
-      Into0\==Into,
-      substitute(Var=SubTerm, Term0, Term),
-      common_vars(Term, Into, Vars),
-      subtract_eq(Vars, Vars0, [])
-    ->true % [Var=SubTerm]
-    ; greatest_common_binding(1, SubTerm, Term0, Into0, Vars0, Term, Into, Vars),
-      Into0\==Into
-    ->true
-    ; Term=Term0, Into=Into0
+greatest_common_binding(SubTerm0, SubTerm, Term0, Into0, Term, Into) -->
+    ( {var(SubTerm0);var(Into0 )} ->
+      {SubTerm=SubTerm0, Term=Term0, Into=Into0 }
+    ; ( {substitute(Var=SubTerm0, Into0, Into1),
+	 Into0\==Into1}
+      ->{substitute(Var=SubTerm0, Term0, Term1)},
+	[Var=SubTerm]
+      ; {Term1=Term0, Into1 = Into0 }
+      ),
+      ( greatest_common_binding(1, SubTerm0, SubTerm, Term1, Into1, Term, Into),
+	{Into1\==Into}
+      ->[]
+      ; {SubTerm=SubTerm0, Term=Term1, Into=Into1 }
+      )
     ).
 
-greatest_common_binding(N, SubTerm, Term0, Into0, Vars0, Term, Into, Vars) :-
-    arg(N, SubTerm, Arg),
+greatest_common_binding(N, SubTerm0, SubTerm, Term0, Into0, Term, Into) -->
+    {arg(N, SubTerm0, Arg)},
     !,
-    greatest_common_binding(Arg, Term0, Into0, Vars0, Term1, Into1, Vars1),
-    succ(N, N1),
-    greatest_common_binding(N1, SubTerm, Term1, Into1, Vars1, Term, Into, Vars).
-greatest_common_binding(_, _, Term, Into, Vars, Term, Into, Vars).
+    pick_tail(Tail),
+    greatest_common_binding(Arg, _, Term0, Into0, Term1, Into1),
+    {substitute_olist(Tail, Term1, Term2),
+     substitute_olist(Tail, SubTerm0, SubTerm1),
+     succ(N, N1)},
+    greatest_common_binding(N1, SubTerm1, SubTerm, Term2, Into1, Term, Into).
+greatest_common_binding(_, SubTerm, SubTerm, Term, Into, Term, Into) --> [].
 
-substitute_olist(Tail) --> {var(Tail)}, !.
-substitute_olist([Subst|Tail]) -->
+% Fixpoint algorithm:
+substitute_olist(SubstList, Term0, Term) :-
+    ( substitute_olist_(SubstList, Term0, Term1),
+      Term0 \== Term1 ->
+      substitute_olist(SubstList, Term1, Term)
+    ; Term0 = Term
+    ).
+
+substitute_olist_(Tail) --> {var(Tail)}, !.
+substitute_olist_([Subst|Tail]) -->
     substitute(Subst),
-    substitute_olist(Tail).
+    substitute_olist_(Tail).
 
 substitute(Var=Val, Term0, Term) :-
     ( Term0 == Val -> Term = Var
