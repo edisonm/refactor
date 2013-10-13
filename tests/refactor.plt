@@ -70,7 +70,6 @@ test(example_2) :-
     assertion(Pattern == Result).
 
 test(example_3) :-
-    gtrace,
     with_output_to(codes(Result),
 		   expand_sentence(ex1:list([[a,b],[c,d]|T]), list([[a,b]|T]), true, show)),
     example_3_out(Pattern),

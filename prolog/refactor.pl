@@ -191,7 +191,7 @@ extend_conj(Last, Rest, (Last,Rest)).
 
 curr_style(Style, CurrStyle) :-
     arg(1, Style, Name),
-    ( style_check(?Name)
+    ( style_check(?(Name))
     ->CurrStyle = +Name
     ; CurrStyle = -Name
     ).
@@ -255,15 +255,17 @@ substitute_term_level(sent, Sent, Priority, Term, Into, Expander, TermPos) -->
 
 :- meta_predicate with_dict(0, +).
 with_dict(Goal, Dict) :-
-    setup_call_cleanup(b_setval(refactor_variable_names, Dict),
-		       Goal,
-		       nb_delete(refactor_variable_names)).
+    with_context_vars(Goal, [refactor_variable_names], [Dict]).
 
-:- meta_predicate with_pattern(0, +).
-with_pattern(Goal, Pattern) :-
-    setup_call_cleanup(b_setval(refactor_pattern, Pattern),
+:- meta_predicate with_pattern_into(0, +).
+with_pattern_into(Goal, Pattern, Into) :-
+    with_context_vars(Goal, [refactor_pattern, refactor_into], [Pattern, Into]).
+
+with_context_vars(Goal, NameL, ValueL) :-
+    setup_call_cleanup(maplist(b_setval, NameL, ValueL),
 		       Goal,
-		       nb_delete(refactor_pattern)).
+		       maplist(nb_delete, NameL)).
+    
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% ANCILLARY PREDICATES:
@@ -304,42 +306,49 @@ refactor_context(variable_names, Bindings) :-
 	b_getval(refactor_variable_names, Bindings).
 refactor_context(pattern, Pattern) :-
 	b_getval(refactor_pattern, Pattern).
+refactor_context(into, Into) :-
+	b_getval(refactor_into, Into).
 
 :- meta_predicate
 	with_context(+, +, -, +, -, -, 0).
 
 with_context(Src, Pattern0, Pattern, Into0, Into, Unifier, Goal) :-
-	copy_term(Pattern0, Pattern1),
-	Pattern0 = Src,
-	copy_term(Pattern0, Pattern2),	% Track changes in Pattern0
-	with_pattern(Goal, Pattern1),   % Allow changes in Pattern
-	term_variables(Pattern1, Vars), % Variable bindings in Pattern
-	copy_term(Pattern1-Vars, Pattern0-Vars0),
-	copy_term(Pattern1-Vars, Pattern2-Vars1),
-	pairs_keys_values(Pairs0, Vars0, Vars1),
-	pairs_keys_values(Pairs, Pairs0, Vars),
-	map_subterms(Pairs, Into0, Into1),
-	greatest_common_binding(Pattern1, Into1, Pattern, Into, Unifier).
+    copy_term(Pattern0-Into0, Pattern1-Into1),
+    Pattern0 = Src,
+    copy_term(Pattern0, Pattern2), % Track changes in Pattern0
+    with_pattern_into(Goal, Pattern1, Into1), % Allow changes in Pattern/Into
+    term_variables(Pattern1, Vars), % Variable bindings in Pattern
+    copy_term(Pattern1-Vars, Pattern0-Vars0),
+    copy_term(Pattern1-Vars, Pattern2-Vars1),
+    pairs_keys_values(Pairs0, Vars0, Vars1),
+    pairs_keys_values(Pairs, Pairs0, Vars),
+    gtrace,
+    map_subterms(Pairs, Into0, Into1, Into2),
+    greatest_common_binding(Pattern1, Into2, Pattern, Into, Unifier).
 
-map_subterms(Pairs, T0, T) :-
-	T0 \== [], % [] is an special atom and must not be mapped
-	member(X0-X1-X, Pairs),
-	same_term(X0, T0), % ===/2
-	!,
-	( subsumes_term(X0, X1) ->
-	  T = X
-	; compound(T0),
-	  X1 = X,
-	  T0 =.. [F|Args0],
-	  maplist(map_subterms(Pairs), Args0, Args),
-	  T =.. [F|Args]
-	).
-map_subterms(Pairs, T0, T) :-
-	compound(T0), !,
-	T0 =.. [F|Args0],
-	maplist(map_subterms(Pairs), Args0, Args),
-	T =.. [F|Args].
-map_subterms(_, T, T).
+map_subterms(Pairs, _, T, T) :-
+    member(X0-X1-X, Pairs),
+    X==T,
+    subsumes_term(X0, X1),
+    !.
+map_subterms(Pairs, T0, _, T) :-
+    member(X0-X1-X, Pairs),
+    same_term(X0, T0),		% ===/2
+    !,
+    ( subsumes_term(X0, X1) ->
+      T = X
+    ; T = X0
+    ).
+map_subterms(Pairs, T0, T1, T) :-
+    compound(T0), !,
+    functor(T0, F, N),
+    functor(T1, F, N),
+    functor(T,  F, N),
+    T0 =.. [F|Args0],
+    T1 =.. [F|Args1],
+    T  =.. [F|Args],
+    maplist(map_subterms(Pairs), Args0, Args1, Args).
+map_subterms(_, T, _, T).
 
 
 %%	substitute_term_norec(+Term, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
@@ -549,6 +558,16 @@ expansion_commands_term(list_position(_, _, Elms, TailPos), Term, _, Pattern, Ex
     },
     expansion_commands_list(Elms, TailPos, Term, Priority, Pattern, Expansion),
     !.
+expansion_commands_term(list_position(From, _, _, _), _, _, Pattern, Expansion) -->
+    { append(Insertion, Pattern, Expansion),
+      term_priority([_|_], 1, Priority),
+      refactor_context(variable_names, Dict)
+    },
+    !,
+    {succ(From, To)},
+    [From-[print(Priority, Insertion, Dict, To)]],
+    !.
+
 expansion_commands_term(none, _, _, _, _) --> !, [].
 expansion_commands_term(TermPos, _, Priority, Pattern, Expansion) -->
 				% Overwrite layout
