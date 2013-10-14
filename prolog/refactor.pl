@@ -315,28 +315,31 @@ refactor_context(into, Into) :-
 with_context(Src, Pattern0, Pattern, Into0, Into, Unifier, Goal) :-
     copy_term(Pattern0-Into0, Pattern1-Into1),
     Pattern0 = Src,
-    copy_term(Pattern0, Pattern2), % Track changes in Pattern0
+    copy_term(Pattern0, Pattern01), % Track changes in Pattern0
     with_pattern_into(Goal, Pattern1, Into1), % Allow changes in Pattern/Into
     term_variables(Pattern1, Vars), % Variable bindings in Pattern
     copy_term(Pattern1-Vars, Pattern0-Vars0),
-    copy_term(Pattern1-Vars, Pattern2-Vars1),
+    copy_term(Pattern1-Vars, Pattern01-Vars1),
     pairs_keys_values(Pairs0, Vars0, Vars1),
     pairs_keys_values(Pairs, Pairs0, Vars),
-    gtrace,
+    %% Pattern1 included in map to deal with atoms in Into0:
+    % map_subterms(Pairs, Pattern1-Into0, Pattern1-Into1, Pattern2-Into2),
     map_subterms(Pairs, Into0, Into1, Into2),
-    greatest_common_binding(Pattern1, Into2, Pattern, Into, Unifier).
+    greatest_common_binding(Pattern1, Into2, Pattern, Into, Unifier),
+    ignore(memberchk([]=[], Unifier)). % Undo end of list bindings []
 
-map_subterms(Pairs, _, T, T) :-
-    member(X0-X1-X, Pairs),
-    X==T,
-    subsumes_term(X0, X1),
-    !.
-map_subterms(Pairs, T0, _, T) :-
-    member(X0-X1-X, Pairs),
-    same_term(X0, T0),		% ===/2
+map_subterms(Pairs, T0, T1, T) :-
+    ( member(X0-X1-X, Pairs),
+      X==T1
+    ; member(X0-X1-X, Pairs),
+      same_term(X0, T0) % ===/2
+    ),
     !,
     ( subsumes_term(X0, X1) ->
-      T = X
+      ( subsumes_term(T0, T1) ->
+	T = T1
+      ; T = X
+      )
     ; T = X0
     ).
 map_subterms(Pairs, T0, T1, T) :-
@@ -349,7 +352,6 @@ map_subterms(Pairs, T0, T1, T) :-
     T  =.. [F|Args],
     maplist(map_subterms(Pairs), Args0, Args1, Args).
 map_subterms(_, T, _, T).
-
 
 %%	substitute_term_norec(+Term, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
 %
@@ -508,6 +510,8 @@ valid_op_type_arity(fy,  1).
 valid_op_type_arity(fx,  1).
 
 refactor_hack('$LIST'(_)).
+refactor_hack('$LIST,'(_)).
+refactor_hack('$LIST,_'(_)).
 refactor_hack('$TEXT'(_)).
 refactor_hack('$TEXT'(_,_)).
 refactor_hack('$BODY'(_)).
@@ -525,6 +529,7 @@ o_length([_|T], N0, N) :- !,
     o_length(T, N1, N).
 o_length(_, N, N).
 
+expansion_commands_term(_, _, _, Pattern, Expansion) --> {Pattern==Expansion}, !.
 expansion_commands_term(term_position(_, _, FFrom, FTo, SubPos),
 			Term, Priority, Pattern, Expansion) -->
     { nonvar(Pattern),
@@ -558,22 +563,10 @@ expansion_commands_term(list_position(_, _, Elms, TailPos), Term, _, Pattern, Ex
     },
     expansion_commands_list(Elms, TailPos, Term, Priority, Pattern, Expansion),
     !.
-expansion_commands_term(list_position(From, _, _, _), _, _, Pattern, Expansion) -->
-    { append(Insertion, Pattern, Expansion),
-      term_priority([_|_], 1, Priority),
-      refactor_context(variable_names, Dict)
-    },
-    !,
-    {succ(From, To)},
-    [From-[print(Priority, Insertion, Dict, To)]],
-    !.
-
 expansion_commands_term(none, _, _, _, _) --> !, [].
-expansion_commands_term(TermPos, _, Priority, Pattern, Expansion) -->
+expansion_commands_term(TermPos, _, Priority, _, Expansion) -->
 				% Overwrite layout
-    ( {Pattern == Expansion}
-    ->[]
-    ; { arg(1, TermPos, From),	% BUG: can drop comments
+    ( { arg(1, TermPos, From),	% BUG: can drop comments
 	arg(2, TermPos, To),
 	refactor_context(variable_names, Dict)
       },     % No minimization is possible, rewrite the hole expansion:
@@ -683,6 +676,10 @@ rportray(Pos0-Remaining0, _, '$substitute_by'(ArgPos, Term), Opt) :-
 rportray(_, _, '$substitute_by'(_, _), _) :- !.
 rportray(_, _, '$LIST'(L), Opt) :- !,
     maplist(term_write(Opt), L).
+rportray(_, _, '$LIST,'(L), Opt) :- !,
+    term_write_comma_list(L, Opt).
+rportray(_, _, '$LIST,_'(L), Opt) :- !,
+    maplist(term_write_comma_2(Opt), L).
 rportray(_, _, '$TEXT'(T), Opt0) :- !,
     subtract(Opt0, [quoted(true), portray_goal(_), priority(_)], Opt),
     write_term(T, Opt).
@@ -692,8 +689,37 @@ rportray(Pos-Remaining, File, '$BODY'(B, Offs), Opt) :-
 rportray(Pos-Remaining, File, '$BODY'(B), Opt) :-
     memberchk(priority(N), Opt),
     write_b(B, rportray(Pos-Remaining, File), N, 0, File, Pos).
+rportray(_-_, _, [E|T0], Opt) :-
+    append(H, T1, [E|T0]),
+    nonvar(T1),
+    T1 = '$substitute_by'(TermPos, Term),
+    is_list(Term),
+    !,
+    arg(1, TermPos, TFrom),
+    arg(2, TermPos, TTo),
+    succ(TFrom, From),
+    succ(To, TTo),
+    T2 = '$substitute_by'(From-To, Term),
+    ( Term == []
+    ->T = H,
+      write('['),
+      term_write_comma_list(T, Opt),
+      write_term(T2, Opt),
+      write(']')
+    ; append(H, [T2], T),
+      write_term(T, Opt)
+    ).
 
 term_write(Opt, Term) :- write_term(Term, Opt).
+
+term_write_comma_list([], _).
+term_write_comma_list([T|L], Opt) :-
+    write_term(T, Opt),
+    maplist(term_write_comma_(Opt), L).
+
+term_write_comma_(Opt, Term) :- write(', '), write_term(Term, Opt).
+
+term_write_comma_2(Opt, Term) :- write_term(Term, Opt), write(', ').
 
 :- use_module(library(listing),[]).
 
@@ -720,6 +746,23 @@ print_expansion_list([T|L], PG, N, File, Pos0) -->
     print_expansion(T, PG, N, File, Pos0),
     print_expansion_list(L, PG, N, File, Pos0).
 
+print_expansion_list_comma([], _, _, _, _) --> [].
+print_expansion_list_comma([T|L], PG, N, File, Pos0) -->
+    print_expansion(T, PG, N, File, Pos0),
+    print_expansion_list_comma_(L, PG, N, File, Pos0).
+
+print_expansion_list_comma_2([], _, _, _, _) --> [].
+print_expansion_list_comma_2([T|L], PG, N, File, Pos0) -->
+    print_expansion(T, PG, N, File, Pos0),
+    {write(', ')},
+    print_expansion_list_comma_2(L, PG, N, File, Pos0).
+
+print_expansion_list_comma_([], _, _, _, _) --> [].
+print_expansion_list_comma_([T|L], PG, N, File, Pos0) -->
+    {write(', ')},
+    print_expansion(T, PG, N, File, Pos0),
+    print_expansion_list_comma_(L, PG, N, File, Pos0).
+
 %% print_expansion(?Term:term, N:integer, File:atom, Pos0:integer, SkipTo:integer, Pos:integer).
 
 print_expansion(Term, PG, N, _, _) --> {var(Term), !, write_r(N, PG, Term)}, [].
@@ -737,6 +780,10 @@ print_expansion('$NL', _, _, File, Pos0) --> % Print an indented new line
     }.
 print_expansion('$LIST'(List), PG, N, File, Pos0) -->
     print_expansion_list(List, PG, N, File, Pos0).
+print_expansion('$LIST,'(List), PG, N, File, Pos0) -->
+    print_expansion_list_comma(List, PG, N, File, Pos0).
+print_expansion('$LIST,_'(List), PG, N, File, Pos0) -->
+    print_expansion_list_comma_2(List, PG, N, File, Pos0).
 print_expansion('$TEXT'(Term), PG, N, File, Pos0) -->
     print_expansion('$TEXT'(Term, 0), PG, N, File, Pos0).
 % BUG: assuming no spaces between Term, full stop and new line:

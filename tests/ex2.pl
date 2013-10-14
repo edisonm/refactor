@@ -1,7 +1,3 @@
-:- module(ex2, []).
+:- module(ex2, [f/3]).
 
-q(A, B, L) :-
-    p(A, B, L, []).
-
-p(_, _) --> [].
-p(A, B) --> p(A, B), "hello".
+f(a, f(/*1*/f( a)), f(/*2*/f( f(a  )))).
