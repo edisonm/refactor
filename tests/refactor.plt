@@ -10,6 +10,9 @@
 :- use_module(ex6).
 :- use_module(ex7).
 :- use_module(ex8).
+:- use_module(ex9).
+:- use_module(ex10).
+:- use_module(ex11).
 
 example_1_out("\c
   --- ex1.pl (source)\c
@@ -150,6 +153,72 @@ test(example_8) :-
     with_output_to(codes(Result),
 		   expand_sentence(ex8:ex8([[a,b],[c,d]|T]), ex8([[a,b]|T]), true, show)),
     example_8_out(Pattern),
+    assertion(Pattern == Result).
+
+example_9_out("\c
+  --- ex9.pl (source)\c
+\n+++ ex9.pl (target)\c
+\n@@ -1,3 +1,3 @@\c
+\n :- module(ex9, [ex9/2]).\c
+\n \c
+\n-ex9(a, [f(g,c), g(d, e)]).\c
+\n+ex9(a, [f(g, c, a), g(d, e)]).\c
+\n").
+
+test(example_9) :-
+    with_output_to(codes(Result),
+		   expand_term(ex9:ex9(X, _), f(A,B), f(A,B,X), true, show)),
+    example_9_out(Pattern),
+    assertion(Pattern == Result).
+
+example_10_1_out("\c
+  --- ex10.pl (source)\c
+\n+++ ex10.pl (target)\c
+\n@@ -1,3 +1,3 @@\c
+\n :- module(ex10, [ex10/2]).\c
+\n \c
+\n-ex10(f(A), g(A)).\c
+\n+ex10(f(A), g(C, a(C))).\c
+\n").
+
+test(example_10_1) :-
+    with_output_to(codes(Result),
+		   expand_term(ex10:ex10(_, _), g(A), g(B,A), (A=a(B),B='$VAR'('C')), show)),
+    example_10_1_out(Pattern),
+    assertion(Pattern == Result).
+
+example_10_2_out("\c
+  --- ex10.pl (source)\c
+\n+++ ex10.pl (target)\c
+\n@@ -1,3 +1,3 @@\c
+\n :- module(ex10, [ex10/2]).\c
+\n \c
+\n-ex10(f(A), g(A)).\c
+\n+ex10(f(A), g(A, f(A))).\c
+\n").
+
+test(example_10_2) :-
+    with_output_to(codes(Result),
+		   expand_term(ex10:ex10(X, _), g(A), g(A,X), true, show)),
+    example_10_2_out(Pattern),
+    assertion(Pattern == Result).
+
+example_11_out("\c
+  --- ex11.pl (source)\c
+\n+++ ex11.pl (target)\c
+\n@@ -1,5 +1,5 @@\c
+\n :- module(ex11, [ex11/1]).\c
+\n \c
+\n ex11([A|B]) :-\c
+\n-    ex11(A),\c
+\n+    ex11_one(A),\c
+\n     ex11(B).\c
+\n").
+
+test(example_11) :-
+    with_output_to(codes(Result),
+		   expand_term(ex11:(ex11([A|_]):-_), ex11(A), ex11_one(A), true, show)),
+    example_11_out(Pattern),
     assertion(Pattern == Result).
 
 :- end_tests(refactor).

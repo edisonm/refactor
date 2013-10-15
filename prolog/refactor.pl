@@ -234,38 +234,42 @@ collect_expansion_commands(sent, Caller, Term, Into, Expander, FileCommands) :-
     collect_ec_term_level(sent, Caller, Term, Into, Expander, FileCommands).
 
 collect_ec_term_level(Level, Caller, Term, Into, Expander, FileCommands) :-
-    M:SentencePattern = Caller,
-    findall(File-Commands,
-	    ( refactor_module(M),
-	      get_term_info(M, SentencePattern, Sentence, File,
-			    [ variable_names(Dict),
-			      subterm_positions(TermPos)
-			    ]),
-	      with_dict(phrase(substitute_term_level(Level, Sentence, 1200, Term,
-						     Into, Expander, TermPos),
-			       Commands),
-			Dict)
-	    ),
+    findall(File-Commands, ec_term_level_each(Level, Caller, Term, Into,
+					      Expander, File, Commands),
 	    FileCommands).
+
+ec_term_level_each(Level, M:SentPattern, Term, Into, Expander,
+		   File, Commands) :-
+    refactor_module(M),
+    get_term_info(M, SentPattern, Sent, File,
+		  [ variable_names(Dict),
+		    subterm_positions(TermPos)
+		  ]),
+    with_sentence(with_dict(phrase(substitute_term_level(Level, Sent, 1200, Term,
+							 Into, Expander, TermPos),
+				   Commands),
+			    Dict),
+		  Sent-SentPattern).
 
 substitute_term_level(term, Sent, Priority, Term, Into, Expander, TermPos) -->
     substitute_term_rec(Sent, Priority, Term, Into, Expander, TermPos).
 substitute_term_level(sent, Sent, Priority, Term, Into, Expander, TermPos) -->
     substitute_term_norec(Sent, Priority, Term, Into, Expander, TermPos).
 
-:- meta_predicate with_dict(0, +).
 with_dict(Goal, Dict) :-
     with_context_vars(Goal, [refactor_variable_names], [Dict]).
 
-:- meta_predicate with_pattern_into(0, +).
 with_pattern_into(Goal, Pattern, Into) :-
     with_context_vars(Goal, [refactor_pattern, refactor_into], [Pattern, Into]).
+
+with_sentence(Goal, Sent) :-
+    with_context_vars(Goal, [refactor_sentence], [Sent]).
 
 with_context_vars(Goal, NameL, ValueL) :-
     setup_call_cleanup(maplist(b_setval, NameL, ValueL),
 		       Goal,
 		       maplist(nb_delete, NameL)).
-    
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% ANCILLARY PREDICATES:
@@ -303,17 +307,17 @@ refactor_module(M) :-
 %%	refactor_context(?Name, ?Value) is nondet.
 
 refactor_context(variable_names, Bindings) :-
-	b_getval(refactor_variable_names, Bindings).
+    b_getval(refactor_variable_names, Bindings).
 refactor_context(pattern, Pattern) :-
-	b_getval(refactor_pattern, Pattern).
+    b_getval(refactor_pattern, Pattern).
 refactor_context(into, Into) :-
-	b_getval(refactor_into, Into).
-
-:- meta_predicate
-	with_context(+, +, -, +, -, -, 0).
+    b_getval(refactor_into, Into).
+refactor_context(sentence, Sentence) :-
+    b_getval(refactor_sentence, Sentence).
 
 with_context(Src, Pattern0, Pattern, Into0, Into, Unifier, Goal) :-
     copy_term(Pattern0-Into0, Pattern1-Into1),
+    refactor_context(sentence, Sent-Sent),
     Pattern0 = Src,
     copy_term(Pattern0, Pattern01), % Track changes in Pattern0
     with_pattern_into(Goal, Pattern1, Into1), % Allow changes in Pattern/Into
@@ -322,8 +326,6 @@ with_context(Src, Pattern0, Pattern, Into0, Into, Unifier, Goal) :-
     copy_term(Pattern1-Vars, Pattern01-Vars1),
     pairs_keys_values(Pairs0, Vars0, Vars1),
     pairs_keys_values(Pairs, Pairs0, Vars),
-    %% Pattern1 included in map to deal with atoms in Into0:
-    % map_subterms(Pairs, Pattern1-Into0, Pattern1-Into1, Pattern2-Into2),
     map_subterms(Pairs, Into0, Into1, Into2),
     greatest_common_binding(Pattern1, Into2, Pattern, Into, Unifier),
     ignore(memberchk([]=[], Unifier)). % Undo end of list bindings []
@@ -336,8 +338,8 @@ map_subterms(Pairs, T0, T1, T) :-
     ),
     !,
     ( subsumes_term(X0, X1) ->
-      ( subsumes_term(T0, T1) ->
-	T = T1
+      ( T0==T1
+      ->T = X1
       ; T = X
       )
     ; T = X0
@@ -358,13 +360,11 @@ map_subterms(_, T, _, T).
 %	None-recursive version of substitute_term_rec//6.
 
 substitute_term_norec(Term, Priority, Pattern, Into, Expander, TermPos) -->
-	{ subsumes_term(Pattern, Term),
-	  with_context(Term, Pattern, Pattern2, Into, Into2, Unifier, Expander)
-	},
-	substitute_term(Priority, Term, Pattern2, Into2, Unifier, TermPos), !.
-
-
-:- meta_predicate substitute_term_rec(+,+,?,+,5,+,+,?,?).
+    { refactor_context(sentence, Sent-SentPattern),
+      subsumes_term(SentPattern-Pattern, Sent-Term),
+      with_context(Term, Pattern, Pattern2, Into, Into2, Unifier, Expander)
+    },
+    substitute_term(Priority, Term, Pattern2, Into2, Unifier, TermPos), !.
 
 %%	substitute_term_rec(+SrcTerm, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
 %
@@ -388,7 +388,6 @@ substitute_term_rec(Term, Priority, Pattern, Into, Expander, TermPos) -->
 substitute_term_rec(Term, _, Ref, Into, Expander, TermPos) -->
     substitute_term_into(TermPos, Term, Ref, Into, Expander).
 
-:- meta_predicate substitute_term_into(+,?,?,?,5,?,?).
 substitute_term_into(term_position(_, _, _, _, CP), Term, Ref,
 		     Into, Expander) --> !,
     substitute_term_args(CP, 1, Term, Ref, Into, Expander).
@@ -414,7 +413,6 @@ term_priority(Term, N, Priority) :-
     ; Priority = 1200
     ).
 
-:- meta_predicate substitute_term_args(?,+,?,?,?,?,5,?,?).
 substitute_term_args([PA|PAs], N0, Term, Ref, Into, Expander) -->
     ( {arg(N0, Term, Arg)},
       {term_priority(Term, N0, Priority)},
@@ -423,7 +421,6 @@ substitute_term_args([PA|PAs], N0, Term, Ref, Into, Expander) -->
       substitute_term_args(PAs, N, Term, Ref, Into, Expander)
     ).
 
-:- meta_predicate substitute_term_list(?,?,?,?,?,5,?,?).
 substitute_term_list([EP|EPs], TP, [Elem|Term], Ref, Into, Expander) -->
     ( {term_priority([_|_], 1, Priority)},
       substitute_term_rec(Elem, Priority, Ref, Into, Expander, EP)
@@ -446,13 +443,14 @@ substitute_term_list([], TP, Tail, Ref, Into, Expander) -->
 
 collect_file_commands(CallerPattern, Pattern, Into, Expander,
 		      Callee, Caller, From) :-
-	subsumes_term(CallerPattern, Caller),
-	with_dict((with_context(Callee, Pattern, Pattern2, Into, Into2,
-				Unifier, Expander),
-		   calculate_commands(Callee, Pattern2, Into2, Unifier,
-				      From, File, Commands, [])
-		  ), []),
-	assertz(file_commands_db(File, Commands)).
+    subsumes_term(CallerPattern-Pattern, Caller-Callee),
+    with_sentence(with_dict((with_context(Callee, Pattern, Pattern2,
+					  Into, Into2, Unifier, Expander),
+			     calculate_commands(Callee, Pattern2, Into2, Unifier,
+						From, File, Commands, [])
+			    ), []),
+		  Caller-CallerPattern),
+    assertz(file_commands_db(File, Commands)).
 
 :- multifile
     prolog:message//1,
