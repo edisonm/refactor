@@ -395,6 +395,9 @@ substitute_term_rec(Term, Priority, Pattern, Into, Expander, TermPos) -->
 substitute_term_rec(Term, _, Ref, Into, Expander, TermPos) -->
     substitute_term_into(TermPos, Term, Ref, Into, Expander).
 
+substitute_term_into(brace_term_position(_, _, Pos), {Term},
+		     Ref, Into, Expander) -->
+    substitute_term_rec(Term, 1200, Ref, Into, Expander, Pos).
 substitute_term_into(term_position(_, _, _, _, CP), Term, Ref,
 		     Into, Expander) --> !,
     substitute_term_args(CP, 1, Term, Ref, Into, Expander).
@@ -537,8 +540,8 @@ o_length([_|T], N0, N) :- !,
 o_length(_, N, N).
 
 expansion_commands_term(_, _, _, Pattern, Expansion) --> {Pattern==Expansion}, !.
-expansion_commands_term(brace_term_position(_, _, ArgPos),
-			{Term}, Priority, {Pattern}, Expansion) --> !,
+expansion_commands_term(brace_term_position(_, _, ArgPos), {Term}, Priority,
+			{Pattern}, Expansion) --> !,
     { nonvar(Expansion),
       {Arg} = Expansion
     },
