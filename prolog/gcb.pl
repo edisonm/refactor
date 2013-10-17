@@ -2,25 +2,6 @@
 		greatest_common_binding/8,
 		substitute_list/3]).
 
-% ?- greatest_common_binding(h(f(A)),g(A,f(A)),T,I,B,[]).
-% T = h(_G357),
-% I = g(A, _G357),
-% B = [_G357=f(A)].
-
-subtract_eq([], _, []).
-subtract_eq([Elem0|T], L, Set0) :-
-    ( member(Elem, L),
-      Elem0 == Elem ->
-      Set0 = Set
-    ; Set0 = [Elem0|Set]
-    ),
-    subtract_eq(T, L, Set).
-
-common_vars(Term, Into, Vars) :-
-    term_variables(Term, VTerm),
-    term_variables(Into, VInto),
-    subtract_eq(VInto, VTerm, Vars).
-
 greatest_common_binding(Term0, Into0, Term, Into, Unifier) :-
     greatest_common_binding(Term0, _, Term0, Into0, Term, Into, Unifier, []).
 
@@ -33,7 +14,8 @@ greatest_common_binding(SubTerm0, SubTerm, Term0, Into0, Term, Into) -->
 	[Var=SubTerm]
       ; {Term1=Term0, Into1 = Into0 }
       ),
-      ( greatest_common_binding(1, SubTerm0, SubTerm, Term1, Into1, Term, Into),
+      ( {compound(SubTerm0)},
+        greatest_common_binding(1, SubTerm0, SubTerm, Term1, Into1, Term, Into),
 	{Into1\==Into}
       ->[]
       ; {SubTerm=SubTerm0, Term=Term1, Into=Into1 }
@@ -66,10 +48,11 @@ substitute_olist_([Subst|Tail]) -->
 
 substitute(Var=Val, Term0, Term) :-
     ( Term0 == Val -> Term = Var
-    ; var(Term0) -> Term = Term0
-    ; functor(Term0, F, A),
+    ; compound(Term0) ->
+      functor(Term0, F, A),
       functor(Term,  F, A),
       substitute(1, Var=Val, Term0, Term)
+    ; Term = Term0
     ).
 
 substitute(N, Subst, Term0, Term) :-
