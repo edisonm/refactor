@@ -13,212 +13,267 @@
 :- use_module(ex9).
 :- use_module(ex10).
 :- use_module(ex11).
+:- use_module(ex12).
 
-example_1_out("\c
-  --- ex1.pl (source)\c
-\n+++ ex1.pl (target)\c
-\n@@ -1,3 +1,3 @@\c
-\n :- module(ex1, [g/0]).\c
-\n \c
-\n-g :- same_term(c,a),d,(b   )   .\c
-\n+g :- d,(b   )   .\c
-\n").
+:- dynamic example_out/2.
+
+%% process_refactor_test_data(+Comments, +Term) is semidet
+% This comment_hook hack allow us to write copy-pasteable test data
+% as a comment, to facilitate output comparisons:
+
+process_refactor_test_data(Comments, Term) :-
+    Term = (test(Test) :- _),
+    format(string(Header), '/* $~w$~n', [Test]), % */
+    member(_-Comment, Comments),
+    string_concat(Header, Out0, Comment),
+    string_concat(Out, '*/', Out0),
+    retractall(example_out(Test, _)),
+    assertz(example_out(Test, Out)).
+
+:- multifile prolog:comment_hook/3.
+:- dynamic prolog:comment_hook/3.
+
+prolog:comment_hook(Comments, _TermPos, Term) :-
+    process_refactor_test_data(Comments, Term).
+
+/* $example_1$
+--- ex1.pl (source)
++++ ex1.pl (target)
+@@ -1,3 +1,3 @@
+ :- module(ex1, [g/0]).
+ 
+-g :- same_term(c,a),d,(b   )   .
++g :- d,(b   )   .
+*/
 
 test(example_1) :-
-    with_output_to(codes(Result),
+    with_output_to(string(Result),
 		   replace_term(ex1:_, (same_term(c,a),d,b),(d,b), show)),
-    example_1_out(Pattern),
+    example_out(example_1, Pattern),
     assertion(Pattern == Result).
 
-example_2_out("\c
-  --- ex2.pl (source)\c
-\n+++ ex2.pl (target)\c
-\n@@ -1,3 +1,3 @@\c
-\n :- module(ex2, [f/3]).\c
-\n \c
-\n-f(a, f(/*1*/f( a)), f(/*2*/f( f(a  )))).\c
-\n+g(f(/*2*/f( f(a  ))), f(/*1*/f( a)), a).\c
-\n").
+/* $example_2$
+--- ex2.pl (source)
++++ ex2.pl (target)
+@@ -1,3 +1,3 @@
+ :- module(ex2, [f/3]).
+ 
+-f(a, f(/*1*/f( a)), f(/*2*/f( f(a  )))).
++g(f(/*2*/f( f(a  ))), f(/*1*/f( a)), a).
+*/
 
 test(example_2) :-
-    with_output_to(codes(Result),
+    with_output_to(string(Result),
 		   expand_sentence(ex2:f(a,f(f(a)),C), g(C,f(f(a)),a),true,show)),
-    example_2_out(Pattern),
+    example_out(example_2, Pattern),
     assertion(Pattern == Result).
 
-example_3_out("--- ex3.pl (source)\c
-\n+++ ex3.pl (target)\c
-\n@@ -1,3 +1,3 @@\c
-\n :- module(ex3, ['ex3'/0]).\c
-\n \c
-\n-ex3 :- display('ex3').\c
-\n+ex3 :- ex3, 'ex3', display('ex3').\c
-\n").
+/* $example_3$
+--- ex3.pl (source)
++++ ex3.pl (target)
+@@ -1,3 +1,3 @@
+ :- module(ex3, ['ex3'/0]).
+ 
+-ex3 :- display('ex3').
++ex3 :- ex3, 'ex3', display('ex3').
+*/
 
 test(example_3) :-
-    with_output_to(codes(Result),
+    with_output_to(string(Result),
 		   expand_sentence(ex3:(A :- display(B)), (A :- A, B, display(B)), true, show)),
-    example_3_out(Pattern),
+    example_out(example_3, Pattern),
     assertion(Pattern == Result).
 
-example_4_out("--- ex4.pl (source)\c
-\n+++ ex4.pl (target)\c
-\n@@ -1,3 +1,3 @@\c
-\n :- module(ex4, [ex4/2]).\c
-\n \c
-\n-ex4(_A, b).\c
-\n+ex4_(f(a), b).\c
-\n").
+/* $example_4$
+--- ex4.pl (source)
++++ ex4.pl (target)
+@@ -1,3 +1,3 @@
+ :- module(ex4, [ex4/2]).
+ 
+-ex4(_A, b).
++ex4_(f(a), b).
+*/
 
 test(example_4) :-
-    with_output_to(codes(Result),
+    with_output_to(string(Result),
 		   expand_sentence(ex4:ex4(A, B), ex4_(A, B), (A=f(a)),show)),
-    example_4_out(Pattern),
+    example_out(example_4, Pattern),
     assertion(Pattern == Result).    
 
-example_5_out("--- ex5.pl (source)\c
-\n+++ ex5.pl (target)\c
-\n@@ -1,7 +1,7 @@\c
-\n :- module(ex5, [ex5/1]).\c
-\n \c
-\n-ex5([]).\c
-\n-ex5([/* hello */]).\c
-\n-ex5([d]).\c
-\n-ex5([d,e]).\c
-\n-ex5(a).\c
-\n+ex5([c]).\c
-\n+ex5([c/* hello */]).\c
-\n+ex5([c, d]).\c
-\n+ex5([c, d,e]).\c
-\n+ex5([c|a]).\c
-\n").
+/* $example_5$
+--- ex5.pl (source)
++++ ex5.pl (target)
+@@ -1,7 +1,7 @@
+ :- module(ex5, [ex5/1]).
+ 
+-ex5([]).
+-ex5([/* hello */]).
+-ex5([d]).
+-ex5([d,e]).
+-ex5(a).
++ex5([c]).
++ex5([c/* hello */]).
++ex5([c, d]).
++ex5([c, d,e]).
++ex5([c|a]).
+*/
 
 test(example_5) :-
-    with_output_to(codes(Result),
+    with_output_to(string(Result),
 		   expand_sentence(ex5:ex5(T),ex5([c|T]),true,show)),
-    example_5_out(Pattern),
+    example_out(example_5, Pattern),
     assertion(Pattern == Result).
 
-example_6_out("--- ex6.pl (source)\c
-\n+++ ex6.pl (target)\c
-\n@@ -1,7 +1,7 @@\c
-\n :- module(ex6, []).\c
-\n \c
-\n q(A, B, L) :-\c
-\n-    p(A, B, L, []).\c
-\n+    p(B, A, L, []).\c
-\n \c
-\n p(_, _) --> [].\c
-\n-p(A, B) --> p(A, B), \"hello\".\c
-\n+p(A, B) --> p(B, A), \"hello\".\c
-\n").
+/* $example_6$
+--- ex6.pl (source)
++++ ex6.pl (target)
+@@ -1,7 +1,7 @@
+ :- module(ex6, []).
+ 
+ q(A, B, L) :-
+-    p(A, B, L, []).
++    p(B, A, L, []).
+ 
+ p(_, _) --> [].
+-p(A, B) --> p(A, B), "hello".
++p(A, B) --> p(B, A), "hello".
+*/
 
 test(example_6) :-
-    with_output_to(codes(Result),
+    with_output_to(string(Result),
 		   replace_goal(ex6:_, ex6:p(A,B,L,T), p(B,A,L,T), show)),
-    example_6_out(Pattern),
+    example_out(example_6, Pattern),
     assertion(Pattern == Result).
 
-example_7_out("\c
-  --- ex7.pl (source)\c
-\n+++ ex7.pl (target)\c
-\n@@ -1,3 +1,3 @@\c
-\n :- module(ex7, [aaa/3]).\c
-\n \c
-\n-aaa([[d, _]], [d /* d */], []).\c
-\n+aaa([[_]], [d], [[c, d /* d */], [b, c, d /* d */]]).\c
-\n").
+/* $example_7$
+--- ex7.pl (source)
++++ ex7.pl (target)
+@@ -1,3 +1,3 @@
+ :- module(ex7, [aaa/3]).
+ 
+-aaa([[d, _]], [d /* d */], []).
++aaa([[_]], [d], [[c, d /* d */], [b, c, d /* d */]]).
+*/
 
 test(example_7) :-
-    with_output_to(codes(Result),
+    with_output_to(string(Result),
 		   expand_sentence(ex7:aaa([[X,_]],[d], []),
 				   aaa([[_]], [X], [[c,d],[b,c,d]]), true, show)),
-    example_7_out(Pattern),
+    example_out(example_7, Pattern),
     assertion(Pattern == Result).
 
-example_8_out("\c
-  --- ex8.pl (source)\c
-\n+++ ex8.pl (target)\c
-\n@@ -1,5 +1,5 @@\c
-\n :- module(ex8, [ex8/1]).\c
-\n \c
-\n-ex8([[a,b],[c,d],[e]]).\c
-\n+ex8([[a,b], [e]]).\c
-\n \c
-\n-ex8([[a,b],[c,d]]).\c
-\n+ex8([[a,b]]).\c
-\n").
+/* $example_8$
+--- ex8.pl (source)
++++ ex8.pl (target)
+@@ -1,5 +1,5 @@
+ :- module(ex8, [ex8/1]).
+ 
+-ex8([[a,b],[c,d],[e]]).
++ex8([[a,b], [e]]).
+ 
+-ex8([[a,b],[c,d]]).
++ex8([[a,b]]).
+*/
 
 test(example_8) :-
-    with_output_to(codes(Result),
+    with_output_to(string(Result),
 		   expand_sentence(ex8:ex8([[a,b],[c,d]|T]), ex8([[a,b]|T]), true, show)),
-    example_8_out(Pattern),
+    example_out(example_8, Pattern),
     assertion(Pattern == Result).
 
-example_9_out("\c
-  --- ex9.pl (source)\c
-\n+++ ex9.pl (target)\c
-\n@@ -1,3 +1,3 @@\c
-\n :- module(ex9, [ex9/2]).\c
-\n \c
-\n-ex9(a, [f(g,c), g(d, e)]).\c
-\n+ex9(a, [f(g, c, a), g(d, e)]).\c
-\n").
+/* $example_9$
+--- ex9.pl (source)
++++ ex9.pl (target)
+@@ -1,3 +1,3 @@
+ :- module(ex9, [ex9/2]).
+ 
+-ex9(a, [f(g,c), g(d, e)]).
++ex9(a, [f(g, c, a), g(d, e)]).
+*/
 
 test(example_9) :-
-    with_output_to(codes(Result),
+    with_output_to(string(Result),
 		   expand_term(ex9:ex9(X, _), f(A,B), f(A,B,X), true, show)),
-    example_9_out(Pattern),
+    example_out(example_9, Pattern),
     assertion(Pattern == Result).
 
-example_10_1_out("\c
-  --- ex10.pl (source)\c
-\n+++ ex10.pl (target)\c
-\n@@ -1,3 +1,3 @@\c
-\n :- module(ex10, [ex10/2]).\c
-\n \c
-\n-ex10(f(A), g(A)).\c
-\n+ex10(f(A), g(C, a(C))).\c
-\n").
+/* $example_10_1$
+--- ex10.pl (source)
++++ ex10.pl (target)
+@@ -1,3 +1,3 @@
+ :- module(ex10, [ex10/2]).
+ 
+-ex10(f(A), g(A)).
++ex10(f(A), g(C, a(C))).
+*/
 
 test(example_10_1) :-
-    with_output_to(codes(Result),
+    with_output_to(string(Result),
 		   expand_term(ex10:ex10(_, _), g(A), g(B,A), (A=a(B),B='$VAR'('C')), show)),
-    example_10_1_out(Pattern),
+    example_out(example_10_1, Pattern),
     assertion(Pattern == Result).
 
-example_10_2_out("\c
-  --- ex10.pl (source)\c
-\n+++ ex10.pl (target)\c
-\n@@ -1,3 +1,3 @@\c
-\n :- module(ex10, [ex10/2]).\c
-\n \c
-\n-ex10(f(A), g(A)).\c
-\n+ex10(f(A), g(A, f(A))).\c
-\n").
+/* $example_10_2$
+--- ex10.pl (source)
++++ ex10.pl (target)
+@@ -1,3 +1,3 @@
+ :- module(ex10, [ex10/2]).
+ 
+-ex10(f(A), g(A)).
++ex10(f(A), g(A, f(A))).
+*/
 
 test(example_10_2) :-
-    with_output_to(codes(Result),
+    with_output_to(string(Result),
 		   expand_term(ex10:ex10(X, _), g(A), g(A,X), true, show)),
-    example_10_2_out(Pattern),
+    example_out(example_10_2, Pattern),
     assertion(Pattern == Result).
 
-example_11_out("\c
-  --- ex11.pl (source)\c
-\n+++ ex11.pl (target)\c
-\n@@ -1,5 +1,5 @@\c
-\n :- module(ex11, [ex11/1]).\c
-\n \c
-\n ex11([A|B]) :-\c
-\n-    ex11(A),\c
-\n+    ex11_one(A),\c
-\n     ex11(B).\c
-\n").
+/* $example_11$
+--- ex11.pl (source)
++++ ex11.pl (target)
+@@ -1,5 +1,5 @@
+ :- module(ex11, [ex11/1]).
+ 
+ ex11([A|B]) :-
+-    ex11(A),
++    ex11_one(A),
+     ex11(B).
+*/
 
 test(example_11) :-
-    with_output_to(codes(Result),
+    with_output_to(string(Result),
 		   expand_term(ex11:(ex11([A|_]):-_), ex11(A), ex11_one(A), true, show)),
-    example_11_out(Pattern),
+    example_out(example_11, Pattern),
     assertion(Pattern == Result).
+
+/* $example_12$
+--- ex12.pl (source)
++++ ex12.pl (target)
+@@ -1,12 +1,10 @@
+ :- module(ex12, [ex12/0]).
+ 
+ ex12 :-
+-    ( a  ),
+-    b.
++    ( b.
+ 
+ ex12 :-
+     a,
+-    a,
+     b.
+ 
+ a.
+*/
+
+test(example_12) :-
+    with_output_to(string(Result),
+		   replace_term(ex12:_,(a,b),b,show)),
+    example_out(example_12, Pattern),
+    assertion(Pattern == Result).
+
+:- multifile prolog:comment_hook/3.
+:- dynamic prolog:comment_hook/3.
+:- retractall(prolog:comment_hook(_, _, _)).
 
 :- end_tests(refactor).
