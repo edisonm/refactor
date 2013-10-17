@@ -306,9 +306,9 @@ apply_commands(File-Commands, File-Changes) :-
 %	True when M is a module we should refactor.
 
 refactor_module(M) :-
-	current_module(M),
-	M \= user,				% Dubious --JW
-	module_property(M, class(user)).
+    current_module(M),
+    M \= user,			% Dubious --JW
+    module_property(M, class(user)).
 
 
 %%	refactor_context(?Name, ?Value) is nondet.
@@ -322,7 +322,7 @@ refactor_context(into, Into) :-
 refactor_context(sentence, Sentence) :-
     b_getval(refactor_sentence, Sentence).
 
-with_context(Src, Pattern0, Pattern, Into0, Into, Unifier, Goal) :-
+with_context(Src, Pattern0, Into0, Pattern, Into, Unifier, Goal) :-
     copy_term(Pattern0-Into0, Pattern1-Into1),
     refactor_context(sentence, Sent-Sent),
     Pattern0 = Src,
@@ -369,7 +369,7 @@ map_subterms(_, T, _, T).
 substitute_term_norec(Term, Priority, Pattern, Into, Expander, TermPos) -->
     { refactor_context(sentence, Sent-SentPattern),
       subsumes_term(SentPattern-Pattern, Sent-Term),
-      with_context(Term, Pattern, Pattern2, Into, Into2, Unifier, Expander)
+      with_context(Term, Pattern, Into, Pattern2, Into2, Unifier, Expander)
     },
     substitute_term(Priority, Term, Pattern2, Into2, Unifier, TermPos), !.
 
@@ -454,8 +454,8 @@ substitute_term_list([], TP, Tail, Ref, Into, Expander) -->
 collect_file_commands(CallerPattern, Pattern, Into, Expander,
 		      Callee, Caller, From) :-
     subsumes_term(CallerPattern-Pattern, Caller-Callee),
-    with_sentence(with_dict((with_context(Callee, Pattern, Pattern2,
-					  Into, Into2, Unifier, Expander),
+    with_sentence(with_dict((with_context(Callee, Pattern, Into,
+					  Pattern2, Into2, Unifier, Expander),
 			     calculate_commands(Callee, Pattern2, Into2, Unifier,
 						From, File, Commands, [])
 			    ), []),
@@ -541,10 +541,11 @@ o_length(_, N, N).
 
 expansion_commands_term(_, _, _, Pattern, Expansion) --> {Pattern==Expansion}, !.
 expansion_commands_term(brace_term_position(_, _, ArgPos), {Term}, Priority,
-			{Pattern}, Expansion) --> !,
+			{Pattern}, Expansion) -->
     { nonvar(Expansion),
       {Arg} = Expansion
     },
+    !,
     expansion_commands_term(ArgPos, Term, Priority, Pattern, Arg).
 expansion_commands_term(term_position(_, _, FFrom, FTo, SubPos),
 			Term, Priority, Pattern, Expansion) -->

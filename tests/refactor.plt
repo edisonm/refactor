@@ -14,6 +14,7 @@
 :- use_module(ex10).
 :- use_module(ex11).
 :- use_module(ex12).
+:- use_module(ex13).
 
 :- dynamic example_out/2.
 
@@ -272,8 +273,26 @@ test(example_12) :-
     example_out(example_12, Pattern),
     assertion(Pattern == Result).
 
-:- multifile prolog:comment_hook/3.
-:- dynamic prolog:comment_hook/3.
+/* $example_13$
+--- ex13.pl (source)
++++ ex13.pl (target)
+@@ -2,7 +2,7 @@
+ 
+ ex13(A, B) :-
+     p(A, A),
+-    q(B,A),
++    q(B,a),
+     r(B, B).
+ 
+ q(1,1).
+*/
+
+test(example_13) :-
+    with_output_to(string(Result),
+		   expand_term(ex13:_, T, T, (nonvar(T), T=q(_B,A),A=a), show)),
+    example_out(example_13, Pattern),
+    assertion(Pattern == Result).
+
 :- retractall(prolog:comment_hook(_, _, _)).
 
 :- end_tests(refactor).
