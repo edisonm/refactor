@@ -15,6 +15,7 @@
 :- use_module(ex11).
 :- use_module(ex12).
 :- use_module(ex13).
+:- use_module(ex14).
 
 :- dynamic example_out/2.
 
@@ -40,11 +41,14 @@ prolog:comment_hook(Comments, _TermPos, Term) :-
 /* $example_1$
 --- ex1.pl (source)
 +++ ex1.pl (target)
-@@ -1,3 +1,3 @@
+@@ -1,6 +1,6 @@
  :- module(ex1, [g/0]).
  
 -g :- same_term(c,a),d,(b   )   .
 +g :- d,(b   )   .
+ 
+ b.
+ 
 */
 
 test(example_1) :-
@@ -291,6 +295,26 @@ test(example_13) :-
     with_output_to(string(Result),
 		   expand_term(ex13:_, T, T, (nonvar(T), T=q(_B,A),A=a), show)),
     example_out(example_13, Pattern),
+    assertion(Pattern == Result).
+
+/* $example_14$
+--- ex14.pl (source)
++++ ex14.pl (target)
+@@ -1,7 +1,6 @@
+ :- module(ex14, [ex14/2]).
+ 
+-ex14(A, B) :-
+-    A = f(/**/B),
++ex14(g(f(B)), B) :-
+     true.
+ 
+ ex14(A, B) :-
+*/
+
+test(example_14) :-
+    with_output_to(string(Result),
+		   expand_sentence(ex14:(Head :- A=B, Body), (Head :- Body), (A=g(B)),show)),
+    example_out(example_14, Pattern),
     assertion(Pattern == Result).
 
 :- retractall(prolog:comment_hook(_, _, _)).
