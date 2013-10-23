@@ -297,24 +297,67 @@ test(example_13) :-
     example_out(example_13, Pattern),
     assertion(Pattern == Result).
 
-/* $example_14$
+/* $example_14_1$
+--- ex14.pl (source)
++++ ex14.pl (target)
+@@ -1,16 +1,13 @@
+ :- module(ex14, [ex14/2]).
+ 
+-ex14(A, B) :-
+-    A = f([/**/B, _C]),
++ex14(f([/**/B, _C]), B) :-
+     true.
+ 
+-ex14(A, B) :-
+-    f(A, 'b') = f(a, B),
+-    \+ A,
+-    \+ B.
++ex14(a, 'b') :-
++    \+ a,
++    \+ 'b'.
+ 
+-ex14(A, B) :-
+-    B = [x|T],
++ex14(A, [x|T]) :-
+     ex14(A, T).
+ 
+ a.
+*/
+
+test(example_14_1) :-
+    with_output_to(string(Result),
+		   expand_sentence(ex14:(Head :- A=B, Body), (Head :- Body), (A=B),show)),
+    example_out(example_14_1, Pattern),
+    assertion(Pattern == Result).
+
+/* $example_14_2$
 --- ex14.pl (source)
 +++ ex14.pl (target)
 @@ -1,7 +1,6 @@
  :- module(ex14, [ex14/2]).
  
 -ex14(A, B) :-
--    A = f(/**/B),
-+ex14(g(f(B)), B) :-
+-    A = f([/**/B, _C]),
++ex14(g(f([/**/B, _C])), B) :-
      true.
  
  ex14(A, B) :-
+@@ -9,8 +8,7 @@
+     \+ A,
+     \+ B.
+ 
+-ex14(A, B) :-
+-    B = [x|T],
++ex14(A, g([x|T])) :-
+     ex14(A, T).
+ 
+ a.
 */
 
-test(example_14) :-
+test(example_14_2) :-
     with_output_to(string(Result),
 		   expand_sentence(ex14:(Head :- A=B, Body), (Head :- Body), (A=g(B)),show)),
-    example_out(example_14, Pattern),
+    example_out(example_14_2, Pattern),
     assertion(Pattern == Result).
 
 :- retractall(prolog:comment_hook(_, _, _)).
