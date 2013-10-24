@@ -422,8 +422,9 @@ substitute_term(Priority, Term, Term2, Pattern2, Into2, BindingL, TermPos) -->
     { copy_term(Term2, GTerm),
       unifier(Term2, Term, UL0),
       maplist_dcg(non_singleton(UL0), UL0, UL1, []),
-      maplist_dcg(gcbl, UL1, UL2, gcb(Term2, UL), gcb(Term3, UL2)),
-      with_context_vars(subst_term(TermPos, Pattern2, GTerm, Term3),
+      maplist_dcg(gcbl, UL1, UL2, gcb(Term2, UL3), gcb(Term3, [])),
+      append(UL2, UL3, UL),
+      with_context_vars(subst_term(TermPos, Pattern2, GTerm, Term2),
 			[refactor_bind],
 			[BindingL]),
       maplist(subst_unif(Term3, TermPos, GTerm), UL),
@@ -511,7 +512,7 @@ subst_term(Pos, Term, GTerm, CTerm) :-
     var(Term),
     !,
     subst_var(Pos, Term, GTerm, CTerm).
-subst_term(_, '$sb'(_, _, _), _, _) :- !. % Avoid aliasing loops
+% subst_term(_, '$sb'(_, _, _), _, _) :- !. % Avoid aliasing loops
 subst_term(term_position(_, _, _, _, CP), Term, GTerm, CTerm) :-
     compound(CTerm), % Would have been substituted
     !,

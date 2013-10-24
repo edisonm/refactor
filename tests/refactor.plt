@@ -434,6 +434,26 @@ test(example_17) :-
     example_out(example_17, Pattern),
     assertion(Pattern == Result).
 
+/* $example_18$
+--- ex18.pl (source)
++++ ex18.pl (target)
+@@ -1,7 +1,6 @@
+ :- module(ex18, [ex18/1]).
+ 
+-ex18(C) :-
+-    C=M : H,
++ex18(M : H) :-
+     p(M:H).
+ 
+ p(_C).
+*/
+test(example_18) :-
+    [ex18],
+    with_output_to(string(Result),
+		   expand_sentence(ex18:(H:-A=B,p(C)),(H:-p(C)),A=B,show)),
+    example_out(example_18, Pattern),
+    assertion(Pattern == Result).
+
 :- retractall(prolog:comment_hook(_, _, _)).
 
 :- end_tests(refactor).
