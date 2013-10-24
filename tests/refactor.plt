@@ -16,6 +16,7 @@
 :- use_module(ex12).
 :- use_module(ex13).
 :- use_module(ex14).
+:- use_module(ex15).
 
 :- dynamic example_out/2.
 
@@ -378,6 +379,35 @@ test(example_14_2) :-
     with_output_to(string(Result),
 		   expand_sentence(ex14:(Head :- A=B, Body), (Head :- Body), (A=g(B)),show)),
     example_out(example_14_2, Pattern),
+    assertion(Pattern == Result).
+
+/* $example_15$
+--- ex15.pl (source)
++++ ex15.pl (target)
+@@ -1,6 +1,6 @@
+ :- module(ex15, [ex15/2]).
+ 
+-ex15([A|_B],A).
+-ex15([A,_B],A).
+-ex15({A,_B},A).
+-ex15((A,_B),A).
++ex15([a|_B]).
++ex15([a,_B]).
++ex15({a,_B}).
++ex15((a,_B)).
+*/
+test(example_15) :-
+    with_output_to(string(Result),
+		   expand_sentence(ex15:ex15(L,A), ex15(L), (A=a),show)),
+    example_out(example_15, Pattern),
+    assertion(Pattern == Result).
+
+/* $example_16$
+*/
+test(example_16) :-
+    with_output_to(string(Result),
+		   expand_sentence(ex16:H, H, true, show)),
+    example_out(example_16, Pattern),
     assertion(Pattern == Result).
 
 :- retractall(prolog:comment_hook(_, _, _)).

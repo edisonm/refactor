@@ -430,7 +430,7 @@ substitute_term(Priority, Term, Term2, Pattern2, Into2, BindingL, TermPos) -->
       maplist(subst_fvar(Term3, TermPos, GTerm), UL0)
     },
     !,
-    [print(TermPos, Priority, Pattern2, Into2)].
+    [print(TermPos, Priority, Pattern2, GTerm, Into2)].
 
 subst_unif(Term, Pos, GTerm, V=T) :-
     ( get_position_gterm(Term, Pos, GTerm, V, GPos, G),
@@ -674,7 +674,7 @@ rportray('$sb'(ArgPos, GTerm, Term), Opt) :-
     b_getval(refactor_text, Text),
     memberchk(priority(Priority), Opt),
     (prolog_listing:term_needs_braces(Term, Priority) -> write('(') ; true),
-    print_expansion('$sb'(ArgPos, GTerm, Term), _, _,
+    print_expansion('$sb'(ArgPos, GTerm, Term), _, _, _,
 		    Priority, Pos0, Text),
     (prolog_listing:term_needs_braces(Term, Priority) -> write(')') ; true),
     !.
@@ -737,112 +737,121 @@ term_write_comma_2(Opt, Term) :- write_term(Term, Opt), write(', ').
 
 :- use_module(library(listing),[]).
 
-apply_change(print(TermPos, Priority, Pattern, Term),
+apply_change(print(TermPos, Priority, Pattern, GTerm, Into),
 	     text_desc(Pos0, Text0, Tail0),
 	     text_desc(To,   Text,  Tail)) :-
     with_output_to(codes(Tail1, Tail),
-		   print_expansion_0(Term, Pattern, TermPos, Priority,
+		   print_expansion_0(Into, Pattern, GTerm, TermPos, Priority,
 				     Pos0, Text0, From, To)),
     cut_text(Pos0, From, Text0, Text1, CutText),
     append(CutText, Tail1, Tail0), % Accept
     cut_text(From, To, Text1, Text, _). % Skip
 
-print_expansion_0(Term, Pattern, TermPos, Priority, Pos, Text, From, To) :-
-    ( nonvar(Term) ->
-      print_expansion_1(Term, Pattern, TermPos, Priority, Pos, Text, From, To)
-    ; print_expansion_2(Term, Pattern, TermPos, Priority, Pos, Text, From, To)
+print_expansion_0(Into, Pattern, GTerm, TermPos, Priority, Pos, Text, From, To) :-
+    ( nonvar(Into) ->
+      print_expansion_1(Into, Pattern, GTerm, TermPos, Priority, Pos, Text, From, To)
+    ; print_expansion_2(Into, Pattern, GTerm, TermPos, Priority, Pos, Text, From, To)
     ).
 
 % Hacks that can only work at 1st level:
 % BUG: assuming no spaces between Term, full stop and new line:
-print_expansion_1('$RM', _, TermPos, _, _, _, From, To) :- !,
+print_expansion_1('$RM', _, _, TermPos, _, _, _, From, To) :- !,
     arg(1, TermPos, From),
     arg(2, TermPos, To0),
     To is To0 + 2.
-print_expansion_1('$TEXT'(Term, Delta), _, TermPos, _, _, _, From, To) :- !,
+print_expansion_1('$TEXT'(Term, Delta), _, _, TermPos, _, _, _, From, To) :- !,
     arg(1, TermPos, From),
     arg(2, TermPos, To0),
     write_t(Term),
     To is To0 + Delta.
-print_expansion_1(Term, Pattern, TermPos, Priority, Pos, Text, From, To) :-
-    print_expansion_2(Term, Pattern, TermPos, Priority, Pos, Text, From, To).
+print_expansion_1(Into, Pattern, GTerm, TermPos, Priority, Pos, Text, From, To) :-
+    print_expansion_2(Into, Pattern, GTerm, TermPos, Priority, Pos, Text, From, To).
 
-print_expansion_2(Term, Pattern, TermPos, Priority, Pos, Text, From, To) :-
+print_expansion_2(Into, Pattern, GTerm, TermPos, Priority, Pos, Text, From, To) :-
     arg(1, TermPos, From),
     arg(2, TermPos, To),
-    print_expansion(Term, Pattern, TermPos, Priority, Pos, Text).
+    print_expansion(Into, Pattern, GTerm, TermPos, Priority, Pos, Text).
 
 %% print_expansion(?Term:term, N:integer, File:atom, Pos0:integer, SkipTo:integer, Pos:integer).
 
-print_expansion(Var, _, RefPos, _, Pos0, Text) :-
+print_expansion(Var, _, _, RefPos, _, Pos0, Text) :-
     var(Var),
     !,
     print_subtext(RefPos, Pos0, Text).
-print_expansion('$sb'(RefPos, _), _, _, _, Pos0, Text) :-
+print_expansion('$sb'(RefPos, _), _, _, _, _, Pos0, Text) :-
     print_subtext(RefPos, Pos0, Text).
-print_expansion('$sb'(RefPos, GTerm, Term), _, _, Priority, Pos0, Text) :-
+print_expansion('$sb'(RefPos, GTerm, Term), _, _, _, Priority, Pos0, Text) :-
     !,
     ( \+subsumes_term(Term, GTerm)
-    ->print_expansion(Term, Term, RefPos, Priority, Pos0, Text)
+    ->print_expansion(Term, Term, GTerm, RefPos, Priority, Pos0, Text)
     ; print_subtext(RefPos, Pos0, Text)
     ).
-print_expansion('$,NL', Pattern, RefPos, Priority, Pos0, Text) :-
+print_expansion('$,NL', Pattern, GTerm, RefPos, Priority, Pos0, Text) :-
 				% Print a comma + indented new line
     write(','),
-    print_expansion('$NL', Pattern, RefPos, Priority, Pos0, Text).
-print_expansion('$NL', _, _, _, Pos0, _) :- % Print an indented new line
+    print_expansion('$NL', Pattern, GTerm, RefPos, Priority, Pos0, Text).
+print_expansion('$NL', _, _, _, _, Pos0, _) :- % Print an indented new line
     b_getval(refactor_file, File),
     prolog_codewalk:filepos_line(File, Pos0, _, LinePos),
     nl,
     line_pos(LinePos).
-print_expansion(Term, Pattern, RefPos0, Priority, Pos0, Text) :-
+print_expansion(Term, Pattern, GTerm, RefPos0, Priority, Pos0, Text) :-
     compound(Term),
     Term \== Pattern,
     subterm_location_eq(L, Term, Pattern),
+    subterm_location(L, GTerm1, GTerm),
     subpos_location(L, RefPos0, RefPos),
     !,
-    print_expansion(Term, Term, RefPos, Priority, Pos0, Text).
-print_expansion(Term, Pattern, RefPos, Priority, Pos0, Text) :-
-    ( print_expansion_pos(RefPos, Term, Pattern, Priority, Pos0, Text)
+    print_expansion(Term, Term, GTerm1, RefPos, Priority, Pos0, Text).
+print_expansion(Term, Pattern, GTerm, RefPos, Priority, Pos0, Text) :-
+    ( print_expansion_pos(RefPos, Term, Pattern, GTerm, Priority, Pos0, Text)
     ->true
     ; write_r(Priority, Term)
     ).
 
 print_expansion_pos(term_position(From, To, _, _, PosL),
-		    Term, Pattern, Priority, Pos0, Text) :-
+		    Term, Pattern, GTerm, Priority, Pos0, Text) :-
     compound(Term),
     functor(Term,    F, A),
     functor(Pattern, F, A),
     from_to_pairs(PosL, From, FTo, FromToL),
     Term    =.. [_|ArgL0],
     Pattern =.. [_|PatL0],
+    GTerm   =.. [_|GTrL0],
     length(PosL, N),
     trim_list(N, ArgL0, ArgL),
     trim_list(N, PatL0, PatL),
+    trim_list(N, GTrL0, GTrL),
+    pairs_keys_values(PatGTrL, PatL, GTrL),
     !,
-    maplist(print_expansion_arg(Priority, Pos0, Text), FromToL, PosL, ArgL, PatL),
+    maplist(print_expansion_arg(Priority, Pos0, Text), FromToL, PosL, ArgL, PatGTrL),
     display_subtext(Pos0, Text, FTo, To).
 print_expansion_pos(list_position(From, To, PosL, PosT),
-		    Term, Pattern, Priority, Pos0, Text) :-
+		    Term, Pattern, GTerm, Priority, Pos0, Text) :-
     from_to_pairs(PosL, From, FTo, FromToL),
     length(PosL, N),
     trim_list(N, Term,    ArgL, ATail),
     trim_list(N, Pattern, PatL, PTail),
+    trim_list(N, GTerm,   GTrL, GTail),
+    pairs_keys_values(PatGTrL, PatL, GTrL),
     !,
-    maplist(print_expansion_arg(Priority, Pos0, Text), FromToL, PosL, ArgL, PatL),
+    maplist(print_expansion_arg(Priority, Pos0, Text), FromToL, PosL, ArgL, PatGTrL),
     ( PosT \= none ->
       arg(1, PosT, PTo),
-      print_expansion_arg(Priority, Pos0, Text, FTo-PTo, PosT, ATail, PTail),
+      print_expansion_arg(Priority, Pos0, Text, FTo-PTo, PosT, ATail, PTail-GTail),
       arg(2, PosT, PFrom),
       display_subtext(Pos0, Text, PFrom, To)
     ; display_subtext(Pos0, Text, FTo, To)
     ).
 print_expansion_pos(brace_term_position(From, To, TermPos),
-		    {Term}, {Pattern}, Priority, Pos, Text) :-
+		    {Term}, {Pattern}, {GTerm}, Priority, Pos, Text) :-
     arg(1, TermPos, AFrom),
     arg(2, TermPos, ATo),
-    print_expansion_arg(Priority, Pos, Text, From-AFrom, TermPos, Term, Pattern),
+    print_expansion_arg(Priority, Pos, Text, From-AFrom, TermPos, Term, Pattern-GTerm),
     display_subtext(Pos, Text, ATo, To).
+print_expansion_pos(From-To, Term, _Pattern, GTerm, _, Pos, Text) :-
+    Term==GTerm,
+    display_subtext(Pos, Text, From, To).
 
 print_subtext(RefPos, Pos0, Text) :-
     arg(1, RefPos, From),
@@ -856,9 +865,9 @@ trim_list(N, L0, L, T) :-
     length(L, N),
     append(L, T, L0).
 
-print_expansion_arg(Priority, Pos0, Text, From-To, RefPos, Term, Pattern) :-
+print_expansion_arg(Priority, Pos0, Text, From-To, RefPos, Term, Pattern-GTerm) :-
     display_subtext(Pos0, Text, From, To),
-    print_expansion(Term, Pattern, RefPos, Priority, Pos0, Text).
+    print_expansion(Term, Pattern, GTerm, RefPos, Priority, Pos0, Text).
 
 from_to_pairs([], To, To, []).
 from_to_pairs([Pos|PosL], From0, To, [From0-To0|FromToL]) :-
@@ -898,13 +907,16 @@ subpos_location([N|L], SubPos, Pos) :-
     subpos_location(L, Pos0, Pos).
 
 display_subtext(Pos0, Text0, From, To) :-
+    get_subtext(Pos0, Text0, From, To, Text),
+    format('~s', [Text]).
+
+get_subtext(Pos0, Text0, From, To, Text) :-
     PosCut is From - Pos0,
     length(Cut, PosCut),
     append(Cut, Text1, Text0),
     LPaste is To - From,
-    length(Paste, LPaste),
-    append(Paste, _, Text1),
-    maplist(put_char, Paste).
+    length(Text, LPaste),
+    append(Text, _, Text1).
 
 bin_op(Term, Op, Left, Right, A, B) :-
     nonvar(Term),
