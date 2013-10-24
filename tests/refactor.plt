@@ -413,6 +413,27 @@ test(example_16) :-
     example_out(example_16, Pattern),
     assertion(Pattern == Result).
 
+/* $example_17$
+--- ex17.pl (source)
++++ ex17.pl (target)
+@@ -1,8 +1,7 @@
+ :- module(ex17, [ex17/0]).
+ 
+ ex17 :-
+-    a,
+-    ( b  ).
++    a  ).
+ 
+ a.
+ 
+*/
+test(example_17) :-
+    [ex17],
+    with_output_to(string(Result),
+		   replace_sentence(ex17:(H:-(A,_B)),(H:-A),show)),
+    example_out(example_17, Pattern),
+    assertion(Pattern == Result).
+
 :- retractall(prolog:comment_hook(_, _, _)).
 
 :- end_tests(refactor).
