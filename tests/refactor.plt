@@ -2,27 +2,12 @@
 
 :- use_module(library(refactor)).
 
-:- use_module(ex1).
-:- use_module(ex2).
-:- use_module(ex3).
-:- use_module(ex4).
-:- use_module(ex5).
-:- use_module(ex6).
-:- use_module(ex7).
-:- use_module(ex8).
-:- use_module(ex9).
-:- use_module(ex10).
-:- use_module(ex11).
-:- use_module(ex12).
-:- use_module(ex13).
-:- use_module(ex14).
-:- use_module(ex15).
-
 :- dynamic example_out/2.
 
 %% process_refactor_test_data(+Comments, +Term) is semidet
-% This comment_hook hack allow us to write copy-pasteable test data
-% as a comment, to facilitate output comparisons:
+%
+% This comment_hook hack allow us to write copy-pasteable test data as
+% a comment, to facilitate output comparisons:
 
 process_refactor_test_data(Comments, Term) :-
     Term = (test(Test) :- _),
@@ -53,6 +38,7 @@ prolog:comment_hook(Comments, _TermPos, Term) :-
 */
 
 test(example_1) :-
+    [ex1],
     with_output_to(string(Result),
 		   replace_term(ex1:_, (same_term(c,a),d,b),(d,b), show)),
     example_out(example_1, Pattern),
@@ -69,6 +55,7 @@ test(example_1) :-
 */
 
 test(example_2) :-
+    [ex2],
     with_output_to(string(Result),
 		   expand_sentence(ex2:f(a,f(f(a)),C), g(C,f(f(a)),a),true,show)),
     example_out(example_2, Pattern),
@@ -85,6 +72,7 @@ test(example_2) :-
 */
 
 test(example_3) :-
+    [ex3],
     with_output_to(string(Result),
 		   expand_sentence(ex3:(A :- display(B)), (A :- A, B, display(B)), true, show)),
     example_out(example_3, Pattern),
@@ -101,6 +89,7 @@ test(example_3) :-
 */
 
 test(example_4) :-
+    [ex4],
     with_output_to(string(Result),
 		   expand_sentence(ex4:ex4(A, B), ex4_(A, B), (A=f(a)),show)),
     example_out(example_4, Pattern),
@@ -125,6 +114,7 @@ test(example_4) :-
 */
 
 test(example_5) :-
+    [ex5],
     with_output_to(string(Result),
 		   expand_sentence(ex5:ex5(T),ex5([c|T]),true,show)),
     example_out(example_5, Pattern),
@@ -146,6 +136,7 @@ test(example_5) :-
 */
 
 test(example_6) :-
+    [ex6],
     with_output_to(string(Result),
 		   replace_goal(ex6:_, ex6:p(A,B,L,T), p(B,A,L,T), show)),
     example_out(example_6, Pattern),
@@ -162,6 +153,7 @@ test(example_6) :-
 */
 
 test(example_7) :-
+    [ex7],
     with_output_to(string(Result),
 		   expand_sentence(ex7:aaa([[X,_]],[d], []),
 				   aaa([[_]], [X], [[c,d],[b,c,d]]), true, show)),
@@ -182,6 +174,7 @@ test(example_7) :-
 */
 
 test(example_8) :-
+    [ex8],
     with_output_to(string(Result),
 		   expand_sentence(ex8:ex8([[a,b],[c,d]|T]), ex8([[a,b]|T]), true, show)),
     example_out(example_8, Pattern),
@@ -198,6 +191,7 @@ test(example_8) :-
 */
 
 test(example_9) :-
+    [ex9],
     with_output_to(string(Result),
 		   expand_term(ex9:ex9(X, _), f(A,B), f(A,B,X), true, show)),
     example_out(example_9, Pattern),
@@ -214,6 +208,7 @@ test(example_9) :-
 */
 
 test(example_10_1) :-
+    [ex10],
     with_output_to(string(Result),
 		   expand_term(ex10:ex10(_, _), g(A), g(B,A), (A=a(B),B='$VAR'('C')), show)),
     example_out(example_10_1, Pattern),
@@ -230,6 +225,7 @@ test(example_10_1) :-
 */
 
 test(example_10_2) :-
+    [ex10],
     with_output_to(string(Result),
 		   expand_term(ex10:ex10(X, _), g(A), g(A,X), true, show)),
     example_out(example_10_2, Pattern),
@@ -248,6 +244,7 @@ test(example_10_2) :-
 */
 
 test(example_11) :-
+    [ex11],
     with_output_to(string(Result),
 		   expand_term(ex11:(ex11([A|_]):-_), ex11(A), ex11_one(A), true, show)),
     example_out(example_11, Pattern),
@@ -273,6 +270,7 @@ test(example_11) :-
 */
 
 test(example_12) :-
+    [ex12],
     with_output_to(string(Result),
 		   replace_term(ex12:_,(a,b),b,show)),
     example_out(example_12, Pattern),
@@ -293,6 +291,7 @@ test(example_12) :-
 */
 
 test(example_13) :-
+    [ex13],
     with_output_to(string(Result),
 		   expand_term(ex13:_, T, T, (nonvar(T), T=q(_B,A),A=a), show)),
     example_out(example_13, Pattern),
@@ -336,6 +335,7 @@ test(example_13) :-
 */
 
 test(example_14_1) :-
+    [ex14],
     with_output_to(string(Result),
 		   expand_sentence(ex14:(Head :- A=B, Body), (Head :- Body), (A=B),show)),
     example_out(example_14_1, Pattern),
@@ -376,6 +376,7 @@ test(example_14_1) :-
 */
 
 test(example_14_2) :-
+    [ex14],
     with_output_to(string(Result),
 		   expand_sentence(ex14:(Head :- A=B, Body), (Head :- Body), (A=g(B)),show)),
     example_out(example_14_2, Pattern),
@@ -397,6 +398,7 @@ test(example_14_2) :-
 +ex15((a,_B)).
 */
 test(example_15) :-
+    [ex15],
     with_output_to(string(Result),
 		   expand_sentence(ex15:ex15(L,A), ex15(L), (A=a),show)),
     example_out(example_15, Pattern),
@@ -405,6 +407,7 @@ test(example_15) :-
 /* $example_16$
 */
 test(example_16) :-
+    [ex16],
     with_output_to(string(Result),
 		   expand_sentence(ex16:H, H, true, show)),
     example_out(example_16, Pattern),
