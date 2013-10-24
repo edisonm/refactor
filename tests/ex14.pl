@@ -1,5 +1,13 @@
 :- module(ex14, [ex14/2]).
 
+ex14([A, B], _C) :-
+    A = f(B),
+    true.
+
+ex14((A, B), _C) :-
+    A = B,
+    true.
+
 ex14(A, B) :-
     A = f([/**/B, _C]),
     true.

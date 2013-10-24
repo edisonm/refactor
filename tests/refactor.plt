@@ -300,8 +300,18 @@ test(example_13) :-
 /* $example_14_1$
 --- ex14.pl (source)
 +++ ex14.pl (target)
-@@ -1,16 +1,13 @@
+@@ -1,24 +1,19 @@
  :- module(ex14, [ex14/2]).
+ 
+-ex14([A, B], _C) :-
+-    A = f(B),
++ex14([f(B), B], _C) :-
+     true.
+ 
+-ex14((A, B), _C) :-
+-    A = B,
++ex14((A, A), _C) :-
+     true.
  
 -ex14(A, B) :-
 -    A = f([/**/B, _C]),
@@ -333,8 +343,18 @@ test(example_14_1) :-
 /* $example_14_2$
 --- ex14.pl (source)
 +++ ex14.pl (target)
-@@ -1,7 +1,6 @@
+@@ -1,15 +1,12 @@
  :- module(ex14, [ex14/2]).
+ 
+-ex14([A, B], _C) :-
+-    A = f(B),
++ex14([g(f(B)), B], _C) :-
+     true.
+ 
+-ex14((A, B), _C) :-
+-    A = B,
++ex14((g(B), B), _C) :-
+     true.
  
 -ex14(A, B) :-
 -    A = f([/**/B, _C]),
@@ -342,7 +362,7 @@ test(example_14_1) :-
      true.
  
  ex14(A, B) :-
-@@ -9,8 +8,7 @@
+@@ -17,8 +14,7 @@
      \+ A,
      \+ B.
  
