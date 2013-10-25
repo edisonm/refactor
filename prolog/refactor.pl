@@ -674,8 +674,6 @@ cut_text(Pos0, Pos, Remaining0, Remaining, Text) :-
 
 :- public rportray/2.
 rportray('$sb'(ArgPos, GTerm, Term), Opt) :-
-    writeq(user_error, '***1'('$sb'(ArgPos, GTerm, Term))),
-    nl(user_error),
     Pos0=0,
     b_getval(refactor_text, Text),
     memberchk(priority(Priority), Opt),
@@ -707,7 +705,6 @@ rportray('$BODY'(B), Opt) :- !,
     Pos = 0,
     write_b(B, N, 0, Pos).
 rportray([E|T0], Opt) :- !,
-    write(user_error, '***2\n'),
     append(H, T1, [E|T0]),
     ( var(T1) -> !,
       fail
@@ -755,7 +752,6 @@ apply_change(print(TermPos, Priority, Pattern, GTerm, Into),
     cut_text(From, To, Text1, Text, _). % Skip
 
 print_expansion_0(Into, Pattern, GTerm, TermPos, Priority, Pos, Text, From, To) :-
-    gtrace,
     ( nonvar(Into) ->
       print_expansion_1(Into, Pattern, GTerm, TermPos, Priority, Pos, Text, From, To)
     ; print_expansion_2(Into, Pattern, GTerm, TermPos, Priority, Pos, Text, From, To)
