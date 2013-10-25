@@ -454,6 +454,42 @@ test(example_18) :-
     example_out(example_18, Pattern),
     assertion(Pattern == Result).
 
+/* $example_19_1$
+--- ex19.pl (source)
++++ ex19.pl (target)
+@@ -2,4 +2,4 @@
+ 
+ ex19(_C, (2,3)).
+ 
+-ex19([1|C], C, [2,3]).
++ex19([1|[2,3]]).
+*/
+
+test(example_19_1) :-
+    [ex19],
+    with_output_to(string(Result),
+		   expand_sentence(ex19:ex19(C,D),ex19(C,D),C=D,show)),
+    example_out(example_19, Pattern),
+    assertion(Pattern == Result).
+
+/* $example_19_2$
+--- ex19.pl (source)
++++ ex19.pl (target)
+@@ -2,4 +2,4 @@
+ 
+ ex19(_C, (2,3)).
+ 
+-ex19([1|C], C, [2,3]).
++ex19([1|[2,3]]).
+*/
+
+test(example_19_2) :-
+    [ex19],
+    with_output_to(string(Result),
+		   expand_sentence(ex19:ex19(A,B,C),ex19(A),B=C,show)),
+    example_out(example_19, Pattern),
+    assertion(Pattern == Result).
+
 :- retractall(prolog:comment_hook(_, _, _)).
 
 :- end_tests(refactor).
