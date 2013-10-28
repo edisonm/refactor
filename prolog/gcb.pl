@@ -1,6 +1,6 @@
 :- module(gcb, [greatest_common_binding/7,
 		greatest_common_binding/9,
-		substitute_list/3]).
+		substitute/3]).
 
 greatest_common_binding(Term0, Into0, Term, Into, Skip) -->
     greatest_common_binding(Term0, _, Term0, Into0, Term, Into, Skip).
@@ -63,10 +63,5 @@ substitute(N, Subst, Term0, Term) :-
     succ(N, N1),
     substitute(N1, Subst, Term0, Term).
 substitute(_, _, _, _).
-
-substitute_list([Subst|Tail]) -->
-    substitute(Subst),
-    substitute_list(Tail).
-substitute_list([]) --> [].
 
 pick_tail(Tail, Tail, Tail).
