@@ -377,7 +377,7 @@ substitute_term_norec(Term, Priority, Pattern, Into, Expander, TermPos) -->
       subsumes_term(SentPattern-Pattern, Sent-Term),
       copy_term(Term, Term2),
       with_context(Term, Pattern, Into, Pattern1, Into1, Expander),
-      greatest_common_binding(Pattern1, Into1, Pattern2, Into2, [], Unifier, []),
+      greatest_common_binding(Pattern1, Into1, Pattern2, Into2, [[]], Unifier, []),
       unlinked_vars(Pattern2-Unifier, Into2, UVars),
       maplist_dcg(select_multi(Into2), UVars, MVars, []),
       numbervars(UVars-MVars, 0, _, [singletons(true)])
@@ -413,44 +413,68 @@ unifier(Term1, Term2, L) :-
 eq(A, B, A=B).
 
 gcbl(V=T0, V=T, gcb(Term0, BL0), gcb(Term, BL)) :-
-    greatest_common_binding(Term0, T0, Term, T, [], BL0, BL).
+    greatest_common_binding(Term0, T0, Term, T, [[]], BL0, BL).
 
-get_position_gterm(Term, Pos, GTerm, T, GPos, G) :-
+get_position_gterm(Term, Pos, GTerm, T, GPos, G, GPriority) :-
     subterm_location_eq(L, T, Term),
     subpos_location(L, Pos, GPos),
-    subterm_location(L, G, GTerm).
+    ( append(L0, [E], L) ->
+      subterm_location(L0, GP, GTerm),
+      subterm_location([E], G, GP),
+      term_priority(GP, E, GPriority)
+    ; GPriority = 999,
+      subterm_location(L, G, GTerm)
+    ).
+
+substitute_2(V0=T0, sub(Term0, BL0), sub(Term, BL)) :-
+    substitute(V1=T0, Term0, Term1),
+    ( Term0 == Term1
+    ->greatest_common_binding(Term0, T0, Term, T, [[]], BL0, BL1),
+      ( BL1==BL0
+      ->BL = BL1
+      ; BL1 = [V0=T|BL]
+      )
+    ; Term = Term1,
+      BL0 = [V0=V1|BL]
+    ).
 
 substitute_term(Priority, Term, Term2, Pattern2, Into2, BindingL, TermPos) -->
     { copy_term(Term2, GTerm),
       unifier(Term2, Term, UL0),
       maplist_dcg(non_singleton(UL0), UL0, UL1, []),
-      maplist_dcg(gcbl, UL1, UL2, gcb(Term2, UL3), gcb(Term3, [])),
-      with_context_vars(subst_term(TermPos, Pattern2, GTerm, Term2),
-			[refactor_bind],
-			[BindingL]),
+      % maplist_dcg(gcbl, UL1, UL2, gcb(Term2, UL3), gcb(Term3, [])),
+      maplist_dcg(substitute_2, UL1, sub(Term2, UL3), sub(Term3, [])),
+      % UL1=UL2, Term2=Term3, UL3=[],
+      UL1=UL2,
+      with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term3),
+			[refactor_bind], [BindingL]),
       maplist(subst_unif(Term3, TermPos, GTerm), UL3),
       maplist(subst_unif(Term3, TermPos, GTerm), UL2),
-      maplist(subst_fvar(Term3, TermPos, GTerm), UL0)
+      maplist(subst_fvar(Term2, TermPos, GTerm), UL0)
     },
     !,
     [print(TermPos, Priority, Pattern2, GTerm, Into2)].
 
 subst_unif(Term, Pos, GTerm, V=T) :-
-    ( T \= '$sb'(_, _, _),
-      get_position_gterm(Term, Pos, GTerm, V, GPos, G),
-      GPos \= none
-    ->V='$sb'(GPos, G, T)
+    ( ( (var(T) ; nonvar(T), T \= '$sb'(_, _, _, _)),
+	get_position_gterm(Term, Pos, GTerm, T, GPos, G, P),
+	GPos \= none
+      ->ignore(V='$sb'(GPos, G, P, T))
+      ; get_position_gterm(Term, Pos, GTerm, V, GPos, G, P),
+	GPos \= none
+      ->ignore(V='$sb'(GPos, G, P, T))
+      )
     ; V=T
     ).
 
 subst_fvar(Term, Pos, GTerm, V=T) :-
     ( var(V),
       V==T,
-      get_position_gterm(Term, Pos, GTerm, V, GPos, G) ->
+      get_position_gterm(Term, Pos, GTerm, V, GPos, G, _P) ->
       V='$sb'(GPos, G)
     ; true
     ).
-    
+
 subtract_eq([], _, []).
 subtract_eq([Elem0|T], L, Set0) :-
     ( member(Elem, L),
@@ -470,34 +494,31 @@ subst_args(N, Term, GTerm, CTerm, [ArgPos|SubPos]) :-
     !,
     arg(N, GTerm, GArg),
     arg(N, CTerm, CArg),
-    subst_term(ArgPos, Arg, GArg, CArg),
+    term_priority(GTerm, N, GPriority),
+    subst_term(ArgPos, Arg, GArg, GPriority, CArg),
     succ(N, N1),
     subst_args(N1, Term, GTerm, CTerm, SubPos).
 subst_args(_, _, _, _, _).
 
 subst_list([], _, Tail, E, G, C) :-
-    subst_term(Tail, E, G, C).
+    term_priority([_|_], 2, P),
+    subst_term(Tail, E, G, P, C).
 subst_list([Pos|Poss], To, Tail, Term, GTerm, CTerm) :-
-    ( var(Term) ->
-      arg(1, Pos, EFrom),
-      succ(From, EFrom),
-      PosL = list_position(From, To, [Pos|Poss], Tail),
-      subst_var(PosL, Term, GTerm, CTerm)
-    ; Term  = [E|Es],
-      GTerm = [G|Gs],
-      CTerm = [C|Cs],
-      subst_term(Pos, E, G, C),
-      subst_list(Poss, To, Tail, Es, Gs, Cs)
-    ).
+    Term  = [E|Es],
+    GTerm = [G|Gs],
+    CTerm = [C|Cs],
+    term_priority([_|_], 1, P),
+    subst_term(Pos, E, G, P, C),
+    subst_list(Poss, To, Tail, Es, Gs, Cs).
 
-subst_var(Pos, Var, GTerm, CTerm) :-
+subst_var(Pos, Var, GTerm, GPriority, CTerm) :-
     ( b_getval(refactor_bind, BindingL),
       member(V=T, BindingL),
       V==Var
-    ->subst_term(Pos, T, GTerm, CTerm)
+    ->subst_term(Pos, T, GTerm, GPriority, CTerm)
     ; true
     ),
-    Var = '$sb'(Pos, GTerm, CTerm).
+    Var = '$sb'(Pos, GTerm, GPriority, CTerm).
 
 %%	subst_term(+Position, +Pattern, +Vars, +Term)
 %
@@ -510,21 +531,21 @@ subst_var(Pos, Var, GTerm, CTerm) :-
 %	@param Term is a source term
 %	@param Pattern is a substitution pattern
 
-subst_term(none, T, _, T) :- !.
-subst_term(Pos, Term, GTerm, CTerm) :-
+subst_term(none, T, _, _, T) :- !.
+subst_term(Pos, Term, GTerm, GPriority, CTerm) :-
     var(Term),
     !,
-    subst_var(Pos, Term, GTerm, CTerm).
+    subst_var(Pos, Term, GTerm, GPriority, CTerm).
 % subst_term(_, '$sb'(_, _, _), _, _) :- !. % Avoid aliasing loops
-subst_term(term_position(_, _, _, _, CP), Term, GTerm, CTerm) :-
+subst_term(term_position(_, _, _, _, CP), Term, GTerm, _, CTerm) :-
     compound(CTerm), % Would have been substituted
     !,
     subst_args(1, Term, GTerm, CTerm, CP).
-subst_term(brace_term_position(_, _, CP), {Term}, {GTerm}, {CTerm}) :- !,
-    subst_term(CP, Term, GTerm, CTerm).
-subst_term(list_position(_, To, Elms, Tail), Term, GTerm, CTerm) :- !,
+subst_term(brace_term_position(_, _, CP), {Term}, {GTerm}, _, {CTerm}) :- !,
+    subst_term(CP, Term, GTerm, 999, CTerm).
+subst_term(list_position(_, To, Elms, Tail), Term, GTerm, _, CTerm) :- !,
     subst_list(Elms, To, Tail, Term, GTerm, CTerm).
-subst_term(_, _, _, _).
+subst_term(_, _, _, _, _).
 
 %%	substitute_term_rec(+SrcTerm, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
 %
@@ -673,20 +694,28 @@ cut_text(Pos0, Pos, Remaining0, Remaining, Text) :-
     ).
 
 :- public rportray/2.
-rportray('$sb'(ArgPos, GTerm, Term), Opt) :-
+rportray('$sb'(ArgPos, GTerm, GPriority, Term), Opt) :-
     Pos0=0,
     b_getval(refactor_text, Text),
     memberchk(priority(Priority), Opt),
-    (prolog_listing:term_needs_braces(Term, Priority) -> write('(') ; true),
-    print_expansion('$sb'(ArgPos, GTerm, Term), _, _, _,
+    ( \+prolog_listing:term_needs_braces(Term, GPriority),
+      prolog_listing:term_needs_braces(Term, Priority)
+    ->write('(')
+    ; true
+    ),
+    print_expansion('$sb'(ArgPos, GTerm, GPriority, Term), _, _, _,
 		    Priority, Pos0, Text),
-    (prolog_listing:term_needs_braces(Term, Priority) -> write(')') ; true),
+    ( \+prolog_listing:term_needs_braces(Term, GPriority),
+      prolog_listing:term_needs_braces(Term, Priority)
+    ->write(')')
+    ; true
+    ),
     !.
 rportray('$sb'(TermPos, _GTerm), _Opt) :-
     Pos=0,
     b_getval(refactor_text, Text),
     print_subtext(TermPos, Pos, Text).
-rportray('$sb'(_, _, _), _) :- !.
+rportray('$sb'(_, _, _, _), _) :- !.
 rportray('$LIST'(L), Opt) :- !,
     maplist(term_write(Opt), L).
 rportray('$LIST,'(L), Opt) :- !,
@@ -708,7 +737,7 @@ rportray([E|T0], Opt) :- !,
     append(H, T1, [E|T0]),
     ( var(T1) -> !,
       fail
-    ; T1 = '$sb'(TermPos, GTerm, Term),
+    ; T1 = '$sb'(TermPos, GTerm, GPriority, Term),
       is_list(Term),
       compound(TermPos),
       !,
@@ -716,7 +745,7 @@ rportray([E|T0], Opt) :- !,
       arg(2, TermPos, TTo),
       succ(TFrom, From),
       succ(To, TTo),
-      T2 = '$sb'(From-To, GTerm, Term),
+      T2 = '$sb'(From-To, GTerm, GPriority, Term),
       ( Term == []
       ->T = H,
 	write('['),
@@ -776,6 +805,28 @@ print_expansion_2(Into, Pattern, GTerm, TermPos, Priority, Pos, Text, From, To) 
     arg(2, TermPos, To),
     print_expansion(Into, Pattern, GTerm, TermPos, Priority, Pos, Text).
 
+% if the term have been in parentheses, in a place where that was
+% required, include it!!!
+%
+fix_position_if_braced(term_position(From0, To0, FFrom, FTo, PosL),
+		       term_position(From,  To,  FFrom, FTo, PosL),
+		       GTerm, GPriority, Pos0, Text0 ) :-
+    prolog_listing:term_needs_braces(GTerm, GPriority),
+    !,
+    ( nnegint(LCount),
+      From is From0 - LCount-1,
+      get_subtext(Pos0, Text0, From, From0, LText),
+      LText = [0'(|_],
+      !
+    ),
+    ( nnegint(RCount),
+      To is To0 + RCount,
+      get_subtext(Pos0, Text0, To0, To, Text),
+      Text = [0')|_],
+      !
+    ).
+fix_position_if_braced(Pos, Pos, _, _, _, _). % fail-safe
+
 %% print_expansion(?Term:term, N:integer, File:atom, Pos0:integer, SkipTo:integer, Pos:integer).
 
 print_expansion(Var, _, _, RefPos, _, Pos0, Text) :-
@@ -784,15 +835,24 @@ print_expansion(Var, _, _, RefPos, _, Pos0, Text) :-
     print_subtext(RefPos, Pos0, Text).
 print_expansion('$sb'(RefPos, _), _, _, _, _, Pos0, Text) :-
     print_subtext(RefPos, Pos0, Text).
-print_expansion('$sb'(RefPos, GTerm, Term), _, _, _, Priority, Pos0, Text) :-
+print_expansion('$sb'(RefPos, GTerm, GPriority, Term), _, _, _, Priority, Pos0, Text) :-
     !,
-    (prolog_listing:term_needs_braces(GTerm, Priority) -> write('(');true),
+    ( \+prolog_listing:term_needs_braces(GTerm, GPriority),
+      prolog_listing:term_needs_braces(GTerm, Priority)
+    ->write('(')
+    ; true
+    ),
+    fix_position_if_braced(RefPos, TermPos, GTerm, GPriority, Pos0, Text),
     ( % \+subsumes_term(Term, GTerm)
     % ->
-      print_expansion(Term, Term, GTerm, RefPos, Priority, Pos0, Text)
+      print_expansion(Term, Term, GTerm, TermPos, Priority, Pos0, Text)
     %; print_subtext(RefPos, Pos0, Text)
     ),
-    (prolog_listing:term_needs_braces(GTerm, Priority) -> write(')');true).
+    ( \+prolog_listing:term_needs_braces(GTerm, Priority),
+      prolog_listing:term_needs_braces(GTerm, Priority)
+    ->write(')')
+    ; true
+    ).
 print_expansion('$,NL', Pattern, GTerm, RefPos, Priority, Pos0, Text) :-
 				% Print a comma + indented new line
     write(','),
@@ -904,23 +964,10 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Term, Pattern, GTerm, P
       arg(1, PosT, PTo),
       term_priority([_|_], 2, Priority2),
       print_expansion_elem(Priority2, Pos0, Text, FTo-PTo, PosT, ATail, PTail-GTail),
-      % print_expansion_tail(ATail, PTail, GTail, PosT, Priority2, Pos0, Text, FTo-PTo),
       arg(2, PosT, PFrom),
       display_subtext(Pos0, Text, PFrom, To)
     ; display_subtext(Pos0, Text, FTo, To)
     ).
-/*
-print_expansion_tail('$sb'(RefPos, GTerm, Term), _, _, _, Priority, Pos0, Text, To) :-
-    !,
-    print_expansion_tail(Term, Term, GTerm, RefPos, Priority, Pos0, Text, To).
-print_expansion_tail(Term, Pattern, GTerm, RefPos, Priority, Pos0, Text, From-To) :-
-    arg(2, PosT, PFrom),
-    ( is_list(Term) ->
-      succ(From, From1),
-      print_expansion_elem(Term, Pattern, GTerm, Priority, Pos0, Text, From1-To),
-      succ(To1, To),
-      display_subtext(Pos0, Text, PFrom, To)
-*/  
 
 print_expansion_pos(brace_term_position(From, To, TermPos), {Term}, {Pattern},
 		    {GTerm}, Pos, Text) :-
@@ -1081,7 +1128,7 @@ write_r(N, Term) :-
 %     ( call(Goal, Term) *-> true
 %     ; mapterm_into(Goal, Term)
 %     ).
-    
+
 % mapterm_into(Goal, Term) :-
 %     compound(Term),
 %     !,
@@ -1097,11 +1144,11 @@ write_r(N, Term) :-
 
       %% Although the next options are a bit clumsy, work:
       % ; get_position(CTerm, GPos) ->
-      % 	Var = '$sb'(GPos, GTerm, GTerm)
-      ; 
+      %		Var = '$sb'(GPos, GTerm, GTerm)
+      ;
 	member(V-T, Unifier),
-      	V==CTerm,
-      	( get_position_gterm(T, GPos, G)
+	V==CTerm,
+	( get_position_gterm(T, GPos, G)
 	->subst_term(GPos, CTerm, G, T)
 	% ; subst_into(T, V)
 	)
@@ -1112,13 +1159,13 @@ write_r(N, Term) :-
 	)
 	% subterm_location_eq(L, V, CTerm),
 	% get_position_gterm(T, GPos, G)
-      
-	
+
+
 	% term_variables(GTerm, GVars),
-      	% maplist(set_position_if_available, GVars)
+	% maplist(set_position_if_available, GVars)
       % ; term_variables(CTerm, CVars),
-      % 	maplist(set_position_if_available, CVars),
-      % 	Var = '$sb'(Pos, GTerm, CTerm)
+      %		maplist(set_position_if_available, CVars),
+      %		Var = '$sb'(Pos, GTerm, CTerm)
       ) -> true
 */
 
