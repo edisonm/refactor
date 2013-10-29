@@ -503,10 +503,7 @@ subst_args(_, _, _, _, _).
 subst_list([], _, Tail, E, G, C) :-
     term_priority([_|_], 2, P),
     subst_term(Tail, E, G, P, C).
-subst_list([Pos|Poss], To, Tail, Term, GTerm, CTerm) :-
-    Term  = [E|Es],
-    GTerm = [G|Gs],
-    CTerm = [C|Cs],
+subst_list([Pos|Poss], To, Tail, [E|Es], [G|Gs], [C|Cs]) :-
     term_priority([_|_], 1, P),
     subst_term(Pos, E, G, P, C),
     subst_list(Poss, To, Tail, Es, Gs, Cs).
