@@ -707,7 +707,7 @@ cut_text(Pos0, Pos, Remaining0, Remaining, Text) :-
       length(Text, Seek),
       append(Text, Remaining, Remaining0)
     ; Remaining0 = Remaining,
-      Text = ""
+      Text = []
     ).
 
 :- public rportray/2.
