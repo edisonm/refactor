@@ -388,8 +388,22 @@ map_subterms(_, T, _, T).
 
 select_multi(Term, Var) --> ({occurrences_of_var(Var, Term, 1)} -> [] ; [Var]).
 
-select_var(Var) --> {var(Var)}, !, [Var].
+select_var(_=Var) --> {var(Var)}, !, [Var].
 select_var(_) --> [].
+
+subtract_eq([], _, []).
+subtract_eq([Elem0|T], L, Set0) :-
+    ( member(Elem, L),
+      Elem0 == Elem ->
+      Set0 = Set
+    ; Set0 = [Elem0|Set]
+    ),
+    subtract_eq(T, L, Set).
+
+unlinked_vars(Term, Vars0, Into, Vars) :-
+    term_variables(Term, VTerm, Vars0),
+    term_variables(Into, VInto),
+    subtract_eq(VInto, VTerm, Vars).
 
 %%	substitute_term_norec(+Term, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
 %
@@ -399,11 +413,11 @@ substitute_term_norec(Term, Priority, Pattern, Into, Expander, TermPos) -->
     { refactor_context(sentence, Sent-SentPattern),
       subsumes_term(SentPattern-Pattern, Sent-Term),
       copy_term(Term, Term2),
-      term_variables(Sent, Vars0),
       with_context(Term, Pattern, Into, Pattern1, Into1, Expander),
       greatest_common_binding(Pattern1, Into1, Pattern2, Into2, [[]], Unifier, []),
-      maplist_dcg(select_var, Vars0, Vars, []),
-      unlinked_vars(p(Vars, Pattern2, Unifier), Into2, UVars),
+      refactor_context(variable_names, VarNames),
+      maplist_dcg(select_var, VarNames, Vars, []),
+      unlinked_vars(p(Pattern2, Unifier), Vars, Into2, UVars),
       maplist_dcg(select_multi(Into2), UVars, MVars, []),
       numbervars(UVars-MVars, 0, _, [singletons(true)])
     },
@@ -499,20 +513,6 @@ subst_fvar(Term, Pos, GTerm, V=T) :-
       V='$sb'(GPos, G)
     ; true
     ).
-
-subtract_eq([], _, []).
-subtract_eq([Elem0|T], L, Set0) :-
-    ( member(Elem, L),
-      Elem0 == Elem ->
-      Set0 = Set
-    ; Set0 = [Elem0|Set]
-    ),
-    subtract_eq(T, L, Set).
-
-unlinked_vars(Term, Into, Vars) :-
-    term_variables(Term, VTerm),
-    term_variables(Into, VInto),
-    subtract_eq(VInto, VTerm, Vars).
 
 subst_args(N, Term, GTerm, CTerm, [ArgPos|SubPos]) :-
     arg(N, Term,  Arg),
