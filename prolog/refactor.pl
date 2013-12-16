@@ -693,6 +693,7 @@ valid_op_type_arity(fx,  1).
 refactor_hack('$LIST'(_)).
 refactor_hack('$LIST,'(_)).
 refactor_hack('$LIST,_'(_)).
+refactor_hack('$LIST.NL'(_)).
 refactor_hack('$TEXT'(_)).
 refactor_hack('$TEXT'(_,_)).
 refactor_hack('$BODY'(_)).
@@ -707,7 +708,7 @@ cut_text(Pos0, Pos, Remaining0, Remaining, Text) :-
       length(Text, Seek),
       append(Text, Remaining, Remaining0)
     ; Remaining0 = Remaining,
-      Text = ""
+      Text = []
     ).
 
 :- public rportray/2.
@@ -727,6 +728,8 @@ rportray('$LIST,'(L), Opt) :- !,
     term_write_comma_list(L, Opt).
 rportray('$LIST,_'(L), Opt) :- !,
     maplist(term_write_comma_2(Opt), L).
+rportray('$LIST.NL'(L), Opt) :- !,
+    term_write_stop_nl(L, Opt).
 rportray('$TEXT'(T), Opt0) :- !,
     subtract(Opt0, [quoted(true), portray_goal(_), priority(_)], Opt),
     write_term(T, Opt).
@@ -770,6 +773,13 @@ term_write_comma_list([T|L], Opt) :-
     maplist(term_write_comma_(Opt), L).
 
 term_write_comma_(Opt, Term) :- write(', '), write_term(Term, Opt).
+
+term_write_stop_nl([], _).
+term_write_stop_nl([T|L], Opt) :-
+    write_term(T, Opt),
+    maplist(term_write_stop_nl_(Opt), L).
+
+term_write_stop_nl_(Opt, Term) :- write('.\n'), write_term(Term, Opt).
 
 term_write_comma_2(Opt, Term) :- write_term(Term, Opt), write(', ').
 
@@ -1042,7 +1052,6 @@ display_subtext(Text0, From, To) :-
     format('~s', [Text]).
 
 get_subtext(Text0, From, To, Text) :-
-    (From-To\=8323-16916->true;gtrace),
     b_getval(refactor_position, Pos0),
     string_to_list(String0, Text0),
     PosCut is From - Pos0,
