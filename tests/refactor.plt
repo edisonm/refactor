@@ -498,6 +498,34 @@ test(example_19_2) :-
     example_out(example_19_2, Pattern),
     assertion(Pattern == Result).
 
+/* $example_20$
+--- ex20.pl (source)
++++ ex20.pl (target)
+@@ -1,8 +1,8 @@
+ :- module(ex20, [ex20/0, ex20/1]).
+ 
+-ex20([a,b,c]).
++ex20(a, b, c).
+ 
+ ex20 :-
+-    ex20([A|_]),
+-    ex20([A,B|C]),
+-    ex20([A,B,C]).
++    ex20(A, _, _),
++    ex20(A, B, _),
++    ex20(A, B, C).
+*/
+test(example_20) :-
+    [ex20],
+    with_output_to(string(Result),
+		   expand_term(ex20:_,ex20(L),H,
+			       (length(L,3),
+				H=..[ex20|L]
+			       ),
+			       show)),
+    example_out(example_20, Pattern),
+    assertion(Pattern == Result).
+
 :- retractall(prolog:comment_hook(_, _, _)).
 
 :- end_tests(refactor).

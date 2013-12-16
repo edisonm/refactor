@@ -388,6 +388,23 @@ map_subterms(_, T, _, T).
 
 select_multi(Term, Var) --> ({occurrences_of_var(Var, Term, 1)} -> [] ; [Var]).
 
+select_var(_=Var) --> {var(Var)}, !, [Var].
+select_var(_) --> [].
+
+subtract_eq([], _, []).
+subtract_eq([Elem0|T], L, Set0) :-
+    ( member(Elem, L),
+      Elem0 == Elem ->
+      Set0 = Set
+    ; Set0 = [Elem0|Set]
+    ),
+    subtract_eq(T, L, Set).
+
+unlinked_vars(Term, Vars0, Into, Vars) :-
+    term_variables(Term, VTerm, Vars0),
+    term_variables(Into, VInto),
+    subtract_eq(VInto, VTerm, Vars).
+
 %%	substitute_term_norec(+Term, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
 %
 %	None-recursive version of substitute_term_rec//6.
@@ -398,7 +415,9 @@ substitute_term_norec(Term, Priority, Pattern, Into, Expander, TermPos) -->
       copy_term(Term, Term2),
       with_context(Term, Pattern, Into, Pattern1, Into1, Expander),
       greatest_common_binding(Pattern1, Into1, Pattern2, Into2, [[]], Unifier, []),
-      unlinked_vars(Pattern2-Unifier, Into2, UVars),
+      refactor_context(variable_names, VarNames),
+      maplist_dcg(select_var, VarNames, Vars, []),
+      unlinked_vars(p(Pattern2, Unifier), Vars, Into2, UVars),
       maplist_dcg(select_multi(Into2), UVars, MVars, []),
       numbervars(UVars-MVars, 0, _, [singletons(true)])
     },
@@ -494,20 +513,6 @@ subst_fvar(Term, Pos, GTerm, V=T) :-
       V='$sb'(GPos, G)
     ; true
     ).
-
-subtract_eq([], _, []).
-subtract_eq([Elem0|T], L, Set0) :-
-    ( member(Elem, L),
-      Elem0 == Elem ->
-      Set0 = Set
-    ; Set0 = [Elem0|Set]
-    ),
-    subtract_eq(T, L, Set).
-
-unlinked_vars(Term, Into, Vars) :-
-    term_variables(Term, VTerm),
-    term_variables(Into, VInto),
-    subtract_eq(VInto, VTerm, Vars).
 
 subst_args(N, Term, GTerm, CTerm, [ArgPos|SubPos]) :-
     arg(N, Term,  Arg),
@@ -828,13 +833,13 @@ fix_position_if_braced(term_position(From0, To0, FFrom, FTo, PosL),
 		       GTerm, GPriority, Text0 ) :-
     prolog_listing:term_needs_braces(GTerm, GPriority),
     !,
-    ( nnegint(LCount),
+    ( between(0, inf, LCount),
       From is From0 - LCount - 1,
       get_subtext(Text0, From, From0, LText),
       LText = [0'(|_],
       !
     ),
-    ( nnegint(RCount),
+    ( between(0, inf, RCount),
       To is To0 + RCount,
       get_subtext(Text0, To0, To, Text),
       append(_, [0')], Text),
