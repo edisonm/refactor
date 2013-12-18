@@ -29,14 +29,12 @@
 
 :- module(file_changes, [do_file_change/2, do_file_changes/2]).
 
+do_file_changes(diff(DiffFile), FileChanges) :- !,
+    tell(DiffFile),
+    do_file_changes(show, FileChanges),
+    told.
 do_file_changes(Action, FileChanges) :-
-    cleanup_action(Action),
     maplist(do_file_change(Action), FileChanges).
-
-cleanup_action(save).
-cleanup_action(show).
-cleanup_action(diff(DiffFile)) :-
-    (exists_file(DiffFile) -> delete_file(DiffFile) ; true).
 
 do_file_change(save, File-Changes) :-
     ( \+ exists_file(File), Changes==[] -> true
@@ -45,12 +43,9 @@ do_file_change(save, File-Changes) :-
       close(Fd)
     ).
 do_file_change(show, File-Changes) :-
-    diff_file_change(File, Changes, []).
-do_file_change(diff(DiffFile), File-Changes) :-
-    diff_file_change(File, Changes, [stdout(pipe(Out))]),
-    setup_call_cleanup(open(DiffFile, append, St),
-		       with_output_to(St, dump_output(Out)),
-		       close(St)).
+    catch(diff_file_change(File, Changes),
+	  error(process_error(_,(exit(1))), _),
+	  true).
 
 make_relative(File, RFile) :-
     ( absolute_file_name('',WD),
@@ -58,7 +53,7 @@ make_relative(File, RFile) :-
     ; RFile = File
     ).
 
-diff_file_change(File, Changes, Options) :-
+diff_file_change(File, Changes) :-
     make_relative(File, RFile),
     atomic_list_concat([RFile, ' (source)'], FLabel),
     atomic_list_concat([RFile, ' (target)'], TLabel),
@@ -67,9 +62,10 @@ diff_file_change(File, Changes, Options) :-
 		    '--label', FLabel, File,
 		    '--label', TLabel, '-'
 		   ],
-		   [stdin(pipe(SIn))|Options]),
+		   [stdin(pipe(SIn)), stdout(pipe(Out))]),
     with_output_to(SIn, format('~s', [Changes])),
-    close(SIn).
+    close(SIn),
+    dump_output(Out).
 
 dump_output(Out) :-
     read_line_to_codes(Out, Line1),
