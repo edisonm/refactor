@@ -44,7 +44,7 @@ do_file_change(save, File-Changes) :-
     ).
 do_file_change(show, File-Changes) :-
     catch(diff_file_change(File, Changes),
-	  error(process_error(_,(exit(1))), _),
+	  error(process_error(_, exit(1)), _),
 	  true).
 
 make_relative(File, RFile) :-
