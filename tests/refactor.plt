@@ -480,6 +480,32 @@ test(example_19_2) :-
     comment_data(example_19_2, Pattern),
     assertion(Pattern == Result).
 
+/* $conjex$
+--- conjex.pl (source)
++++ conjex.pl (target)
+@@ -1,10 +1,8 @@
+ :- module(conjex, [conjex/0]).
+ 
+ conjex :-
+-    a(C),
+-    b(b),
++    c(C-b),
+     c(C),
+     d(d).
+ conjex :-
+-    a(a),
+-    b(b).
++    c(a-b).
+*/
+
+test(conjex) :-
+    [conjex],
+    with_output_to(string(Result),
+		   replace_conjunction(conjex:_,(a(A),b(B)),c(A-B),show)),
+    comment_data(conjex, Pattern),
+    assertion(Pattern == Result).
+    
+
 :- comment_data:disable.
 
 :- end_tests(refactor).

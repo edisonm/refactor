@@ -183,6 +183,7 @@ unfold_goal(Module, MGoal, Action) :-
     (Module == M -> Body = Body0 ; Body = M:Body),
     replace_goal(Module:_, MGoal, Body, Action).
 
+/*
 :- meta_predicate replace_conjunction(?, ?, ?, 0, +).
 replace_conjunction(Sentence, Conj, Replacement, Expander, Action) :-
     expand_term(Sentence, Conj, Replacement, Expander, Action),
@@ -190,12 +191,45 @@ replace_conjunction(Sentence, Conj, Replacement, Expander, Action) :-
     extend_conj(Replacement, Rest, Replacement2),
     expand_term(Sentence, Conj2, Replacement2, Expander, Action).
 
-replace_conjunction(Sentence, Conj, Replacement, Action) :-
-    replace_conjunction(Sentence, Conj, Replacement, true, Action).
-
 extend_conj(Var, Rest, (Var,Rest)) :- var(Var), !.
 extend_conj((A,C0), Rest, (A,C)) :- !, extend_conj(C0, Rest, C).
 extend_conj(Last, Rest, (Last,Rest)).
+
+*/
+
+:- meta_predicate replace_conjunction(?, ?, ?, 0, +).
+replace_conjunction(Sentence, Conj, Repl, Expander, Action) :-
+    replace_last_literal(Conj, Conj2, CLit, CBody),
+    replace_last_literal(Repl, Repl2, RLit, RBody),
+    copy_term(t(Conj2, CLit, CBody, Repl2, RLit, RBody), Term),
+    expand_term(Sentence, Conj2, Repl2,
+		( bind_lit_body(Term, CLit, CBody, RLit, RBody),
+		  Expander
+		), Action).
+
+replace_conjunction(Sentence, Conj, Replacement, Action) :-
+    replace_conjunction(Sentence, Conj, Replacement, true, Action).
+
+replace_last_literal(Conj, Body, Conj, Body) :- var(Conj), !.
+replace_last_literal((A,Conj), (A,Conj2), Lit, Body) :- !,
+    replace_last_literal(Conj, Conj2, Lit, Body).
+replace_last_literal(Conj, Body, Conj, Body).
+
+bind_lit_body(Term, CLit, CBody, RLit, RBody) :-
+    ( subsumes_term(CLit, CBody) ->
+      CBody = CLit,
+      RBody = RLit,
+      PCBody = PCLit,
+      PRBody = PRLit
+    ; subsumes_term((CLit, Rest), CBody) ->
+      CBody = (CLit, Rest),
+      RBody = (RLit, Rest),
+      PCBody = (PCLit, PRest),
+      PRBody = (PRLit, PRest)
+    ),
+    Term = t(Conj, PCLit, PCBody, Repl, PRLit, PRBody),
+    refactor_context(pattern, Conj),
+    refactor_context(into,    Repl).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
