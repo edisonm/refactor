@@ -41,7 +41,11 @@
 		     refactor_context/2,
 		     remove_useless_exports/2,
 		     replace_conjunction/4,
-		     replace_conjunction/5
+		     replace_conjunction/5,
+		     remove_call/3,
+		     remove_call/4,
+		     rcommit/0,
+		     rreset/0
 		    ]).
 
 :- use_module(library(readutil)).
@@ -141,12 +145,27 @@ replace_sentence(M:Term, Expansion, Options) :-
 replace_goal(Caller, Term, Expansion, Options) :-
     replace(goal, Caller, Term, Expansion, Options).
 
+:- dynamic pending_changes/1.
+
 :- meta_predicate expand(+,?,?,?,0,-).
 % Expander(+Caller, ?Term, -Pattern, -Expansion)
 expand(Level, Caller, Term, Into, Expander, Options) :-
     meta_expansion(Level, Caller, Term, Into, Expander, Options, FileChanges),
-    (memberchk(action(Action), Options) -> true ; Action = show),
+    ( memberchk(action(Action), Options) -> true
+    ; Action = show,
+      print_message(information, format('Saved changes for further commit ~n', [])),
+      rreset,
+      asserta(pending_changes(FileChanges))
+    ),
     do_file_changes(Action, FileChanges).
+
+rcommit :-
+    retract(pending_changes(FileChanges)),
+    print_message(information, format('Applying refactoring changes ~n', [])),
+    do_file_changes(save, FileChanges).
+
+rreset :-
+    retractall(pending_changes(_)).
 
 :- meta_predicate
 	expand_term(+,+,-,0,+),
@@ -178,6 +197,26 @@ unfold_goal(Module, MGoal, Options) :-
     MGoal = M:_,
     (Module == M -> Body = Body0 ; Body = M:Body),
     replace_goal(Module:_, MGoal, Body, Options).
+
+remove_call(Sentence, Call, Expander, Options) :-
+    Sentence = M:(Head :- Body),
+    expand_sentence(M:(Head :- Body), Head, ( subsumes_term(Call, Body),
+					      Expander), Options),
+    expand_term(Sentence, Term, _, (do_remove_call(Term, Call), Expander),
+		Options).
+
+remove_call(Sentence, Call, Options) :-
+    remove_call(Sentence, Call, true, Options).
+
+do_remove_call(Term, Call) :-
+    ( subsumes_term((Call, _), Term)
+    ->refactor_context(pattern, (_, X))
+    ; subsumes_term((_, Call), Term)
+    ->refactor_context(pattern, (X, _))
+    ; subsumes_term(Call, Term)
+    ->X = true
+    ),
+    refactor_context(into, X).
 
 /*
 :- meta_predicate replace_conjunction(?, ?, ?, 0, +).
@@ -419,7 +458,8 @@ with_context(Src, Pattern0, Into0, Pattern1, Into2, Goal) :-
     Pattern0 = Src,
     with_pattern_into(Goal, Pattern1, Into1), % Allow changes in Pattern/Into
     term_variables(Pattern1, Vars), % Variable bindings in Pattern
-    copy_term(Pattern1-Vars, Pattern0-Vars0),
+    %% Apply changes to Pattern/Into and bind Vars:
+    copy_term(t(Pattern1, Into1, Vars), t(Pattern0, Into0, Vars0)),
     pairs_keys_values(Pairs, Vars0, Vars),
     map_subterms(Pairs, Into0, Into1, Into2).
 
