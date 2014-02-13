@@ -2,6 +2,8 @@
 		greatest_common_binding/9,
 		substitute/3]).
 
+:- use_module(library(substitute), [substitute/5]).
+
 greatest_common_binding(Term0, Into0, Term, Into, Skip) -->
     greatest_common_binding(Term0, _, Term0, Into0, Term, Into, Skip).
 
@@ -47,21 +49,4 @@ substitute_olist_([Subst|Tail]) -->
     substitute_olist_(Tail).
 
 substitute(Var=Val, Term0, Term) :-
-    ( Term0 == Val -> Term = Var
-    ; compound(Term0) ->
-      functor(Term0, F, A),
-      functor(Term,  F, A),
-      substitute(1, Var=Val, Term0, Term)
-    ; Term = Term0
-    ).
-
-substitute(N, Subst, Term0, Term) :-
-    arg(N, Term0, Arg0),
-    !,
-    substitute(Subst, Arg0, Arg),
-    arg(N, Term, Arg),
-    succ(N, N1),
-    substitute(N1, Subst, Term0, Term).
-substitute(_, _, _, _).
-
-pick_tail(Tail, Tail, Tail).
+    substitute(==, Var, Val, Term0, Term).

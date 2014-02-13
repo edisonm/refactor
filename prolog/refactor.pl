@@ -29,9 +29,11 @@
 
 :- module(refactor, [rename_variable/4,
 		     replace_term/4,
+		     replace_body/4,
 		     replace_goal/4,
 		     replace_sentence/3,
 		     expand_term/5,
+		     expand_body/5,
 		     expand_goal/5,
 		     expand_sentence/4,
 		     replace_term_id/4,
@@ -138,6 +140,9 @@ replace(Level, Sentence, From, Into, Options) :-
 replace_term(Caller, Term, Expansion, Options) :-
     replace(term, Caller, Term, Expansion, Options).
 
+replace_body(Caller, Term, Expansion, Options) :-
+    replace(body, Caller, Term, Expansion, Options).
+
 replace_sentence(M:Term, Expansion, Options) :-
     replace(sent, M:Term, Term, Expansion, Options).
 
@@ -169,6 +174,7 @@ rreset :-
 
 :- meta_predicate
 	expand_term(+,+,-,0,+),
+	expand_body(+,+,-,0,+),
 	expand_sentence(+,-,0,+),
 	expand_goal(?,:,-,0,+),
 	unfold_goal(?,0,+).
@@ -185,6 +191,9 @@ expand_term(Caller, Term, Into, Expander, Options) :-
 %   \predref{expand\_sentence}{3} to return a list, as
 %   \predref{term\_expansion}{2} does in many Prolog dialects.}
 
+expand_body(Caller, Term, Into, Expander, Options) :-
+    expand(body, Caller, Term, Into, Expander, Options).
+
 expand_sentence(M:Term, Into, Expander, Options) :-
     expand(sent, M:Term, Term, Into, Expander, Options).
 
@@ -199,22 +208,25 @@ unfold_goal(Module, MGoal, Options) :-
     replace_goal(Module:_, MGoal, Body, Options).
 
 remove_call(Sentence, Call, Expander, Options) :-
-    Sentence = M:(Head :- Body),
-    expand_sentence(M:(Head :- Body), Head, ( subsumes_term(Call, Body),
-					      Expander), Options),
-    expand_term(Sentence, Term, _, (do_remove_call(Term, Call), Expander),
+    expand_body(Sentence, Term, _, (do_remove_call(Term, Call), Expander),
 		Options).
 
 remove_call(Sentence, Call, Options) :-
     remove_call(Sentence, Call, true, Options).
 
 do_remove_call(Term, Call) :-
-    ( subsumes_term((Call, _), Term)
-    ->refactor_context(pattern, (_, X))
+    ( subsumes_term((_ :- Call), Term)
+    ->refactor_context(pattern, (X :- _)),
+      Term = (_ :- Call)
+    ; subsumes_term((Call, _), Term)
+    ->refactor_context(pattern, (_, X)),
+      Term = (Call, _)
     ; subsumes_term((_, Call), Term)
-    ->refactor_context(pattern, (X, _))
+    ->refactor_context(pattern, (X, _)),
+      Term = (_, Call)
     ; subsumes_term(Call, Term)
-    ->X = true
+    ->X = true,
+      Term = Call
     ),
     refactor_context(into, X).
 
@@ -335,6 +347,8 @@ collect_expansion_commands(goal, Caller, Term, Into, Expander, Options,
     findall(F-C, retract(file_commands_db(F, C)), FileCommands).
 collect_expansion_commands(term, Caller, Term, Into, Expander, Options, FileCommands) :-
     collect_ec_term_level(term, Caller, Term, Into, Expander, Options, FileCommands).
+collect_expansion_commands(body, Caller, Term, Into, Expander, Options, FileCommands) :-
+    collect_ec_term_level(body, Caller, Term, Into, Expander, Options, FileCommands).
 collect_expansion_commands(sent, Caller, Term, Into, Expander, Options, FileCommands) :-
     collect_ec_term_level(sent, Caller, Term, Into, Expander, Options, FileCommands).
 
@@ -361,6 +375,10 @@ substitute_term_level(term, Sent, Priority, Term, Into, Expander, TermPos) -->
     substitute_term_rec(Sent, Priority, Term, Into, Expander, TermPos).
 substitute_term_level(sent, Sent, Priority, Term, Into, Expander, TermPos) -->
     substitute_term_norec(top, Sent, Priority, Term, Into, Expander, TermPos).
+substitute_term_level(body, (_ :- Body), _, Term, Into, Expander,
+		      term_position(_, _, _, _, [_, BodyPos])) -->
+    {term_priority((_ :- Body), 2, Priority)},
+    substitute_term_rec(Body, Priority, Term, Into, Expander, BodyPos).
 
 :- meta_predicate with_dict(0, +).
 with_dict(Goal, Dict) :-
