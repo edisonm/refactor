@@ -48,5 +48,7 @@ substitute_olist_([Subst|Tail]) -->
     substitute(Subst),
     substitute_olist_(Tail).
 
+pick_tail(Tail, Tail, Tail).
+
 substitute(Var=Val, Term0, Term) :-
     substitute(==, Var, Val, Term0, Term).
