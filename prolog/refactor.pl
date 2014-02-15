@@ -47,6 +47,12 @@
 		     remove_call/3,
 		     remove_call/4,
 		     rcommit/0,
+		     rshow/0,
+		     rdiff/0,
+		     rdiff/1,
+		     rdiff/2,
+		     rsave/1,
+		     rundo/0,
 		     rreset/0
 		    ]).
 
@@ -150,27 +156,95 @@ replace_sentence(M:Term, Expansion, Options) :-
 replace_goal(Caller, Term, Expansion, Options) :-
     replace(goal, Caller, Term, Expansion, Options).
 
-:- dynamic pending_changes/1.
+:- multifile
+    prolog:xref_open_source/2.	% +SourceId, -Stream
+
+prolog:xref_open_source(File, Fd) :-
+    once(pending_change(_, File, Source)),
+    open_codes_stream(Source, Fd).
+    
+:- dynamic pending_change/3,
+    change_idx/1.
+
+save_pending_changes(FileChanges, Idx) :-
+    ( retract(change_idx(Idx0))
+    ->succ(Idx0, Idx)
+    ; Idx = 1
+    ),
+    assertz(change_idx(Idx)),
+    maplist(save_pending_change(Idx), FileChanges).
+
+save_pending_change(N, File-Changes) :-
+    asserta(pending_change(N, File, Changes)).
 
 :- meta_predicate expand(+,?,?,?,0,-).
-% Expander(+Caller, ?Term, -Pattern, -Expansion)
 expand(Level, Caller, Term, Into, Expander, Options) :-
     meta_expansion(Level, Caller, Term, Into, Expander, Options, FileChanges),
-    ( memberchk(action(Action), Options) -> true
-    ; Action = show,
-      print_message(information, format('Saved changes for further commit ~n', [])),
-      rreset,
-      asserta(pending_changes(FileChanges))
-    ),
-    do_file_changes(Action, FileChanges).
+    save_pending_changes(FileChanges, Idx),
+    print_message(information, format('Saved changes in index ~w~n', [Idx])),
+    ( memberchk(quiet, Options)
+    ->true
+    ; rdiff
+    ).
 
 rcommit :-
-    retract(pending_changes(FileChanges)),
-    print_message(information, format('Applying refactoring changes ~n', [])),
-    do_file_changes(save, FileChanges).
+    change_idx(Idx),
+    rdiff(save, 0, Idx),
+    rreset.
+
+rshow :-
+    change_idx(Idx),
+    rdiff(show, 0, Idx).
+
+rsave(Diff):-
+    tell(Diff),
+    rshow,
+    told.
+
+rdiff :-
+    change_idx(Idx),
+    succ(Idx0, Idx),
+    rdiff(show, Idx0, Idx).
+
+rdiff(Idx) :-
+    succ(Idx0, Idx),
+    rdiff(show, Idx0, Idx).
+
+rdiff(Idx0, Idx) :-
+    rdiff(show, Idx0, Idx).
+
+rdiff(Action, Idx0, Idx) :-
+    findall(File, (pending_change(IdxI, File, _), IdxI=<Idx), FileU),
+    sort(FileU, FileL),
+    forall(member(File, FileL),
+	   ( once(pending_change(_, File, Changes)),
+	     ( pending_change(Idx1, File, Changes0 ),
+	       Idx1 =< Idx0
+	     ->setup_call_cleanup(tmp_file_stream(text, File0, Stream),
+				  ( format(Stream, '~s', [Changes0 ]),
+				    close(Stream),
+				    do_file_change(Action, File0, File, Changes)
+				  ),
+				  delete_file(File0))
+	     ; do_file_change(Action, File, File, Changes)
+	     )
+	   )).
+
+rundo :-
+    ( retract(change_idx(N))
+    ->retractall(pending_change(N, _, _)),
+      succ(N0, N),
+      ( N0 > 0
+      ->assertz(change_idx(N0 )),
+	print_message(information, format('Undone, now index is ~w~n', [N0]))
+      ; print_message(information, format('Undone all refactorings~n', []))
+      )
+    ; retractall(pending_change(_, _, _))
+    ).
 
 rreset :-
-    retractall(pending_changes(_)).
+    retractall(change_idx(_)),
+    retractall(pending_change(_, _, _)).
 
 :- meta_predicate
 	expand_term(+,+,-,0,+),
@@ -229,20 +303,6 @@ do_remove_call(Term, Call) :-
       Term = Call
     ),
     refactor_context(into, X).
-
-/*
-:- meta_predicate replace_conjunction(?, ?, ?, 0, +).
-replace_conjunction(Sentence, Conj, Replacement, Expander, Action) :-
-    expand_term(Sentence, Conj, Replacement, Expander, Action),
-    extend_conj(Conj, Rest, Conj2),
-    extend_conj(Replacement, Rest, Replacement2),
-    expand_term(Sentence, Conj2, Replacement2, Expander, Action).
-
-extend_conj(Var, Rest, (Var,Rest)) :- var(Var), !.
-extend_conj((A,C0), Rest, (A,C)) :- !, extend_conj(C0, Rest, C).
-extend_conj(Last, Rest, (Last,Rest)).
-
-*/
 
 :- meta_predicate replace_conjunction(?, ?, ?, 0, +).
 replace_conjunction(Sentence, Conj, Repl, Expander, Options) :-
@@ -435,7 +495,9 @@ compact_group(Key-LList, Key-Uniques) :-
     sort(List, Uniques).
 
 apply_commands(File-Commands, File-NewText) :-
-    read_file_to_codes(File, Text, []),
+    ( pending_change(_, File, Text) -> true
+    ; read_file_to_codes(File, Text, [])
+    ),
     length(Commands, N),
     print_message(informational, format('~w changes in ~w', [N, File])),
     with_context_vars(maplist_dcg(apply_change,
@@ -763,7 +825,7 @@ substitute_term_list([], TP, Tail, Ref, Into, Expander) -->
 :- public collect_file_commands/8.
 :- meta_predicate collect_file_commands(?,0,?,?,?,?,?,?).
 
-%%	collect_file_commands(+Sentence, +Pattern, +Into, :Expander, +FileChk
+%%	collect_file_commands(+Sentence, +Pattern, +Into, :Expander, +FileChk,
 %%			      +Callee, +Caller, +Location)
 %
 %	Called from prolog_walk_code/1 on a call  from Caller to Callee.
@@ -1369,39 +1431,7 @@ subst_term2__(CTerm0, CTerm) :-
 subst_term2__(T, T).
 
 print_expansion(Term,   N, _) --> {var(Term), !, write_r(N, Term)}, [].
-print_expansion('$BODY'(Term), N, Pos) --> % Print as a body
-    {write_b(Term, N, 0, Pos)}.
-print_expansion('$LIST'(List), N, Pos0) -->
-    print_expansion_list(List, N, Pos0).
-print_expansion('$LIST,'(List), N, Pos0) -->
-    print_expansion_list_comma(List, N, Pos0).
-print_expansion('$LIST,_'(List), N, Pos0) -->
-    print_expansion_list_comma_2(List, N, Pos0).
-print_expansion('$TEXT'(Term), N, Pos0) -->
-    print_expansion('$TEXT'(Term, 0), N, Pos0).
 print_expansion(Term, N, _) --> {write_r(N, Term)}.
-
-print_expansion_list([], _, _) --> [].
-print_expansion_list([T|L], N, Pos0) -->
-    print_expansion(T, N, Pos0),
-    print_expansion_list(L, N, Pos0).
-
-print_expansion_list_comma([], _, _) --> [].
-print_expansion_list_comma([T|L], N, Pos0) -->
-    print_expansion(T, N, Pos0),
-    print_expansion_list_comma_(L, N, Pos0).
-
-print_expansion_list_comma_2([], _, _) --> [].
-print_expansion_list_comma_2([T|L], N, Pos0) -->
-    print_expansion(T, N, Pos0),
-    {write(', ')},
-    print_expansion_list_comma_2(L, N, Pos0).
-
-print_expansion_list_comma_([], _, _) --> [].
-print_expansion_list_comma_([T|L], N, Pos0) -->
-    {write(', ')},
-    print_expansion(T, N, Pos0),
-    print_expansion_list_comma_(L, N, Pos0).
 
 o_length(T, N) :-
     o_length(T, 0, N).

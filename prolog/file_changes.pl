@@ -27,23 +27,16 @@
     the GNU General Public License.
 */
 
-:- module(file_changes, [do_file_change/2, do_file_changes/2]).
+:- module(file_changes, [do_file_change/4]).
 
-do_file_changes(diff(DiffFile), FileChanges) :- !,
-    tell(DiffFile),
-    do_file_changes(show, FileChanges),
-    told.
-do_file_changes(Action, FileChanges) :-
-    maplist(do_file_change(Action), FileChanges).
-
-do_file_change(save, File-Changes) :-
+do_file_change(save, File, _, Changes) :-
     ( \+ exists_file(File), Changes==[] -> true
     ; open(File, write, Fd, []),
       format(Fd, '~s', [Changes]),
       close(Fd)
     ).
-do_file_change(show, File-Changes) :-
-    catch(diff_file_change(File, Changes),
+do_file_change(show, File, Name, Changes) :-
+    catch(diff_file_change(File, Name, Changes),
 	  error(process_error(_, exit(1)), _),
 	  true).
 
@@ -54,9 +47,12 @@ make_relative(File, RFile) :-
     ).
 
 diff_file_change(File, Changes) :-
-    make_relative(File, RFile),
-    atomic_list_concat([RFile, ' (source)'], FLabel),
-    atomic_list_concat([RFile, ' (target)'], TLabel),
+    diff_file_change(File, File, Changes).
+
+diff_file_change(File, AName, Changes) :-
+    make_relative(AName, Name),
+    atomic_list_concat([Name, ' (source)'], FLabel),
+    atomic_list_concat([Name, ' (target)'], TLabel),
     process_create(path(diff),
 		   ['-ruN',
 		    '--label', FLabel, File,

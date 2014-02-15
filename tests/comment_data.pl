@@ -8,13 +8,23 @@
 % comment, to facilitate output comparisons:
 
 process_comment_data(Comments, Term) :-
-    Term = (test(Test) :- _),
-    format(string(Header), '/* $~w$~n', [Test]), % */
-    member(_-Comment, Comments),
-    string_concat(Header, Out0, Comment),
-    string_concat(Out, '*/', Out0),
-    retractall(comment_data(Test, _)),
-    assertz(comment_data(Test, Out)).
+    Term = (test(_Test) :- _),
+    ( member(_-Comment, Comments),
+      get_comment_data(Comment, Name, Out),
+      retractall(comment_data(Name, _)),
+      assertz(comment_data(Name, Out)),
+      fail
+    ; true
+    ).
+
+get_comment_data(Comment, Name, Out) :-
+    string_concat("/* $", Out0, Comment),
+    sub_string(Out0, Before, Length, After, "$\n"),
+    sub_string(Out0, 0, Before, _, SName),
+    atom_string(Name, SName),
+    OutPos is Before + Length,
+    sub_string(Out0, OutPos, After, _, Out1),
+    string_concat(Out, "*/", Out1).
 
 :- dynamic enabled/0.
 
