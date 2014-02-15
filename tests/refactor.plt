@@ -127,7 +127,7 @@ test(example_6) :-
     [ex6],
     rreset,
     with_output_to(string(Result),
-		   replace_goal(ex6:_, ex6:p(A,B,L,T), p(B,A,L,T), [])),
+		   replace_goal(ex6:_, p(A,B,L,T), p(B,A,L,T), [])),
     comment_data(example_6, Pattern),
     assertion(Pattern == Result).
 

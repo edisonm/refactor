@@ -63,7 +63,7 @@
 :- use_module(library(gcb)).
 :- use_module(library(maplist_dcg)).
 
-:- thread_local file_commands_db/2.
+:- thread_local file_commands_db/2, command_db/1.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Most used refactoring scenarios:
@@ -152,7 +152,7 @@ replace_body(Caller, Term, Expansion, Options) :-
 replace_sentence(M:Term, Expansion, Options) :-
     replace(sent, M:Term, Term, Expansion, Options).
 
-:- meta_predicate replace_goal(?,0,?,+).
+% :- meta_predicate replace_goal(?,0,?,+).
 replace_goal(Caller, Term, Expansion, Options) :-
     replace(goal, Caller, Term, Expansion, Options).
 
@@ -394,7 +394,7 @@ refactor_option_filechk(Options, FileChk) :-
       FileChk = fileschk(AliasL)
     ; FileChk = r_true
     ).
-
+/*
 collect_expansion_commands(goal, Caller, Term, Into, Expander, Options,
 			   FileCommands) :-
     refactor_option_filechk(Options, FileChk),
@@ -405,12 +405,30 @@ collect_expansion_commands(goal, Caller, Term, Into, Expander, Options,
 	  on_trace(collect_file_commands(Caller, Term, Into, Expander, FileChk))
 	]),
     findall(F-C, retract(file_commands_db(F, C)), FileCommands).
-collect_expansion_commands(term, Caller, Term, Into, Expander, Options, FileCommands) :-
-    collect_ec_term_level(term, Caller, Term, Into, Expander, Options, FileCommands).
-collect_expansion_commands(body, Caller, Term, Into, Expander, Options, FileCommands) :-
-    collect_ec_term_level(body, Caller, Term, Into, Expander, Options, FileCommands).
-collect_expansion_commands(sent, Caller, Term, Into, Expander, Options, FileCommands) :-
-    collect_ec_term_level(sent, Caller, Term, Into, Expander, Options, FileCommands).
+*/
+
+r_goal_expansion(Goal, TermPos) :-
+    once(do_r_goal_expansion(Goal, TermPos)),
+    fail.
+
+do_r_goal_expansion(Term, TermPos) :-
+    refactor_context(sentence, Sent-SentPattern),
+    subsumes_term(SentPattern, Sent),
+    refactor_context(goal_args, ga(Pattern, Into, Expander)),
+    substitute_term_norec(sub, Term, 999, Pattern, Into, Expander, TermPos,
+			  Commands, []),
+    forall(member(Command, Commands), assertz(command_db(Command))).
+
+level_hook(goal, Call) :- !,
+    setup_call_cleanup(asserta((system:goal_expansion(G, T, _, _) :-
+			       r_goal_expansion(G, T)), Ref),
+		       Call,
+		       erase(Ref)).
+level_hook(_, Call) :- call(Call).
+
+collect_expansion_commands(Level, Caller, Term, Into, Expander, Options, FileCommands) :-
+    level_hook(Level, collect_ec_term_level(term, Caller, Term, Into,
+					    Expander, Options, FileCommands)).
 
 collect_ec_term_level(Level, Caller, Term, Into, Expander, Options, FileCommands) :-
     refactor_option_filechk(Options, FileChk),
@@ -421,16 +439,23 @@ collect_ec_term_level(Level, Caller, Term, Into, Expander, Options, FileCommands
 ec_term_level_each(Level, M:SentPattern, Term, Into, Expander,
 		   FileChk, File, Commands) :-
     refactor_module(M),
-    get_term_info(M, SentPattern, Sent, FileChk, File,
-		  [ variable_names(Dict),
-		    subterm_positions(TermPos)
-		  ]),
-    with_sentence(with_dict(phrase(substitute_term_level(Level, Sent, 1200, Term,
-							 Into, Expander, TermPos),
-				   Commands, []),
-			    Dict),
-		  Sent-SentPattern).
+    with_context_vars(( get_term_info(M, SentPattern, Sent, FileChk, File,
+				      [ variable_names(Dict),
+					subterm_positions(TermPos)
+				      ]),
+			phrase(substitute_term_level(Level, Sent, 1200, Term,
+						     Into, Expander, TermPos),
+			       Commands, [])
+		      ),
+		      [refactor_variable_names,
+		       refactor_sentence,
+		       refactor_goal_args],
+		      [Dict,
+		       Sent-SentPattern,
+		       ga(Term, Into, Expander)]).
 
+substitute_term_level(goal, _, _, _, _, _, _) -->
+    findall(Commands, retract(command_db(Commands))).
 substitute_term_level(term, Sent, Priority, Term, Into, Expander, TermPos) -->
     substitute_term_rec(Sent, Priority, Term, Into, Expander, TermPos).
 substitute_term_level(sent, Sent, Priority, Term, Into, Expander, TermPos) -->
@@ -530,6 +555,8 @@ refactor_context(into, Into) :-
     b_getval(refactor_into, Into).
 refactor_context(sentence, Sentence) :-
     b_getval(refactor_sentence, Sentence).
+refactor_context(goal_args, Sentence) :-
+    b_getval(refactor_goal_args, Sentence).
 
 :- meta_predicate with_context(?, ?, ?, ?, ?, 0).
 with_context(Src, Pattern0, Into0, Pattern1, Into2, Goal) :-
