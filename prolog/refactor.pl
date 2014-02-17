@@ -427,7 +427,7 @@ level_hook(goal, Call) :- !,
 level_hook(_, Call) :- call(Call).
 
 collect_expansion_commands(Level, Caller, Term, Into, Expander, Options, FileCommands) :-
-    level_hook(Level, collect_ec_term_level(term, Caller, Term, Into,
+    level_hook(Level, collect_ec_term_level(Level, Caller, Term, Into,
 					    Expander, Options, FileCommands)).
 
 collect_ec_term_level(Level, Caller, Term, Into, Expander, Options, FileCommands) :-
