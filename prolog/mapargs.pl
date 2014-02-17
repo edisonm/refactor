@@ -54,6 +54,13 @@ mapargs_(N, Goal, T1, T2, T3, T4, T5) :-
     mapargs_(N1, Goal, T1, T2, T3, T4, T5).
 mapargs_(_, _, _, _, _, _, _).
 
+:- meta_predicate
+    mapargs(2,?),
+    mapargs(3,?,?),
+    mapargs(4,?,?,?),
+    mapargs(5,?,?,?,?),
+    mapargs(6,?,?,?,?,?).
+
 mapargs(Goal, Term)               :- mapargs_(1, Goal, Term).
 mapargs(Goal, T1, T2)             :- mapargs_(1, Goal, T1, T2).
 mapargs(Goal, T1, T2, T3)         :- mapargs_(1, Goal, T1, T2, T3).
