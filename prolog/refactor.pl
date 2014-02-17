@@ -181,11 +181,8 @@ save_pending_change(N, File-Content) :-
 expand(Level, Caller, Term, Into, Expander, Options) :-
     meta_expansion(Level, Caller, Term, Into, Expander, Options, FileContent),
     save_pending_changes(FileContent, Idx),
-    print_message(information, format('Saved changes in index ~w~n', [Idx])),
-    ( memberchk(quiet, Options)
-    ->true
-    ; rdiff
-    ).
+    print_message(information, format('Saved changes in index ~w', [Idx])),
+    (current_prolog_flag(verbose, silent) -> true ; rdiff).
 
 rcommit :-
     change_idx(Idx),
@@ -236,8 +233,8 @@ rundo :-
       succ(N0, N),
       ( N0 > 0
       ->assertz(change_idx(N0 )),
-	print_message(information, format('Undone, now index is ~w~n', [N0]))
-      ; print_message(information, format('Undone all refactorings~n', []))
+	print_message(information, format('Undone, now index is ~w', [N0]))
+      ; print_message(information, format('Undone all refactorings', []))
       )
     ; retractall(pending_change(_, _, _))
     ).
