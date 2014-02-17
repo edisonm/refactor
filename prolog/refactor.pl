@@ -48,11 +48,16 @@
 		     remove_call/4,
 		     rcommit/0,
 		     rshow/0,
+		     rlist/0,
+		     rlist/1,
 		     rdiff/0,
 		     rdiff/1,
 		     rdiff/2,
 		     rsave/1,
 		     rundo/0,
+		     rdelete/1,
+		     rrewind/0,
+		     rrewind/1,
 		     rreset/0
 		    ]).
 
@@ -62,6 +67,7 @@
 :- use_module(library(term_info)).
 :- use_module(library(gcb)).
 :- use_module(library(maplist_dcg)).
+:- use_module(library(mapargs)).
 
 :- thread_local file_commands_db/2, command_db/1.
 
@@ -163,35 +169,53 @@ prolog:xref_open_source(File, Fd) :-
     once(pending_change(_, File, Source)),
     open_codes_stream(Source, Fd).
     
-:- dynamic pending_change/3,
-    change_idx/1.
+:- dynamic
+    pending_refactor/2,
+    pending_change/3.
 
-save_pending_changes(FileContent, Idx) :-
-    ( retract(change_idx(Idx0))
-    ->succ(Idx0, Idx)
-    ; Idx = 1
-    ),
-    assertz(change_idx(Idx)),
-    maplist(save_pending_change(Idx), FileContent).
+save_refactor(Refactor, Index) :-
+    (pending_refactor(Index0, _) -> succ(Index0, Index) ; Index = 1),
+    asserta(pending_refactor(Index, Refactor)).
 
-save_pending_change(N, File-Content) :-
-    asserta(pending_change(N, File, Content)).
+save_change(Index, File-Content) :-
+    asserta(pending_change(Index, File, Content)).
 
-:- meta_predicate expand(+,?,?,?,0,-).
-expand(Level, Caller, Term, Into, Expander, Options) :-
+save_changes(Index, FileContent) :-
+    maplist(save_change(Index), FileContent).
+
+apply_refactor(Refactor) :-
+    Refactor = refactor(Level, Caller, Term, Into, Expander, Options),
+    save_refactor(Refactor, Index),
     meta_expansion(Level, Caller, Term, Into, Expander, Options, FileContent),
-    save_pending_changes(FileContent, Idx),
-    print_message(information, format('Saved changes in index ~w', [Idx])),
-    (current_prolog_flag(verbose, silent) -> true ; rdiff).
+    save_changes(Index, FileContent).
+
+% :- meta_predicate expand(+,?,?,?,0,-).
+expand(Level, Caller, Term, Into, Expander, Options) :-
+    apply_refactor(refactor(Level, Caller, Term, Into, Expander, Options)),
+    ( current_prolog_flag(verbose, silent)
+    ->true
+    ; once(rdiff(Index)),
+      print_message(informational, format('Saved changes in index ~w', [Index]))
+    ).
 
 rcommit :-
-    change_idx(Idx),
-    rdiff(save, 0, Idx),
+    once(pending_refactor(Index, _)),
+    rdiff(save, 0, Index),
     rreset.
 
+rlist :-
+    \+ ( rlist(_),
+	 fail
+       ).
+
+rlist(Index) :-
+    pending_refactor(Index, Refactor),
+    with_output_to(string(SRefactor), portray_clause(Refactor)),
+    print_message(information, format('Index ~w, Refactor: ~s', [Index, SRefactor])).
+
 rshow :-
-    change_idx(Idx),
-    rdiff(show, 0, Idx).
+    once(pending_refactor(Index, _)),
+    rdiff(show, 0, Index).
 
 rsave(Diff):-
     tell(Diff),
@@ -199,24 +223,23 @@ rsave(Diff):-
     told.
 
 rdiff :-
-    change_idx(Idx),
-    succ(Idx0, Idx),
-    rdiff(show, Idx0, Idx).
+    once(rdiff(_)).
 
-rdiff(Idx) :-
-    succ(Idx0, Idx),
-    rdiff(show, Idx0, Idx).
+rdiff(Index) :-
+    pending_refactor(Index, _),
+    succ(Index0, Index),
+    rdiff(show, Index0, Index).
 
-rdiff(Idx0, Idx) :-
-    rdiff(show, Idx0, Idx).
+rdiff(Index0, Index) :-
+    rdiff(show, Index0, Index).
 
-rdiff(Action, Idx0, Idx) :-
-    findall(File, (pending_change(IdxI, File, _), IdxI=<Idx), FileU),
+rdiff(Action, Index0, Index) :-
+    findall(File, (pending_change(IdxI, File, _), IdxI=<Index), FileU),
     sort(FileU, FileL),
     forall(member(File, FileL),
 	   ( once(pending_change(_, File, Content)),
 	     ( pending_change(Idx1, File, Content0 ),
-	       Idx1 =< Idx0
+	       Idx1 =< Index0
 	     ->setup_call_cleanup(tmp_file_stream(text, File0, Stream),
 				  ( format(Stream, '~s', [Content0 ]),
 				    close(Stream),
@@ -228,19 +251,34 @@ rdiff(Action, Idx0, Idx) :-
 	   )).
 
 rundo :-
-    ( retract(change_idx(N))
-    ->retractall(pending_change(N, _, _)),
-      succ(N0, N),
-      ( N0 > 0
-      ->assertz(change_idx(N0 )),
-	print_message(information, format('Undone, now index is ~w', [N0]))
-      ; print_message(information, format('Undone all refactorings', []))
-      )
-    ; retractall(pending_change(_, _, _))
-    ).
+    rundo(_).
+
+rdelete(Index) :-
+    rundo(Index),
+    rrewind(Index).
+
+rundo(Index) :-
+    rdrop(Index, Refactor),
+    print_message(information, format('Undone ~w ---> ', [Index, Refactor])).
+
+rdrop(Index, Refactor) :-
+    retract(pending_refactor(Index, Refactor)),
+    retractall(pending_change(Index, _, _)).
+
+rrewind :-
+    rrewind(0).
+
+rrewind(Index) :-
+    findall(Refactor, ( pending_refactor(Index0, Refactor),
+			Index0 > Index,
+			rdrop(Index0, _)
+		      ),
+	    RefactorR),
+    reverse(RefactorR, RefactorL),
+    maplist(apply_refactor, RefactorL).
 
 rreset :-
-    retractall(change_idx(_)),
+    retractall(pending_refactor(_, _)),
     retractall(pending_change(_, _, _)).
 
 :- meta_predicate
@@ -278,6 +316,7 @@ unfold_goal(Module, MGoal, Options) :-
     (Module == M -> Body = Body0 ; Body = M:Body),
     replace_goal(Module:_, MGoal, Body, Options).
 
+:- meta_predicate remove_call(+,+,0,+).
 remove_call(Sentence, Call, Expander, Options) :-
     expand_body(Sentence, Term, _, (do_remove_call(Term, Call), Expander),
 		Options).
@@ -369,6 +408,7 @@ meta_expansion(Level, Caller, Term, Into, Expander, Options, FileContent) :-
 		[-atom, -singleton]), % At this point we are not interested in styles
     apply_file_commands(FileCommands, FileContent).
 
+:- public filechk/2.
 filechk(Alias, File) :-
     absolute_file_name(Alias, Pattern, [file_type(prolog),
 					solutions(all)]),
@@ -377,11 +417,13 @@ filechk(Alias, File) :-
     access_file(File, read),
     !.
 
+:- public fileschk/2.
 fileschk(AliasL, File) :-
     member(Alias, AliasL),
     filechk(Alias, File),
     !.
 
+:- public r_true/1.
 r_true(_).
 
 refactor_option_filechk(Options, FileChk) :-
@@ -403,6 +445,8 @@ collect_expansion_commands(goal, Caller, Term, Into, Expander, Options,
 	]),
     findall(F-C, retract(file_commands_db(F, C)), FileCommands).
 */
+
+:- public r_goal_expansion/2.
 
 r_goal_expansion(Goal, TermPos) :-
     once(do_r_goal_expansion(Goal, TermPos)),
@@ -664,9 +708,6 @@ unifier(Term1, Term2, L) :-
 
 eq(A, B, A=B).
 
-gcbl(V=T0, V=T, gcb(Term0, BL0), gcb(Term, BL)) :-
-    greatest_common_binding(Term0, T0, Term, T, [[]], BL0, BL).
-
 get_position_gterm(Term, Pos, GTerm, T, GPos, G, GPriority) :-
     subterm_location_eq(L, T, Term),
     subpos_location(L, Pos, GPos),
@@ -694,7 +735,6 @@ substitute_term(Priority, Term, Term2, Pattern2, Into2, BindingL, TermPos) -->
     { copy_term(Term2, GTerm),
       unifier(Term2, Term, UL0),
       maplist_dcg(non_singleton(UL0), UL0, UL1, []),
-      % maplist_dcg(gcbl, UL1, UL2, gcb(Term2, UL3), gcb(Term3, [])),
       maplist_dcg(substitute_2, UL1, sub(Term2, UL3), sub(Term3, [])),
       % UL1=UL2, Term2=Term3, UL3=[],
       UL1=UL2,
@@ -901,26 +941,6 @@ trim_term_list([0-0|SubPosL], [_|Args], TSubPosL, TArgsL) :- !,
     trim_term_list(SubPosL, Args, TSubPosL, TArgsL).
 trim_term_list([SubPos|SubPosL], [Arg|Args], [SubPos|TSubPosL], [Arg|TArgsL]) :-
     trim_term_list(SubPosL, Args, TSubPosL, TArgsL).
-
-valid_op_type_arity(xf,  1).
-valid_op_type_arity(yf,  1).
-valid_op_type_arity(xfx, 2).
-valid_op_type_arity(xfy, 2).
-valid_op_type_arity(yfx, 2).
-valid_op_type_arity(fy,  1).
-valid_op_type_arity(fx,  1).
-
-refactor_hack('$LIST'(_)).
-refactor_hack('$LIST,'(_)).
-refactor_hack('$LIST,_'(_)).
-refactor_hack('$LIST.NL'(_)).
-refactor_hack('$TEXT'(_)).
-refactor_hack('$TEXT'(_,_)).
-refactor_hack('$BODY'(_)).
-refactor_hack('$BODY'(_,_)).
-refactor_hack('$NL'(_)).
-refactor_hack('$,NL'(_)).
-refactor_hack('$RM').
 
 compound_positions(Line1, Pos1, Pos0, Pos) :-
     Line1 =< 1,
@@ -1132,62 +1152,6 @@ print_expansion(Term, Pattern, GTerm, RefPos, Priority, Text) :-
     ; write_r(Priority, Term)
     ).
 
-mapargs_(N, Goal, T) :-
-    arg(N, T, A),
-    !,
-    call(Goal, N, A),
-    succ(N, N1),
-    mapargs_(N1, Goal, T).
-mapargs_(_, _, _).
-
-mapargs_(N, Goal, T1, T2) :-
-    arg(N, T1, A1),
-    arg(N, T2, A2),
-    !,
-    call(Goal, N, A1, A2),
-    succ(N, N1),
-    mapargs_(N1, Goal, T1, T2).
-mapargs_(_, _, _, _).
-
-mapargs_(N, Goal, T1, T2, T3) :-
-    arg(N, T1, A1),
-    arg(N, T2, A2),
-    arg(N, T3, A3),
-    !,
-    call(Goal, N, A1, A2, A3),
-    succ(N, N1),
-    mapargs_(N1, Goal, T1, T2, T3).
-mapargs_(_, _, _, _, _).
-
-mapargs_(N, Goal, T1, T2, T3, T4) :-
-    arg(N, T1, A1),
-    arg(N, T2, A2),
-    arg(N, T3, A3),
-    arg(N, T4, A4),
-    !,
-    call(Goal, N, A1, A2, A3, A4),
-    succ(N, N1),
-    mapargs_(N1, Goal, T1, T2, T3, T4).
-mapargs_(_, _, _, _, _, _).
-
-mapargs_(N, Goal, T1, T2, T3, T4, T5) :-
-    arg(N, T1, A1),
-    arg(N, T2, A2),
-    arg(N, T3, A3),
-    arg(N, T4, A4),
-    arg(N, T5, A5),
-    !,
-    call(Goal, N, A1, A2, A3, A4, A5),
-    succ(N, N1),
-    mapargs_(N1, Goal, T1, T2, T3, T4, T5).
-mapargs_(_, _, _, _, _, _, _).
-
-mapargs(Goal, Term)               :- mapargs_(1, Goal, Term).
-mapargs(Goal, T1, T2)             :- mapargs_(1, Goal, T1, T2).
-mapargs(Goal, T1, T2, T3)         :- mapargs_(1, Goal, T1, T2, T3).
-mapargs(Goal, T1, T2, T3, T4)     :- mapargs_(1, Goal, T1, T2, T3, T4).
-mapargs(Goal, T1, T2, T3, T4, T5) :- mapargs_(1, Goal, T1, T2, T3, T4, T5).
-
 print_expansion_arg(MTerm, Text, N, From-To, RefPos, Term, Pattern, GTerm) :-
     term_priority(MTerm, N, Priority),
     print_expansion_elem(Priority, Text, From-To, RefPos, Term, Pattern-GTerm).
@@ -1238,9 +1202,6 @@ print_subtext(RefPos, Text) :-
     arg(1, RefPos, From),
     arg(2, RefPos, To),
     display_subtext(Text, From, To).
-
-trim_list(N, L0, L) :-
-    trim_list(N, L0, L, _).
 
 trim_list(N, L0, L, T) :-
     length(L, N),
@@ -1472,6 +1433,27 @@ o_length([_|T], N0, N) :- !,
 o_length(_, N, N).
 */
 /*
+
+valid_op_type_arity(xf,  1).
+valid_op_type_arity(yf,  1).
+valid_op_type_arity(xfx, 2).
+valid_op_type_arity(xfy, 2).
+valid_op_type_arity(yfx, 2).
+valid_op_type_arity(fy,  1).
+valid_op_type_arity(fx,  1).
+
+refactor_hack('$LIST'(_)).
+refactor_hack('$LIST,'(_)).
+refactor_hack('$LIST,_'(_)).
+refactor_hack('$LIST.NL'(_)).
+refactor_hack('$TEXT'(_)).
+refactor_hack('$TEXT'(_,_)).
+refactor_hack('$BODY'(_)).
+refactor_hack('$BODY'(_,_)).
+refactor_hack('$NL'(_)).
+refactor_hack('$,NL'(_)).
+refactor_hack('$RM').
+
 expansion_commands_term(_, _, _, Pattern, Expansion) --> {Pattern==Expansion}, !.
 expansion_commands_term(brace_term_position(_, _, ArgPos), {Term}, Priority,
 			{Pattern}, Expansion) -->
