@@ -408,31 +408,40 @@ meta_expansion(Level, Caller, Term, Into, Expander, Options, FileContent) :-
 		[-atom, -singleton]), % At this point we are not interested in styles
     apply_file_commands(FileCommands, FileContent).
 
-:- public filechk/2.
-filechk(Alias, File) :-
+:- public files_chk/2.
+files_chk(FileSpec, File) :-
+    % access_file(File, read),
+    ( is_list(FileSpec)
+    ->member(Spec, FileSpec)
+    ; Spec = FileSpec
+    ),
+    pathspec(Spec, File),
+    !.
+
+pathspec(dir(Alias), File) :- !, dirspec(Alias, File).
+pathspec(    Alias,  File) :- filespec(Alias, File).
+
+filespec(Alias, File) :-
     absolute_file_name(Alias, Pattern, [file_type(prolog),
 					solutions(all)]),
     expand_file_name(Pattern, FileL),
-    member(File, FileL),
-    access_file(File, read),
-    !.
+    member(File, FileL).
 
-:- public fileschk/2.
-fileschk(AliasL, File) :-
-    member(Alias, AliasL),
-    filechk(Alias, File),
-    !.
+dirspec(Alias, File) :-
+    absolute_file_name(Alias, Pattern), % [solutions(all)]
+    expand_file_name(Pattern, DirL),
+    member(Dir, DirL),
+    directory_file_path(Dir, _, File).
 
 :- public r_true/1.
 r_true(_).
 
 refactor_option_filechk(Options, FileChk) :-
-    ( memberchk(file(Alias), Options) ->
-      FileChk = filechk(Alias)
-    ; memberchk(files(AliasL), Options) ->
-      FileChk = fileschk(AliasL)
+    ( memberchk(files(Alias), Options) ->
+      FileChk = files_chk(Alias)
     ; FileChk = r_true
     ).
+
 /*
 collect_expansion_commands(goal, Caller, Term, Into, Expander, Options,
 			   FileCommands) :-
@@ -444,6 +453,39 @@ collect_expansion_commands(goal, Caller, Term, Into, Expander, Options,
 	  on_trace(collect_file_commands(Caller, Term, Into, Expander, FileChk))
 	]),
     findall(F-C, retract(file_commands_db(F, C)), FileCommands).
+
+:- public collect_file_commands/8.
+:- meta_predicate collect_file_commands(?,0,?,?,?,?,?,?).
+
+%%	collect_file_commands(+Sentence, +Pattern, +Into, :Expander, +FileChk,
+%%			      +Callee, +Caller, +Location)
+%
+%	Called from prolog_walk_code/1 on a call  from Caller to Callee.
+%	The parameters Sentence to Expander are provided by the on_trace
+%	closure  passed  to  prolog_walk_code/1.    Callee,  Caller  and
+%	Location are added by prolog_walk_code/1.
+
+collect_file_commands(CallerPattern, Pattern, Into, Expander, FileChk,
+		      Callee, Caller, From) :-
+    subsumes_term(CallerPattern-Pattern, Caller-Callee),
+    ( From = clause_term_position(ClauseRef, TermPos0)
+    ->clause_property(ClauseRef, file(File))
+    ; From = file_term_position(File, TermPos0)
+    ->true
+    ; print_message(error, acheck(refactor(Callee, From))),
+      fail
+    ),
+    call(FileChk, File),
+    Callee = M:Term0,
+    trim_term(Term0, Term, TermPos0, TermPos),
+    Pattern = M:Pattern2,
+    with_sentence(with_dict(substitute_term_norec(sub, Term, 999, Pattern2, Into,
+						  Expander, TermPos, Commands,
+						  []),
+			    []),
+		  Caller-CallerPattern),
+    assertz(file_commands_db(File, Commands)).
+
 */
 
 :- public r_goal_expansion/2.
@@ -888,38 +930,6 @@ substitute_term_list([EP|EPs], TP, [Elem|Term], Ref, Into, Expander) -->
 substitute_term_list([], TP, Tail, Ref, Into, Expander) -->
     {term_priority([_|_], 2, Priority)},
     substitute_term_rec(Tail, Priority, Ref, Into, Expander, TP).
-
-:- public collect_file_commands/8.
-:- meta_predicate collect_file_commands(?,0,?,?,?,?,?,?).
-
-%%	collect_file_commands(+Sentence, +Pattern, +Into, :Expander, +FileChk,
-%%			      +Callee, +Caller, +Location)
-%
-%	Called from prolog_walk_code/1 on a call  from Caller to Callee.
-%	The parameters Sentence to Expander are provided by the on_trace
-%	closure  passed  to  prolog_walk_code/1.    Callee,  Caller  and
-%	Location are added by prolog_walk_code/1.
-
-collect_file_commands(CallerPattern, Pattern, Into, Expander, FileChk,
-		      Callee, Caller, From) :-
-    subsumes_term(CallerPattern-Pattern, Caller-Callee),
-    ( From = clause_term_position(ClauseRef, TermPos0)
-    ->clause_property(ClauseRef, file(File))
-    ; From = file_term_position(File, TermPos0)
-    ->true
-    ; print_message(error, acheck(refactor(Callee, From))),
-      fail
-    ),
-    call(FileChk, File),
-    Callee = M:Term0,
-    trim_term(Term0, Term, TermPos0, TermPos),
-    Pattern = M:Pattern2,
-    with_sentence(with_dict(substitute_term_norec(sub, Term, 999, Pattern2, Into,
-						  Expander, TermPos, Commands,
-						  []),
-			    []),
-		  Caller-CallerPattern),
-    assertz(file_commands_db(File, Commands)).
 
 :- multifile
     prolog:message//1,
