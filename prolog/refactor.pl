@@ -166,21 +166,21 @@ prolog:xref_open_source(File, Fd) :-
 :- dynamic pending_change/3,
     change_idx/1.
 
-save_pending_changes(FileChanges, Idx) :-
+save_pending_changes(FileContent, Idx) :-
     ( retract(change_idx(Idx0))
     ->succ(Idx0, Idx)
     ; Idx = 1
     ),
     assertz(change_idx(Idx)),
-    maplist(save_pending_change(Idx), FileChanges).
+    maplist(save_pending_change(Idx), FileContent).
 
-save_pending_change(N, File-Changes) :-
-    asserta(pending_change(N, File, Changes)).
+save_pending_change(N, File-Content) :-
+    asserta(pending_change(N, File, Content)).
 
 :- meta_predicate expand(+,?,?,?,0,-).
 expand(Level, Caller, Term, Into, Expander, Options) :-
-    meta_expansion(Level, Caller, Term, Into, Expander, Options, FileChanges),
-    save_pending_changes(FileChanges, Idx),
+    meta_expansion(Level, Caller, Term, Into, Expander, Options, FileContent),
+    save_pending_changes(FileContent, Idx),
     print_message(information, format('Saved changes in index ~w~n', [Idx])),
     ( memberchk(quiet, Options)
     ->true
@@ -217,16 +217,16 @@ rdiff(Action, Idx0, Idx) :-
     findall(File, (pending_change(IdxI, File, _), IdxI=<Idx), FileU),
     sort(FileU, FileL),
     forall(member(File, FileL),
-	   ( once(pending_change(_, File, Changes)),
-	     ( pending_change(Idx1, File, Changes0 ),
+	   ( once(pending_change(_, File, Content)),
+	     ( pending_change(Idx1, File, Content0 ),
 	       Idx1 =< Idx0
 	     ->setup_call_cleanup(tmp_file_stream(text, File0, Stream),
-				  ( format(Stream, '~s', [Changes0 ]),
+				  ( format(Stream, '~s', [Content0 ]),
 				    close(Stream),
-				    do_file_change(Action, File0, File, Changes)
+				    do_file_change(Action, File0, File, Content)
 				  ),
 				  delete_file(File0))
-	     ; do_file_change(Action, File, File, Changes)
+	     ; do_file_change(Action, File, File, Content)
 	     )
 	   )).
 
@@ -366,11 +366,11 @@ with_styles(Goal, StyleL) :-
 %	Expand  terms  that  subsume  Term  in  sentences  that  subsume
 %	Sentence into Into if Expander is true.
 
-meta_expansion(Level, Caller, Term, Into, Expander, Options, FileChanges) :-
+meta_expansion(Level, Caller, Term, Into, Expander, Options, FileContent) :-
     with_styles(collect_expansion_commands(Level, Caller, Term, Into,
 					   Expander, Options, FileCommands),
 		[-atom, -singleton]), % At this point we are not interested in styles
-    apply_file_commands(FileCommands, FileChanges).
+    apply_file_commands(FileCommands, FileContent).
 
 filechk(Alias, File) :-
     absolute_file_name(Alias, Pattern, [file_type(prolog),
@@ -506,13 +506,13 @@ with_context_vars(Goal, NameL, ValueL, OldValueL) :-
 %% ANCILLARY PREDICATES:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-apply_file_commands(Pairs, FileChanges) :-
+apply_file_commands(Pairs, FileContent) :-
     keysort(Pairs, Sorted),
     group_pairs_by_key(Sorted, Grouped),
     findall(Compact, ( member(Group, Grouped),
 		       compact_group(Group, Compact)),
 	    Compacted),
-    maplist(apply_commands, Compacted, FileChanges).
+    maplist(apply_commands, Compacted, FileContent).
 
 compact_group(Key-LList, Key-Uniques) :-
     append(LList, List),

@@ -30,10 +30,11 @@
 :- module(file_changes, [do_file_change/4]).
 
 do_file_change(save, File, _, Changes) :-
-    ( \+ exists_file(File), Changes==[] -> true
-    ; open(File, write, Fd, []),
-      format(Fd, '~s', [Changes]),
-      close(Fd)
+    ( \+ exists_file(File),
+      (Changes==[] ; Changes=="") -> true
+    ; tell(File),
+      format('~s', [Changes]),
+      told
     ).
 do_file_change(show, File, Name, Changes) :-
     catch(diff_file_change(File, Name, Changes),
