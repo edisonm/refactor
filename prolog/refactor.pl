@@ -521,16 +521,19 @@ compact_group(Key-LList, Key-Uniques) :-
 
 apply_commands(File-Commands, File-NewText) :-
     ( pending_change(_, File, Text) -> true
-    ; read_file_to_codes(File, Text, [])
+    ; read_file_to_string(File, Text, [])
     ),
     length(Commands, N),
     print_message(informational, format('~w changes in ~w', [N, File])),
     with_context_vars(maplist_dcg(apply_change,
 				  Commands,
-				  text_desc(0, Text, NewText),
-				  text_desc(_, Remaining, Remaining)),
+				  text_desc(0, Text, NewTextL),
+				  text_desc(_, Remaining, [Remaining])),
 		      [refactor_text, refactor_file],
-		      [Text, File]).
+		      [Text, File]),
+    maplist_dcg(string_concat_to, NewTextL, "", NewText).
+
+string_concat_to(A, B, C) :- string_concat(B, A, C).
 
 % apply_pos_changes(Changes) -->
 %     maplist_dcg(apply_change, Changes).
@@ -922,15 +925,6 @@ refactor_hack('$NL'(_)).
 refactor_hack('$,NL'(_)).
 refactor_hack('$RM').
 
-cut_text(Pos0, Pos, Remaining0, Remaining, Text) :-
-    ( Pos > Pos0 ->
-      Seek is Pos - Pos0,
-      length(Text, Seek),
-      append(Text, Remaining, Remaining0)
-    ; Remaining0 = Remaining,
-      Text = []
-    ).
-
 compound_positions(Line1, Pos1, Pos0, Pos) :-
     Line1 =< 1,
     !,
@@ -1018,14 +1012,22 @@ term_write_comma_2(Opt, Term) :- write_term(Term, Opt), write(', ').
 
 :- use_module(library(listing), []).
 
+cut_text(Pos0, Pos, Remaining0, Remaining, Text) :-
+    ( Pos > Pos0 ->
+      Seek is Pos - Pos0,
+      sub_string(Remaining0, 0, Seek, _, Text),
+      sub_string(Remaining0, Seek, _, 0, Remaining)
+    ; Remaining0 = Remaining,
+      Text = ""
+    ).
+
 apply_change(print(TermPos, Priority, Pattern, GTerm, Into),
-	     text_desc(Pos, Text0, Tail0),
+	     text_desc(Pos, Text0, [CutText, PasteText|Tail]),
 	     text_desc(To,  Text,  Tail)) :-
-    with_output_to(codes(Tail1, Tail),
+    with_output_to(string(PasteText),
 		   with_position(print_expansion_0(Into, Pattern, GTerm, TermPos,
 						   Priority, Text0, From, To), Pos)),
     cut_text(Pos, From, Text0, Text1, CutText),
-    append(CutText, Tail1, Tail0),	% Accept
     cut_text(From, To, Text1, Text, _). % Skip
 
 print_expansion_0(Into, Pattern, GTerm, TermPos, Priority, Text, From, To) :-
@@ -1064,13 +1066,18 @@ fix_position_if_braced(term_position(From0, To0, FFrom, FTo, PosL),
     ( between(0, inf, LCount),
       From is From0 - LCount - 1,
       get_subtext(Text0, From, From0, LText),
-      LText = [0'(|_],
+      string_concat("(", _, LText),
+      % b_getval(refactor_position, Pos0),
+      % PosCut is From - Pos0,
+      % LPaste is LCount + 1,
+      % sub_string(Text0, 0, PosCut, _, Text1),
+      % sub_string(Text1, Before, _, After, "("),
       !
     ),
     ( between(0, inf, RCount),
       To is To0 + RCount,
       get_subtext(Text0, To0, To, Text),
-      append(_, [0')], Text),
+      string_concat(_, ")", Text),
       !
     ).
 fix_position_if_braced(Pos, Pos, _, _, _). % fail-safe
@@ -1285,11 +1292,9 @@ display_subtext(Text0, From, To) :-
 
 get_subtext(Text0, From, To, Text) :-
     b_getval(refactor_position, Pos0),
-    string_to_list(String0, Text0),
     PosCut is From - Pos0,
     LPaste is To - From,
-    sub_string(String0, PosCut, LPaste, _, String),
-    string_to_list(String, Text).
+    sub_string(Text0, PosCut, LPaste, _, Text).
 
 bin_op(Term, Op, Left, Right, A, B) :-
     nonvar(Term),
