@@ -47,9 +47,6 @@ make_relative(File, RFile) :-
     ; RFile = File
     ).
 
-diff_file_change(File, Changes) :-
-    diff_file_change(File, File, Changes).
-
 diff_file_change(File, AName, Changes) :-
     make_relative(AName, Name),
     atomic_list_concat([Name, ' (source)'], FLabel),

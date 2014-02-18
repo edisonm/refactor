@@ -486,6 +486,27 @@ collect_file_commands(CallerPattern, Pattern, Into, Expander, FileChk,
 		  Caller-CallerPattern),
     assertz(file_commands_db(File, Commands)).
 
+:- meta_predicate with_dict(0, +).
+with_dict(Goal, Dict) :-
+    with_context_vars(Goal, [refactor_variable_names], [Dict]).
+
+:- meta_predicate with_sentence(0, ?).
+with_sentence(Goal, Sent) :-
+    with_context_vars(Goal, [refactor_sentence], [Sent]).
+
+trim_term(Term, TTerm,
+	  term_position(From, To, FFrom, FTo, SubPos),
+	  term_position(From, To, FFrom, FTo, TSubPos)) :-
+    Term =.. [F|Args],
+    trim_term_list(SubPos, Args, TSubPos, TArgs),
+    TTerm =.. [F|TArgs].
+
+trim_term_list([], ArgsL, [], ArgsL).
+trim_term_list([0-0|SubPosL], [_|Args], TSubPosL, TArgsL) :- !,
+    trim_term_list(SubPosL, Args, TSubPosL, TArgsL).
+trim_term_list([SubPos|SubPosL], [Arg|Args], [SubPos|TSubPosL], [Arg|TArgsL]) :-
+    trim_term_list(SubPosL, Args, TSubPosL, TArgsL).
+
 */
 
 :- public r_goal_expansion/2.
@@ -502,6 +523,7 @@ do_r_goal_expansion(Term, TermPos) :-
 			  Commands, []),
     forall(member(Command, Commands), assertz(command_db(Command))).
 
+:- meta_predicate level_hook(+,0 ).
 level_hook(goal, Call) :- !,
     setup_call_cleanup(asserta((system:goal_expansion(G, T, _, _) :-
 			       r_goal_expansion(G, T)), Ref),
@@ -548,17 +570,9 @@ substitute_term_level(body, (_ :- Body), _, Term, Into, Expander,
     {term_priority((_ :- Body), 2, Priority)},
     substitute_term_rec(Body, Priority, Term, Into, Expander, BodyPos).
 
-:- meta_predicate with_dict(0, +).
-with_dict(Goal, Dict) :-
-    with_context_vars(Goal, [refactor_variable_names], [Dict]).
-
 :- meta_predicate with_pattern_into(0, ?, ?).
 with_pattern_into(Goal, Pattern, Into) :-
     with_context_vars(Goal, [refactor_pattern, refactor_into], [Pattern, Into]).
-
-:- meta_predicate with_sentence(0, ?).
-with_sentence(Goal, Sent) :-
-    with_context_vars(Goal, [refactor_sentence], [Sent]).
 
 :- meta_predicate with_position(0, +).
 with_position(Goal, Pos) :-
@@ -938,19 +952,6 @@ substitute_term_list([], TP, Tail, Ref, Into, Expander) -->
 prolog:message(acheck(refactor(Goal, From))) -->
     prolog:message_location(From),
     ['Unable to refactor ~w, no term position information available'-[Goal], nl].
-
-trim_term(Term, TTerm,
-	  term_position(From, To, FFrom, FTo, SubPos),
-	  term_position(From, To, FFrom, FTo, TSubPos)) :-
-    Term =.. [F|Args],
-    trim_term_list(SubPos, Args, TSubPos, TArgs),
-    TTerm =.. [F|TArgs].
-
-trim_term_list([], ArgsL, [], ArgsL).
-trim_term_list([0-0|SubPosL], [_|Args], TSubPosL, TArgsL) :- !,
-    trim_term_list(SubPosL, Args, TSubPosL, TArgsL).
-trim_term_list([SubPos|SubPosL], [Arg|Args], [SubPos|TSubPosL], [Arg|TArgsL]) :-
-    trim_term_list(SubPosL, Args, TSubPosL, TArgsL).
 
 compound_positions(Line1, Pos1, Pos0, Pos) :-
     Line1 =< 1,
