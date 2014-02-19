@@ -428,7 +428,8 @@ filespec(Alias, File) :-
     member(File, FileL).
 
 dirspec(Alias, File) :-
-    absolute_file_name(Alias, Pattern), % [solutions(all)]
+    absolute_file_name(Alias, Pattern, [file_type(directory),
+					solutions(all)]),
     expand_file_name(Pattern, DirL),
     member(Dir, DirL),
     directory_file_path(Dir, _, File).
