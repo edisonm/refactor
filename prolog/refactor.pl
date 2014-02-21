@@ -259,7 +259,7 @@ rdelete(Index) :-
 
 rundo(Index) :-
     rdrop(Index, Refactor),
-    print_message(information, format('Undone ~w ---> ', [Index, Refactor])).
+    print_message(information, format('Undone ~w ---> ~w', [Index, Refactor])).
 
 rdrop(Index, Refactor) :-
     retract(pending_refactor(Index, Refactor)),
