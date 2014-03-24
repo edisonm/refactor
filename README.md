@@ -28,7 +28,6 @@ can see useful examples about its usage.  Some examples follows:
 true.
 
 ?- ['refactor.plt'].
-%  comment_data compiled into comment_data 0.00 sec, 6 clauses
 % refactor.plt compiled 0.04 sec, 526 clauses
 true.
 
