@@ -507,7 +507,7 @@ test(example_19_2) :-
 /* $conjex$
 --- conjex.pl (source)
 +++ conjex.pl (target)
-@@ -1,10 +1,8 @@
+@@ -1,13 +1,11 @@
  :- module(conjex, [conjex/0]).
  
  conjex :-
@@ -520,6 +520,9 @@ test(example_19_2) :-
 -    a(a),
 -    b(b).
 +    c(a-b).
+ 
+ a(_).
+ b(_).
 */
 
 test(conjex) :-
@@ -533,7 +536,7 @@ test(conjex) :-
 /* $two_changes_1$
 --- conjex.pl (source)
 +++ conjex.pl (target)
-@@ -1,10 +1,10 @@
+@@ -1,15 +1,15 @@
  :- module(conjex, [conjex/0]).
  
  conjex :-
@@ -546,22 +549,30 @@ test(conjex) :-
 -    a(a),
 +    aa(a),
      b(b).
+ 
+-a(_).
++aa(_).
+ b(_).
+ c(_).
+ d(_).
 */
 /* $two_changes_2$
 --- conjex.pl (source)
 +++ conjex.pl (target)
-@@ -6,5 +6,5 @@
+@@ -6,7 +6,7 @@
      c(C),
      d(d).
  conjex :-
 -    aa(a),
 +    aa(b),
      b(b).
+ 
+ aa(_).
 */
 /* $two_changes_12$
 --- conjex.pl (source)
 +++ conjex.pl (target)
-@@ -1,10 +1,10 @@
+@@ -1,15 +1,15 @@
  :- module(conjex, [conjex/0]).
  
  conjex :-
@@ -574,6 +585,12 @@ test(conjex) :-
 -    a(a),
 +    aa(b),
      b(b).
+ 
+-a(_).
++aa(_).
+ b(_).
+ c(_).
+ d(_).
 */
 
 test(two_changes) :-
