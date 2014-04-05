@@ -118,17 +118,17 @@ rename_variable(MSent,Name0,Name,Action) :-
 		), Action).
 */
 
-rename_functor(Caller, Functor/Arity, NewName, Options) :-
+rename_functor(Sentence, Functor/Arity, NewName, Options) :-
     functor(Term, Functor, Arity),
     Term =.. [_|Args],
     Expansion =.. [NewName|Args],
-    replace_term_id(Caller, Term, Expansion, Options).
+    replace_term_id(Sentence, Term, Expansion, Options).
 
-replace_term_id(Caller, Term, Expansion, Options) :-
-    replace_term(Caller, Term, Expansion, Options),
+replace_term_id(Sentence, Term, Expansion, Options) :-
+    replace_term(Sentence, Term, Expansion, Options),
     functor(Term, F0, A0),
     functor(Expansion, F, A),
-    replace_term(Caller, F0/A0, F/A, Options).
+    replace_term(Sentence, F0/A0, F/A, Options).
 
 % BUG: This have to be applied only once --EMM
 :- meta_predicate rename_predicate(+,+,+).
@@ -148,18 +148,18 @@ replace(Level, Sentence, From, Into, Options) :-
     expand(Level, Sentence, From, Into, true, Options).
 
 :- meta_predicate replace_term(?,?,?,+).
-replace_term(Caller, Term, Expansion, Options) :-
-    replace(term, Caller, Term, Expansion, Options).
+replace_term(Sentence, Term, Expansion, Options) :-
+    replace(term, Sentence, Term, Expansion, Options).
 
-replace_body(Caller, Term, Expansion, Options) :-
-    replace(body, Caller, Term, Expansion, Options).
+replace_body(Sentence, Term, Expansion, Options) :-
+    replace(body, Sentence, Term, Expansion, Options).
 
 replace_sentence(M:Term, Expansion, Options) :-
     replace(sent, M:Term, Term, Expansion, Options).
 
 % :- meta_predicate replace_goal(?,0,?,+).
-replace_goal(Caller, Term, Expansion, Options) :-
-    replace(goal, Caller, Term, Expansion, Options).
+replace_goal(Sentence, Term, Expansion, Options) :-
+    replace(goal, Sentence, Term, Expansion, Options).
 
 :- multifile
     prolog:xref_open_source/2.	% +SourceId, -Stream
@@ -183,14 +183,14 @@ save_changes(Index, FileContent) :-
     maplist(save_change(Index), FileContent).
 
 apply_refactor(Refactor) :-
-    Refactor = refactor(Level, Caller, Term, Into, Expander, Options),
+    Refactor = refactor(Level, Sentence, Term, Into, Expander, Options),
     save_refactor(Refactor, Index),
-    meta_expansion(Level, Caller, Term, Into, Expander, Options, FileContent),
+    meta_expansion(Level, Sentence, Term, Into, Expander, Options, FileContent),
     save_changes(Index, FileContent).
 
 % :- meta_predicate expand(+,?,?,?,0,-).
-expand(Level, Caller, Term, Into, Expander, Options) :-
-    apply_refactor(refactor(Level, Caller, Term, Into, Expander, Options)),
+expand(Level, Sentence, Term, Into, Expander, Options) :-
+    apply_refactor(refactor(Level, Sentence, Term, Into, Expander, Options)),
     ( current_prolog_flag(verbose, silent)
     ->true
     ; once(rdiff(Index)),
@@ -289,8 +289,8 @@ rreset :-
 
 %%	expand_term(?Sentence, ?Term, ?Replacement, :Expander, +Action)
 
-expand_term(Caller, Term, Into, Expander, Options) :-
-    expand(term, Caller, Term, Into, Expander, Options).
+expand_term(Sentence, Term, Into, Expander, Options) :-
+    expand(term, Sentence, Term, Into, Expander, Options).
 
 %%	expand_sentence(?Sentence, ?Into, :Expander, +Action).
 %
@@ -299,14 +299,14 @@ expand_term(Caller, Term, Into, Expander, Options) :-
 %   \predref{expand\_sentence}{3} to return a list, as
 %   \predref{term\_expansion}{2} does in many Prolog dialects.}
 
-expand_body(Caller, Term, Into, Expander, Options) :-
-    expand(body, Caller, Term, Into, Expander, Options).
+expand_body(Sentence, Term, Into, Expander, Options) :-
+    expand(body, Sentence, Term, Into, Expander, Options).
 
 expand_sentence(M:Term, Into, Expander, Options) :-
     expand(sent, M:Term, Term, Into, Expander, Options).
 
-expand_goal(Caller, Goal, Into, Expander, Options) :-
-    expand(goal, Caller, Goal, Into, Expander, Options).
+expand_goal(Sentence, Goal, Into, Expander, Options) :-
+    expand(goal, Sentence, Goal, Into, Expander, Options).
 
 % NOTE: Only works if exactly one clause match
 unfold_goal(Module, MGoal, Options) :-
@@ -401,8 +401,8 @@ with_styles(Goal, StyleL) :-
 %	Expand  terms  that  subsume  Term  in  sentences  that  subsume
 %	Sentence into Into if Expander is true.
 
-meta_expansion(Level, Caller, Term, Into, Expander, Options, FileContent) :-
-    with_styles(collect_expansion_commands(Level, Caller, Term, Into,
+meta_expansion(Level, Sentence, Term, Into, Expander, Options, FileContent) :-
+    with_styles(collect_expansion_commands(Level, Sentence, Term, Into,
 					   Expander, Options, FileCommands),
 		[-atom, -singleton]), % At this point we are not interested in styles
     apply_file_commands(FileCommands, FileContent).
@@ -531,13 +531,13 @@ level_hook(goal, Call) :- !,
 		       erase(Ref)).
 level_hook(_, Call) :- call(Call).
 
-collect_expansion_commands(Level, Caller, Term, Into, Expander, Options, FileCommands) :-
-    level_hook(Level, collect_ec_term_level(Level, Caller, Term, Into,
+collect_expansion_commands(Level, Sentence, Term, Into, Expander, Options, FileCommands) :-
+    level_hook(Level, collect_ec_term_level(Level, Sentence, Term, Into,
 					    Expander, Options, FileCommands)).
 
-collect_ec_term_level(Level, Caller, Term, Into, Expander, Options, FileCommands) :-
+collect_ec_term_level(Level, Sentence, Term, Into, Expander, Options, FileCommands) :-
     refactor_option_filechk(Options, FileChk),
-    findall(File-Commands, ec_term_level_each(Level, Caller, Term, Into,
+    findall(File-Commands, ec_term_level_each(Level, Sentence, Term, Into,
 					      Expander, FileChk, File, Commands),
 	    FileCommands).
 
