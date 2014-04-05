@@ -137,8 +137,8 @@ test(example_6) :-
 @@ -1,3 +1,3 @@
  :- module(ex7, [aaa/3]).
  
--aaa([[d, _]], [d /* d */], []).
-+aaa([[_]], [d], [[c, d /* d */], [b, c, d /* d */]]).
+-aaa([[d, _]], [/**/ d /* d */], []).
++aaa([[_]], [d], [[c, /**/ d /* d */], [b, c, /**/ d /* d */]]).
 */
 
 test(example_7) :-
@@ -606,7 +606,25 @@ test(two_changes) :-
     with_output_to(string(Result12), rshow),
     comment_data(two_changes_12, Pattern12),
     assertion(Pattern12 == Result12).
-    
+
+/* $ex21$
+--- ex21.pl (source)
++++ ex21.pl (target)
+@@ -1,3 +1,3 @@
+ :- module(ex21, [ex21/1]).
+ 
+-ex21(f(b,c,   _D)).
++ex21(f(a,c,   _D)).
+*/
+
+test(ex21) :-
+    [ex21],
+    rreset,
+    with_output_to(string(Result),
+		   expand_sentence(ex21:ex21(X),ex21(Y),
+				   (X=f(_A,B,C),Y=f(a,B,C)),[])),
+    comment_data(ex21, Pattern),
+    assertion(Pattern == Result).
 
 :- comment_data:disable.
 

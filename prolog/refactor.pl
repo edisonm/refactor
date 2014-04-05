@@ -962,8 +962,6 @@ rportray_body(B, Offs, Opt) :-
 
 :- public rportray/2.
 rportray('$sb'(ArgPos, GTerm, GPriority, Term), Opt) :-
-    write(user_error, rportray('$sb'(ArgPos, GTerm, GPriority, Term), Opt)),
-    nl(user_error),
     b_getval(refactor_text, Text),
     memberchk(priority(Priority), Opt),
     with_position(print_expansion_sb(ArgPos, GTerm, GPriority, Term, Term,
@@ -1144,6 +1142,7 @@ print_expansion('$NL', _, _, _, _, _) :- % Print an indented new line
 print_expansion(Term, '$sb'(RefPos, GTerm, GPriority, Pattern), _, _, Priority,
 		Text) :-
     !,
+    gtrace,
     print_expansion_sb(RefPos, GTerm, GPriority, Term, Pattern, Priority, Text).
 print_expansion(Term, Pattern, GTerm, RefPos0, Priority, Text) :-
     compound(Term),
@@ -1167,7 +1166,8 @@ print_expansion_elem(Priority, Text, From-To, RefPos, Term, Pattern-GTerm) :-
     display_subtext(Text, From, To),
     print_expansion(Term, Pattern, GTerm, RefPos, Priority, Text).
 
-print_expansion_pos(term_position(From, To, _, _, PosL), Term, Pattern, GTerm, Text) :-
+print_expansion_pos(term_position(From, To, _, _, PosL),
+		    Term, Pattern, GTerm, Text) :-
     compound(Term),
     functor(Term,    F, A),
     functor(Pattern, F, A),
@@ -1177,10 +1177,14 @@ print_expansion_pos(term_position(From, To, _, _, PosL), Term, Pattern, GTerm, T
     !,
     mapargs(print_expansion_arg(Term, Text), FromToT, PosT, Term, Pattern, GTerm),
     display_subtext(Text, FTo, To).
-print_expansion_pos(list_position(From, To, PosL, PosT), Term, Pattern, GTerm, Text) :-
+print_expansion_pos(list_position(From, To, PosL, PosT),
+		    Term, Pattern, GTerm, Text) :-
     from_to_pairs(PosL, From, FTo, FromToL),
     length(PosL, N),
     trim_list(N, Term,    ArgL, ATail),
+    \+ ( PosT = none,
+	 ATail \= []
+       ),
     trim_list(N, Pattern, PatL, PTail),
     trim_list(N, GTerm,   GTrL, GTail),
     pairs_keys_values(PatGTrL, PatL, GTrL),
