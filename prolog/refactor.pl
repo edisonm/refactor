@@ -109,15 +109,6 @@ rename_variable(M:Sent, Name0, Name, Options) :-
 		      memberchk(Name0='$VAR'(Name), Dict)
 		    ), Options).
 
-/*
-rename_variable(MSent,Name0,Name,Action) :-
-    expand_term(MSent,Var,'$VAR'(Name),
-		( refactor_context(variable_names, Dict),
-		  \+ memberchk(Name =_,Dict), var(Var),
-		  memberchk(Name0=V,Dict),V==Var
-		), Action).
-*/
-
 rename_functor(Sentence, Functor/Arity, NewName, Options) :-
     functor(Term, Functor, Arity),
     Term =.. [_|Args],
