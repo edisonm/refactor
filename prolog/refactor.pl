@@ -1157,28 +1157,50 @@ print_expansion(Term, Pattern, GTerm, RefPos, Priority, Text) :-
     ; write_r(Priority, Term)
     ).
 
-print_expansion_arg(MTerm, Text, N, From-To, RefPos, Term, Pattern, GTerm) :-
+print_expansion_arg(MTerm, Text, N, FromTo, RefPos, Term, Pattern, GTerm) :-
     term_priority(MTerm, N, Priority),
-    print_expansion_elem(Priority, Text, From-To, RefPos, Term, Pattern-GTerm).
+    print_expansion_elem(Priority, Text, FromTo, RefPos, Term, Pattern-GTerm).
 
 print_expansion_elem(Priority, Text, From-To, RefPos, Term, Pattern-GTerm) :-
-    display_subtext(Text, From, To),
-    print_expansion(Term, Pattern, GTerm, RefPos, Priority, Text).
+    print_expansion(Term, Pattern, GTerm, RefPos, Priority, Text),
+    display_subtext(Text, From, To).
 
-print_expansion_pos(term_position(From, To, _, _, PosL),
+valid_op_type_arity(xf,  1).
+valid_op_type_arity(yf,  1).
+valid_op_type_arity(xfx, 2).
+valid_op_type_arity(xfy, 2).
+valid_op_type_arity(yfx, 2).
+valid_op_type_arity(fy,  1).
+valid_op_type_arity(fx,  1).
+
+print_expansion_pos(term_position(From, To, _FFrom, FFTo, PosL),
 		    Term, Pattern, GTerm, Text) :-
     compound(Term),
-    functor(Term,    F, A),
-    functor(Pattern, F, A),
-    from_to_pairs(PosL, From, FTo, FromToL),
-    FromToT =.. [F|FromToL],
-    PosT    =.. [F|PosL],
+    functor(Term,    FT, A),
+    functor(Pattern, FP, A),
+    from_to_pairs(PosL, To1, To, FromToL, []),
+    FromToT =.. [FT|FromToL],
+    PosT    =.. [FP|PosL],
     !,
-    mapargs(print_expansion_arg(Term, Text), FromToT, PosT, Term, Pattern, GTerm),
-    display_subtext(Text, FTo, To).
+    ( FT == FP ->
+      display_subtext(Text, From, To1) %% Do nothing to preserve functor layout
+    ; ( valid_op_type_arity(TypeOp, A),
+	current_op(PrecedenceP, TypeOp, FT),
+	current_op(PrecedenceE, TypeOp, FP)
+      ->PrecedenceP >= PrecedenceE
+      ; valid_op_type_arity(TypeOp, A),
+	\+ current_op(_, TypeOp, FT),
+	\+ current_op(_, TypeOp, FP)
+      ->true
+      ; \+ valid_op_type_arity(_, A)
+      )
+    ->write_r(999, FT),
+      display_subtext(Text, FFTo, To1)
+    ),
+    mapargs(print_expansion_arg(Term, Text), FromToT, PosT, Term, Pattern, GTerm).
 print_expansion_pos(list_position(From, To, PosL, PosT),
 		    Term, Pattern, GTerm, Text) :-
-    from_to_pairs(PosL, From, FTo, FromToL),
+    from_to_pairs(PosL, To1, To2, FromToL, []),
     length(PosL, N),
     trim_list(N, Term,    ArgL, ATail),
     \+ ( PosT = none,
@@ -1189,21 +1211,23 @@ print_expansion_pos(list_position(From, To, PosL, PosT),
     pairs_keys_values(PatGTrL, PatL, GTrL),
     !,
     term_priority([_|_], 1, Priority1),
-    maplist(print_expansion_elem(Priority1, Text), FromToL, PosL, ArgL, PatGTrL),
+    display_subtext(Text, From, To1),
     ( PosT \= none ->
       arg(1, PosT, PTo),
       term_priority([_|_], 2, Priority2),
-      print_expansion_elem(Priority2, Text, FTo-PTo, PosT, ATail, PTail-GTail),
+      To2 = PTo,
+      maplist(print_expansion_elem(Priority1, Text), FromToL, PosL, ArgL, PatGTrL),
       arg(2, PosT, PFrom),
-      display_subtext(Text, PFrom, To)
-    ; display_subtext(Text, FTo, To)
+      print_expansion_elem(Priority2, Text, PFrom-To, PosT, ATail, PTail-GTail)
+    ; To2 = To,
+      maplist(print_expansion_elem(Priority1, Text), FromToL, PosL, ArgL, PatGTrL)
     ).
 print_expansion_pos(brace_term_position(From, To, TermPos), {Term}, {Pattern},
 		    {GTerm}, Text) :-
     arg(1, TermPos, AFrom),
     arg(2, TermPos, ATo),
-    print_expansion_arg({Term}, Text, 1, From-AFrom, TermPos, Term, Pattern, GTerm),
-    display_subtext(Text, ATo, To).
+    display_subtext(Text, From, AFrom),
+    print_expansion_arg({Term}, Text, 1, ATo-To, TermPos, Term, Pattern, GTerm).
 print_expansion_pos(From-To, Term, _Pattern, GTerm, Text) :-
     Term==GTerm,
     display_subtext(Text, From, To).
@@ -1217,11 +1241,13 @@ trim_list(N, L0, L, T) :-
     length(L, N),
     append(L, T, L0).
 
-from_to_pairs([], To, To, []).
-from_to_pairs([Pos|PosL], From0, To, [From0-To0|FromToL]) :-
-    arg(1, Pos, To0),
-    arg(2, Pos, From1),
-    from_to_pairs(PosL, From1, To, FromToL).
+from_to_pairs([], To, To) --> [].
+from_to_pairs([Pos|PosL], To0, To) -->
+    { arg(1, Pos, To0),
+      arg(2, Pos, From)
+    },
+    [From-To1],
+    from_to_pairs(PosL, To1, To).
 
 subterm_location_eq([],    Find, Term) :- Find==Term.
 subterm_location_eq([N|L], Find, Term) :-

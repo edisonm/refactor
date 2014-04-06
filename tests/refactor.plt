@@ -636,7 +636,7 @@ test(two_changes) :-
  :- module(ex21, [ex21/1]).
  
 -ex21(f(b,c,   _D)).
-+ex21(f(a,c,   _D)).
++ex21(g(a,c,   _D)).
 */
 
 test(ex21) :-
@@ -644,7 +644,7 @@ test(ex21) :-
     rreset,
     with_output_to(string(Result),
 		   expand_sentence(ex21:ex21(X),ex21(Y),
-				   (X=f(_A,B,C),Y=f(a,B,C)),[])),
+				   (X=f(_A,B,C),Y=g(a,B,C)),[])),
     comment_data(ex21, Pattern),
     assertion(Pattern == Result).
 
