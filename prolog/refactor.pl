@@ -1142,7 +1142,6 @@ print_expansion('$NL', _, _, _, _, _) :- % Print an indented new line
 print_expansion(Term, '$sb'(RefPos, GTerm, GPriority, Pattern), _, _, Priority,
 		Text) :-
     !,
-    gtrace,
     print_expansion_sb(RefPos, GTerm, GPriority, Term, Pattern, Priority, Text).
 print_expansion(Term, Pattern, GTerm, RefPos0, Priority, Text) :-
     compound(Term),

@@ -131,23 +131,45 @@ test(example_6) :-
     comment_data(example_6, Pattern),
     assertion(Pattern == Result).
 
-/* $example_7$
+/* $ex7_1$
 --- ex7.pl (source)
 +++ ex7.pl (target)
 @@ -1,3 +1,3 @@
  :- module(ex7, [aaa/3]).
  
 -aaa([[d, _]], [/**/ d /* d */], []).
-+aaa([[_]], [d], [[c, /**/ d /* d */], [b, c, /**/ d /* d */]]).
++aab([[_]], e, [d], [[c, /**/ d /* d */], [b, c, /**/ d /* d */]]).
 */
 
-test(example_7) :-
+test(ex7_1) :-
+    [ex7],
+    rreset,
+    with_output_to(string(Result),
+		   expand_sentence(ex7:aaa([[X,_]],[d], []),
+				   aab([[_]], e, [X], [[c,d],[b,c,d]]), true, [])),
+    comment_data(ex7_1, Pattern),
+    assertion(Pattern == Result).
+
+% Note the difference with previous test, the layout of [d] is
+% preserved, due to is exactly the same term, although is via the
+% variable X
+/* $ex7_2$
+--- ex7.pl (source)
++++ ex7.pl (target)
+@@ -1,3 +1,3 @@
+ :- module(ex7, [aaa/3]).
+ 
+-aaa([[d, _]], [/**/ d /* d */], []).
++aaa([[_]], [/**/ d /* d */], [[c, /**/ d /* d */], [b, c, /**/ d /* d */]]).
+*/
+
+test(ex7_2) :-
     [ex7],
     rreset,
     with_output_to(string(Result),
 		   expand_sentence(ex7:aaa([[X,_]],[d], []),
 				   aaa([[_]], [X], [[c,d],[b,c,d]]), true, [])),
-    comment_data(example_7, Pattern),
+    comment_data(ex7_2, Pattern),
     assertion(Pattern == Result).
 
 /* $example_8$
