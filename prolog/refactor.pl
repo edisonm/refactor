@@ -81,7 +81,7 @@ remove_useless_exports(Module, Options) :-
     expand_sentence(Module:(:-export(K)), Exp,
 		    ( once(list_sequence(L, K)),
 		      include(being_used(Module), L, N),
-		      ( N = []           -> Exp = '$RM'
+		      ( N = []                   -> Exp = '$RM'
 		      ; L \= N, list_sequence(N,S), Exp = (:- export(S))
 		      )
 		    ), Options).
@@ -949,16 +949,32 @@ compound_positions(_, Pos, _, Pos).
 
 :- use_module(library(prolog_codewalk), []). % For filepos_line/4
 
-rportray_body(B, Offs, Opt) :-
-    memberchk(priority(N), Opt),
+get_output_position(Pos) :-
     b_getval(refactor_from, From),
     b_getval(refactor_file, File),
     prolog_codewalk:filepos_line(File, From, _Line0, Pos0),
     stream_property(current_output, position(StrPos)),
     stream_position_data(line_count, StrPos, Line1),
     stream_position_data(line_position, StrPos, Pos1),
-    compound_positions(Line1, Pos1, Pos0, Pos),
+    compound_positions(Line1, Pos1, Pos0, Pos).
+
+rportray_body(B, Offs, Opt) :-
+    get_output_position(Pos),
+    memberchk(priority(N), Opt),
     write_b(B, N, Offs, Pos).
+
+portray_clause(C, Offs, Opt) :-
+    ( nonvar(C),
+      C = (H :- B)
+    ->write_term(H, Opt),
+      write(' :-\n'),
+      memberchk(priority(N), Opt),
+      get_output_position(Pos),
+      LinePos = Offs + Pos,
+      line_pos(LinePos),
+      write_b(B, N, Offs, Pos)
+    ; write_term(C, Opt)
+    ).
 
 :- public rportray/2.
 rportray('$sb'(ArgPos, GTerm, GPriority, Term), Opt) :-
@@ -982,6 +998,10 @@ rportray('$LIST.NL'(L), Opt) :- !,
 rportray('$TEXT'(T), Opt0) :- !,
     subtract(Opt0, [quoted(true), portray_goal(_), priority(_)], Opt),
     write_term(T, Opt).
+rportray('$CLAUSE'(C), Opt) :- !,
+    portray_clause(C, 4, Opt).
+rportray('$CLAUSE'(C, Offs), Opt) :- !,
+    portray_clause(C, Offs, Opt).
 rportray('$BODY'(B, Offs), Opt) :- !,
     rportray_body(B, Offs, Opt).
 rportray('$BODY'(B), Opt) :- !,
@@ -1021,10 +1041,19 @@ term_write_comma_(Opt, Term) :- write(', '), write_term(Term, Opt).
 
 term_write_stop_nl([], _).
 term_write_stop_nl([T|L], Opt) :-
-    write_term(T, Opt),
-    maplist(term_write_stop_nl_(Opt), L).
+    term_write_stop_nl_(L, T, Opt).
 
-term_write_stop_nl_(Opt, Term) :- write('.\n'), write_term(Term, Opt).
+term_write_stop_nl_([], T, Opt) :-
+    write_term(T, Opt).
+
+term_write_stop_nl_([T|L], T0, Opt) :-
+    term_write_stop_nl__(T0, Opt),
+    term_write_stop_nl_(L, T, Opt).
+
+term_write_stop_nl__('$NL', _) :- !, nl.
+term_write_stop_nl__(Term, Opt) :-
+    write_term(Term, Opt),
+    write('.\n').
 
 term_write_comma_2(Opt, Term) :- write_term(Term, Opt), write(', ').
 
