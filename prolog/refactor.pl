@@ -963,14 +963,14 @@ rportray_body(B, Offs, Opt) :-
     memberchk(priority(N), Opt),
     write_b(B, N, Offs, Pos).
 
-portray_clause(C, Offs, Opt) :-
+rportray_clause(C, Offs, Opt) :-
     ( nonvar(C),
       C = (H :- B)
     ->write_term(H, Opt),
       write(' :-\n'),
       memberchk(priority(N), Opt),
       get_output_position(Pos),
-      LinePos = Offs + Pos,
+      LinePos is Offs + Pos,
       line_pos(LinePos),
       write_b(B, N, Offs, Pos)
     ; write_term(C, Opt)
@@ -999,9 +999,9 @@ rportray('$TEXT'(T), Opt0) :- !,
     subtract(Opt0, [quoted(true), portray_goal(_), priority(_)], Opt),
     write_term(T, Opt).
 rportray('$CLAUSE'(C), Opt) :- !,
-    portray_clause(C, 4, Opt).
+    rportray_clause(C, 4, Opt).
 rportray('$CLAUSE'(C, Offs), Opt) :- !,
-    portray_clause(C, Offs, Opt).
+    rportray_clause(C, Offs, Opt).
 rportray('$BODY'(B, Offs), Opt) :- !,
     rportray_body(B, Offs, Opt).
 rportray('$BODY'(B), Opt) :- !,
