@@ -947,12 +947,26 @@ compound_positions(Line1, Pos1, Pos0, Pos) :-
     Pos is Pos0 + Pos1.
 compound_positions(_, Pos, _, Pos).
 
-:- use_module(library(prolog_codewalk), []). % For filepos_line/4
+% :- use_module(library(prolog_codewalk), []). % For filepos_line/4
+
+textpos_line(Text, CharPos, Line, LinePos) :-
+    setup_call_cleanup(
+	( open_codes_stream(Text, In),
+	  open_null_stream(Out)
+	),
+	( copy_stream_data(In, Out, CharPos),
+	  stream_property(In, position(Pos)),
+	  stream_position_data(line_count, Pos, Line),
+	  stream_position_data(line_position, Pos, LinePos)
+	),
+	( close(Out),
+	  close(In)
+	)).
 
 get_output_position(Pos) :-
     b_getval(refactor_from, From),
-    b_getval(refactor_file, File),
-    prolog_codewalk:filepos_line(File, From, _Line0, Pos0),
+    b_getval(refactor_text, Text),
+    textpos_line(Text, From, _Line0, Pos0),
     stream_property(current_output, position(StrPos)),
     stream_position_data(line_count, StrPos, Line1),
     stream_position_data(line_position, StrPos, Pos1),
@@ -1161,11 +1175,10 @@ print_expansion('$,NL', Pattern, GTerm, RefPos, Priority, Text) :-
     %% Print a comma + indented new line
     write(','),
     print_expansion('$NL', Pattern, GTerm, RefPos, Priority, Text).
-print_expansion('$NL', _, _, _, _, _) :- % Print an indented new line
+print_expansion('$NL', _, _, _, _, Text) :- % Print an indented new line
     !,
-    b_getval(refactor_file, File),
     b_getval(refactor_from, From),
-    prolog_codewalk:filepos_line(File, From, _, LinePos),
+    textpos_line(Text, From, _, LinePos),
     nl,
     line_pos(LinePos).
 print_expansion(Term, '$sb'(RefPos, GTerm, GPriority, Pattern), _, _, Priority,
