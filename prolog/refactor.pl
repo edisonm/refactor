@@ -1007,8 +1007,6 @@ rportray('$LIST,'(L), Opt) :- !,
     term_write_comma_list(L, Opt).
 rportray('$LIST,_'(L), Opt) :- !,
     maplist(term_write_comma_2(Opt), L).
-rportray('$LIST.NL'(L), Opt) :- !,
-    term_write_stop_nl(L, Opt).
 rportray('$TEXT'(T), Opt0) :- !,
     subtract(Opt0, [quoted(true), portray_goal(_), priority(_)], Opt),
     write_term(T, Opt).
@@ -1053,22 +1051,6 @@ term_write_comma_list([T|L], Opt) :-
 
 term_write_comma_(Opt, Term) :- write(', '), write_term(Term, Opt).
 
-term_write_stop_nl([], _).
-term_write_stop_nl([T|L], Opt) :-
-    term_write_stop_nl_(L, T, Opt).
-
-term_write_stop_nl_([], T, Opt) :-
-    write_term(T, Opt).
-
-term_write_stop_nl_([T|L], T0, Opt) :-
-    term_write_stop_nl__(T0, Opt),
-    term_write_stop_nl_(L, T, Opt).
-
-term_write_stop_nl__('$NL', _) :- !, nl.
-term_write_stop_nl__(Term, Opt) :-
-    write_term(Term, Opt),
-    write('.\n').
-
 term_write_comma_2(Opt, Term) :- write_term(Term, Opt), write(', ').
 
 :- use_module(library(listing), []).
@@ -1108,8 +1090,31 @@ print_expansion_1('$TEXT'(Term, Delta), _, _, TermPos, _, _, From, To) :- !,
     arg(2, TermPos, To0),
     write_t(Term),
     To is To0 + Delta.
+print_expansion_1('$LIST.NL'(TermL), _, _, TermPos, _, _, From, To) :- !,
+    arg(1, TermPos, From),
+    arg(2, TermPos, To),
+    term_write_stop_nl(TermL, [portray_goal(rportray),
+			       spacing(next_argument),
+			       numbervars(true),
+			       quoted(true),
+			       priority(999)]).
 print_expansion_1(Into, Pattern, GTerm, TermPos, Priority, Text, From, To) :-
     print_expansion_2(Into, Pattern, GTerm, TermPos, Priority, Text, From, To).
+
+term_write_stop_nl([], _).
+term_write_stop_nl([T|L], Opt) :-
+    term_write_stop_nl_(L, T, Opt).
+
+term_write_stop_nl_([], T, Opt) :-
+    write_term(T, Opt).
+term_write_stop_nl_([T|L], T0, Opt) :-
+    term_write_stop_nl__(T0, Opt),
+    term_write_stop_nl_(L, T, Opt).
+
+term_write_stop_nl__('$NL', _) :- !, nl.
+term_write_stop_nl__(Term, Opt) :-
+    write_term(Term, Opt),
+    write('.\n').
 
 print_expansion_2(Into, Pattern, GTerm, TermPos, Priority, Text, From, To) :-
     arg(1, TermPos, From),
