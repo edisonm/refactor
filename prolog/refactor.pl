@@ -67,6 +67,7 @@
 :- use_module(library(gcb)).
 :- use_module(library(maplist_dcg)).
 :- use_module(library(mapargs)).
+:- use_module(library(location_utils)).
 
 :- thread_local file_commands_db/2, command_db/1.
 
@@ -398,41 +399,6 @@ meta_expansion(Level, Sentence, Term, Into, Expander, Options, FileContent) :-
 		[-atom, -singleton]), % At this point we are not interested in styles
     apply_file_commands(FileCommands, FileContent).
 
-:- public files_chk/2.
-files_chk(FileSpec, File) :-
-    % access_file(File, read),
-    ( is_list(FileSpec)
-    ->member(Spec, FileSpec)
-    ; Spec = FileSpec
-    ),
-    pathspec(Spec, File),
-    !.
-
-pathspec(dir(Alias), File) :- !, dirspec(Alias, File).
-pathspec(    Alias,  File) :- filespec(Alias, File).
-
-filespec(Alias, File) :-
-    absolute_file_name(Alias, Pattern, [file_type(prolog),
-					solutions(all)]),
-    expand_file_name(Pattern, FileL),
-    member(File, FileL).
-
-dirspec(Alias, File) :-
-    absolute_file_name(Alias, Pattern, [file_type(directory),
-					solutions(all)]),
-    expand_file_name(Pattern, DirL),
-    member(Dir, DirL),
-    directory_file_path(Dir, _, File).
-
-:- public r_true/1.
-r_true(_).
-
-refactor_option_filechk(Options, FileChk) :-
-    ( memberchk(files(Alias), Options) ->
-      FileChk = files_chk(Alias)
-    ; FileChk = r_true
-    ).
-
 /*
 collect_expansion_commands(goal, Caller, Term, Into, Expander, Options,
 			   FileCommands) :-
@@ -527,7 +493,7 @@ collect_expansion_commands(Level, Sentence, Term, Into, Expander, Options, FileC
 					    Expander, Options, FileCommands)).
 
 collect_ec_term_level(Level, Sentence, Term, Into, Expander, Options, FileCommands) :-
-    refactor_option_filechk(Options, FileChk),
+    option_filechk(Options, FileChk),
     findall(File-Commands, ec_term_level_each(Level, Sentence, Term, Into,
 					      Expander, FileChk, File, Commands),
 	    FileCommands).
