@@ -595,7 +595,7 @@ string_concat_to(A, B, C) :- string_concat(B, A, C).
 
 refactor_module(M) :-
     current_module(M),
-    M \= user,			% Dubious --JW
+    % M \= user,			% Dubious --JW
     module_property(M, class(user)).
 
 
