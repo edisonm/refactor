@@ -494,13 +494,23 @@ collect_expansion_commands(Level, Sentence, Term, Into, Expander, Options, FileC
 
 collect_ec_term_level(Level, Sentence, Term, Into, Expander, Options, FileCommands) :-
     option_filechk(Options, FileChk),
-    findall(File-Commands, ec_term_level_each(Level, Sentence, Term, Into,
-					      Expander, FileChk, File, Commands),
+    option_modulechk(Options, ModChk),
+    findall(File-Commands,
+	    ec_term_level_each(Level, Sentence, Term, Into, Expander,
+			       FileChk, ModChk, File, Commands),
 	    FileCommands).
 
-ec_term_level_each(Level, M:SentPattern, Term, Into, Expander,
-		   FileChk, File, Commands) :-
-    refactor_module(M),
+mod_prop(Prop, Module) :- module_property(Module, Prop).
+
+option_modulechk(Options, ModuleChk) :-
+    ( memberchk(mod_prop(Prop), Options) ->
+      ModuleChk = mod_prop(Prop)
+    ; ModuleChk = current_module
+    ).
+
+ec_term_level_each(Level, M:SentPattern, Term, Into, Expander, FileChk, ModChk,
+		   File, Commands) :-
+    call(ModChk, M),
     with_context_vars(( get_term_info(M, SentPattern, Sent, FileChk, File,
 				      [ variable_names(Dict),
 					subterm_positions(TermPos)
