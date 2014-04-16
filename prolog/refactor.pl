@@ -65,6 +65,7 @@
 :- use_module(library(file_changes)).
 :- use_module(library(term_info)).
 :- use_module(library(gcb)).
+:- use_module(library(list_sequence)).
 :- use_module(library(maplist_dcg)).
 :- use_module(library(mapargs)).
 :- use_module(library(location_utils)).
@@ -86,12 +87,6 @@ remove_useless_exports(Module, Options) :-
 		      ; L \= N, list_sequence(N,S), Exp = (:- export(S))
 		      )
 		    ), Options).
-
-list_sequence([], []).
-list_sequence([E|L], S) :- list_sequence_2(L, E, S).
-
-list_sequence_2([E|L], E0, (E0, S)) :- list_sequence_2(L, E, S).
-list_sequence_2([], E, E).
 
 being_used(M, F/A) :-
     functor(H, F, A),
