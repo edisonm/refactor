@@ -58,7 +58,8 @@
 		     rdelete/1,
 		     rrewind/0,
 		     rrewind/1,
-		     rreset/0
+		     rreset/0,
+		     op(1,xfy,($@))
 		    ]).
 
 :- use_module(library(readutil)).
@@ -968,6 +969,15 @@ rportray('$sb'(ArgPos, GTerm, GPriority, Term), Opt) :-
     with_position(print_expansion_sb(ArgPos, GTerm, GPriority, Term, Term,
 				     Priority, Text), 0, _),
     !.
+rportray('$@'(Term, '$sb'(ArgPos, GTerm, GPriority, Pattern)), Opt) :-
+    %% Use a different pattern to guide printing of Term
+    subtract(Opt, [quoted(true)], Opt1),
+    write_term('', Opt1),
+    b_getval(refactor_text, Text),
+    memberchk(priority(Priority), Opt),
+    with_position(print_expansion_sb(ArgPos, GTerm, GPriority, Term, Pattern,
+    				     Priority, Text), 0, _),
+    !.
 rportray('$sb'(TermPos, _GTerm), _Opt) :-
     b_getval(refactor_text, Text),
     with_position(print_subtext(TermPos, Text), 0, _).
@@ -1068,7 +1078,8 @@ print_expansion_1('$LIST.NL'(TermL), _, _, TermPos, _, _, From, To) :- !,
 			       spacing(next_argument),
 			       numbervars(true),
 			       quoted(true),
-			       priority(999)]).
+			       partial(true),
+			       priority(1200)]).
 print_expansion_1(Into, Pattern, GTerm, TermPos, Priority, Text, From, To) :-
     print_expansion_2(Into, Pattern, GTerm, TermPos, Priority, Text, From, To).
 
@@ -1119,21 +1130,20 @@ fix_position_if_braced(term_position(From0, To0, FFrom, FTo, PosL),
     ).
 fix_position_if_braced(Pos, Pos, _, _, _). % fail-safe
 
+write_if_priority(GTerm, GPriority, Term, Priority, Text) :-
+    ( \+prolog_listing:term_needs_braces(GTerm, GPriority),
+      prolog_listing:term_needs_braces(Term, Priority)
+    ->display(Text)
+    ; true
+    ).
+
 %% print_expansion(?Term:term, N:integer, File:atom, Pos0:integer, SkipTo:integer).
 
 print_expansion_sb(RefPos, GTerm, GPriority, Term, Pattern, Priority, Text) :-
-    ( \+prolog_listing:term_needs_braces(GTerm, GPriority),
-      prolog_listing:term_needs_braces(GTerm, Priority)
-    ->write('(')
-    ; true
-    ),
+    write_if_priority(GTerm, GPriority, GTerm, Priority, '('),
     fix_position_if_braced(RefPos, TermPos, GTerm, GPriority, Text),
     print_expansion(Term, Pattern, GTerm, TermPos, Priority, Text),
-    ( \+prolog_listing:term_needs_braces(GTerm, Priority),
-      prolog_listing:term_needs_braces(GTerm, Priority)
-    ->write(')')
-    ; true
-    ).
+    write_if_priority(GTerm, GPriority, GTerm, Priority, ')').
 
 print_expansion(Var, _, _, RefPos, _, Text) :-
     var(Var),
@@ -1170,7 +1180,7 @@ print_expansion(Term, Pattern, GTerm, RefPos0, Priority, Text) :-
     !,
     print_expansion(Term, Term, GTerm1, RefPos, Priority, Text).
 print_expansion(Term, Pattern, GTerm, RefPos, Priority, Text) :-
-    ( print_expansion_pos(RefPos, Term, Pattern, GTerm, Text)
+    ( print_expansion_pos(RefPos, Term, Pattern, GTerm, Priority, Text)
     ->true
     ; write_r(Priority, Term)
     ).
@@ -1191,8 +1201,8 @@ valid_op_type_arity(yfx, 2).
 valid_op_type_arity(fy,  1).
 valid_op_type_arity(fx,  1).
 
-print_expansion_pos(term_position(From, To, _FFrom, FFTo, PosL),
-		    Term, Pattern, GTerm, Text) :-
+print_expansion_pos(term_position(From, To, _FFrom, FFTo, PosL), Term, Pattern,
+		    GTerm, _Priority, Text) :-
     compound(Term),
     functor(Term,    FT, A),
     functor(Pattern, FP, A),
@@ -1216,11 +1226,17 @@ print_expansion_pos(term_position(From, To, _FFrom, FFTo, PosL),
       display_subtext(Text, FFTo, To1)
     ),
     mapargs(print_expansion_arg(Term, Text), FromToT, PosT, Term, Pattern, GTerm).
-print_expansion_pos(list_position(From, To, PosL, PosT),
-		    Term, Pattern, GTerm, Text) :-
+print_expansion_pos(list_position(From, To, PosL, PosT), Term, Pattern, GTerm,
+		    Priority, Text) :-
     from_to_pairs(PosL, To1, To2, FromToL, []),
     length(PosL, N),
-    trim_list(N, Term,    ArgL, ATail),
+    ( trim_list(N, Term, ArgL, ATail)
+    ->Delta = 0
+    ; length(LTerm, N), % Layout preserved if list is converted to sequence
+      once(list_sequence(LTerm, Term)),
+      trim_list(N, LTerm,    ArgL, ATail),
+      Delta = 1
+    ),
     \+ ( PosT = none,
 	 ATail \= []
        ),
@@ -1228,27 +1244,37 @@ print_expansion_pos(list_position(From, To, PosL, PosT),
     trim_list(N, GTerm,   GTrL, GTail),
     pairs_keys_values(PatGTrL, PatL, GTrL),
     !,
-    term_priority([_|_], 1, Priority1),
-    display_subtext(Text, From, To1),
+    From1 is From + Delta,
+    term_priority(Term, 1, Priority1),
+    write_if_priority(GTerm, Priority, Term, Priority, '('),
+    display_subtext(Text, From1, To1),
     ( PosT \= none ->
       arg(1, PosT, PTo),
-      term_priority([_|_], 2, Priority2),
-      To2 = PTo,
+      term_priority(Term, 2, Priority2),
+      To2 is PTo + Delta,
       maplist(print_expansion_elem(Priority1, Text), FromToL, PosL, ArgL, PatGTrL),
       arg(2, PosT, PFrom),
       print_expansion_elem(Priority2, Text, PFrom-To, PosT, ATail, PTail-GTail)
-    ; To2 = To,
+    ; To2 is To - Delta,
       maplist(print_expansion_elem(Priority1, Text), FromToL, PosL, ArgL, PatGTrL)
-    ).
+    ),
+    write_if_priority(GTerm, Priority, Term, Priority, ')').
 print_expansion_pos(brace_term_position(From, To, TermPos), {Term}, {Pattern},
-		    {GTerm}, Text) :-
+		    {GTerm}, _Priority, Text) :-
     arg(1, TermPos, AFrom),
     arg(2, TermPos, ATo),
     display_subtext(Text, From, AFrom),
     print_expansion_arg({Term}, Text, 1, ATo-To, TermPos, Term, Pattern, GTerm).
-print_expansion_pos(From-To, Term, _Pattern, GTerm, Text) :-
+print_expansion_pos(From-To, Term, _Pattern, GTerm, Priority, Text) :-
     Term==GTerm,
+    emit_space_if_required(Term, Priority),
     display_subtext(Text, From, To).
+
+% Kludge to avoid printing of operators that requires space
+emit_space_if_required(Term, Priority) :-
+    wr_options(Opts),
+    write_length(Term, _, [max_length(1), priority(Priority)|Opts]),
+    seek(current_output, -1, current, _).
 
 print_subtext(RefPos, Text) :-
     arg(1, RefPos, From),
@@ -1299,8 +1325,11 @@ subpos_location([N|L], SubPos, Pos) :-
     subpos_location(L, Pos0, Pos).
 
 display_subtext(Text0, From, To) :-
-    get_subtext(Text0, From, To, Text),
-    format('~s', [Text]).
+    ( From == To
+    ->true
+    ; get_subtext(Text0, From, To, Text),
+      format('~s', [Text])
+    ).
 
 get_subtext(Text0, From, To, Text) :-
     b_getval(refactor_position, Pos0),
@@ -1371,10 +1400,12 @@ line_pos(LinePos) :-
 write_t(Term) :-
     write_term(Term, [spacing(next_argument), numbervars(true)]).
 
+wr_options([portray_goal(refactor:rportray),
+	    spacing(next_argument),
+	    numbervars(true),
+	    quoted(true),
+	    partial(true)]).
+
 write_r(N, Term) :-
-    Options = [portray_goal(rportray),
-	       spacing(next_argument),
-	       numbervars(true),
-	       quoted(true),
-	       priority(N)],
-    write_term(Term, Options).
+    wr_options(Opts0),
+    write_term(Term, [priority(N)|Opts0]).
