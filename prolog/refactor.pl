@@ -971,7 +971,7 @@ rportray('$sb'(ArgPos, GTerm, GPriority, Term), Opt) :-
     with_position(print_expansion_sb(ArgPos, GTerm, GPriority, Term, Term,
 				     Priority, Text), 0, _),
     !.
-rportray('$@'(Term, '$sb'(ArgPos, GTerm, GPriority, Pattern)), Opt) :-
+rportray('$@'(Term, '$sb'(ArgPos, GTerm, GPriority, Pattern)), Opt) :- !,
     %% Use a different pattern to guide printing of Term
     b_getval(refactor_text, Text),
     memberchk(priority(Priority), Opt),
@@ -980,13 +980,9 @@ rportray('$@'(Term, '$sb'(ArgPos, GTerm, GPriority, Pattern)), Opt) :-
     !.
 rportray('$G'(Term, Goal), Opt) :-
     !,
-    with_output_to(string(S0), write_term(Term, Opt)),
-    ( call(Goal, S0, S)
-    ->true
-    ; S = S0
-    ),
-    format('~s', [S]).
+    with_str_hook(write_term(Term, Opt), Goal).
 rportray('$sb'(TermPos, _GTerm), _Opt) :-
+    !,
     b_getval(refactor_text, Text),
     with_position(print_subtext(TermPos, Text), 0, _).
 rportray('$sb'(_, _, _, _), _) :- !.
@@ -1153,6 +1149,15 @@ print_expansion_sb(RefPos, GTerm, GPriority, Term, Pattern, Priority, Text) :-
     print_expansion(Term, Pattern, GTerm, TermPos, Priority, Text),
     (comp_priority(GTerm, GPriority, GTerm, Priority)->display(')') ; true).
 
+% TODO: stream position would be biased --EMM
+with_str_hook(Command, StrHook) :-
+    with_output_to(string(S0), call(Command)),
+    ( call(StrHook, S0, S)
+    ->true
+    ; S = S0
+    ),
+    format('~s', [S]).
+
 print_expansion(Var, _, _, RefPos, _, Text) :-
     var(Var),
     !,
@@ -1163,7 +1168,10 @@ print_expansion('$sb'(RefPos, _), _, _, _, _, Text) :-
 print_expansion('$sb'(RefPos, GTerm, GPriority, Term), _, _, _, Priority, Text) :-
     !,
     print_expansion_sb(RefPos, GTerm, GPriority, Term, Term, Priority, Text).
-
+print_expansion('$G'(Term, Goal), Pattern, GTerm, RefPos, Priority, Text) :-
+    !,
+    with_str_hook(print_expansion(Term, Pattern, GTerm, RefPos, Priority, Text),
+		  Goal).
 print_expansion('$,NL', Pattern, GTerm, RefPos, Priority, Text) :-
     !,
     %% Print a comma + indented new line
@@ -1231,7 +1239,9 @@ print_expansion_pos(term_position(From, To, _FFrom, FFTo, PosL), Term, Pattern,
       ; \+ valid_op_type_arity(_, A)
       )
     ->write_r(999, FT),
-      display_subtext(Text, FFTo, To1)
+      ( FFTo > To1 -> true % TODO: try to understand why this happens --EMM
+      ; display_subtext(Text, FFTo, To1)
+      )
     ),
     mapargs(print_expansion_arg(Term, Text), FromToT, PosT, Term, Pattern, GTerm).
 print_expansion_pos(list_position(From, To, PosL, PosT), Term, Pattern, GTerm,
