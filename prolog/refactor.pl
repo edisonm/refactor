@@ -986,6 +986,9 @@ rportray('$sb'(TermPos, _GTerm), _Opt) :-
     b_getval(refactor_text, Text),
     with_position(print_subtext(TermPos, Text), 0, _).
 rportray('$sb'(_, _, _, _), _) :- !.
+rportray('$NOOP'(Term), Opt) :- !,
+    with_output_to(string(_),	%Ignore, but process
+		   write_term(Term, Opt)).
 rportray('$LIST'(L), Opt) :- !,
     maplist(term_write(Opt), L).
 rportray('$LIST,'(L), Opt) :- !,
@@ -993,6 +996,10 @@ rportray('$LIST,'(L), Opt) :- !,
 rportray('$LIST,_'(L), Opt) :- !,
     maplist(term_write_comma_2(Opt), L).
 rportray('$TEXT'(T), Opt0) :- !,
+    write(user_error,'--->$TEXT'(T)),nl(user_error),
+    subtract(Opt0, [quoted(true), portray_goal(_), priority(_)], Opt),
+    write_term(T, Opt).
+rportray('$TEXT'(T,_), Opt0) :- !,
     subtract(Opt0, [quoted(true), portray_goal(_), priority(_)], Opt),
     write_term(T, Opt).
 rportray('$CLAUSE'(C), Opt) :- !,
@@ -1077,6 +1084,10 @@ print_expansion_1('$RM', _, _, TermPos, _, _, From, To) :- !,
     arg(1, TermPos, From),
     arg(2, TermPos, To0),
     To is To0 + 2.
+print_expansion_1('$TEXT'(Term), _, _, TermPos, _, _, From, To) :- !,
+    arg(1, TermPos, From),
+    arg(2, TermPos, To),
+    write_t(Term).
 print_expansion_1('$TEXT'(Term, Delta), _, _, TermPos, _, _, From, To) :- !,
     arg(1, TermPos, From),
     arg(2, TermPos, To0),
@@ -1101,9 +1112,12 @@ term_write_stop_nl_([T|L], T0, Opt) :-
     term_write_stop_nl_(L, T, Opt).
 
 term_write_stop_nl__('$NL', _) :- !, nl.
+term_write_stop_nl__('$NOOP'(Term), Opt) :-
+    with_output_to(string(_),	%Ignore, but process
+		   term_write_stop_nl__(Term, Opt)).
 term_write_stop_nl__(Term, Opt) :-
     write_term(Term, Opt),
-    write('.\n').
+    write('.'),nl.
 
 print_expansion_2(Into, Pattern, GTerm, TermPos, Priority, Text, From, To) :-
     arg(1, TermPos, From),
