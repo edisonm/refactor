@@ -146,7 +146,7 @@ test(ex7_1) :-
     rreset,
     with_output_to(string(Result),
 		   expand_sentence(ex7:aaa([[X,_]],[d], []),
-				   aab([[_]], e, [X], [[c,d],[b,c,d]]), true, [])),
+				   aab([['$VAR'('_')]], e, [X], [[c,d],[b,c,d]]), true, [])),
     comment_data(ex7_1, Pattern),
     assertion(Pattern == Result).
 
@@ -168,7 +168,7 @@ test(ex7_2) :-
     rreset,
     with_output_to(string(Result),
 		   expand_sentence(ex7:aaa([[X,_]],[d], []),
-				   aaa([[_]], [X], [[c,d],[b,c,d]]), true, [])),
+				   aaa([['$VAR'('_')]], [X], [[c,d],[b,c,d]]), true, [])),
     comment_data(ex7_2, Pattern),
     assertion(Pattern == Result).
 

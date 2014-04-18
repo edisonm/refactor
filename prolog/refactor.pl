@@ -640,6 +640,15 @@ map_subterms(Pairs, T0, T1, T) :-
     (T0==T1 -> T = X0 ; T = X).
 map_subterms(Pairs, T0, T1, T) :-
     compound(T0), !,
+    map_compound(Pairs, T0, T1, T).
+map_subterms(_, T, _, T).
+
+map_compound(Pairs,		% Special case: preserve Goal
+	     '$G'(T0, G),
+	     '$G'(T1, _),
+	     '$G'(T,  G)) :- !,
+    map_subterms(Pairs, T0, T1, T).
+map_compound(Pairs, T0, T1, T) :-
     functor(T0, F, N),
     functor(T1, F, N),
     functor(T,  F, N),
@@ -647,7 +656,6 @@ map_subterms(Pairs, T0, T1, T) :-
     T1 =.. [F|Args1],
     T  =.. [F|Args],
     maplist(map_subterms(Pairs), Args0, Args1, Args).
-map_subterms(_, T, _, T).
 
 select_multi(Term, Var) --> ({occurrences_of_var(Var, Term, 1)} -> [] ; [Var]).
 
@@ -686,12 +694,6 @@ substitute_term_norec(Sub, Term, Priority, Pattern, Into, Expander, TermPos) -->
       copy_term(Term, Term2),
       with_context(Term, Pattern, Into, Pattern1, Into1, Expander),
       greatest_common_binding(Pattern1, Into1, Pattern2, Into2, [[]], Unifier, []),
-      refactor_context(variable_names, VarNames),
-      maplist_dcg(select_var, VarNames, Vars, []),
-      unlinked_vars(p(Pattern2, Unifier), Vars, Into2, UVars),
-      % FIXME: Vars are single in a list of sentences that share --EMM
-      maplist_dcg(select_multi(Into2), UVars, MVars, []),
-      numbervars(UVars-MVars, 0, _, [singletons(true)]),
       special_term(Sub, Into2, Into3)
     },
     substitute_term(Priority, Term, Term2, Pattern2, Into3, Unifier, TermPos).
@@ -971,13 +973,19 @@ rportray('$sb'(ArgPos, GTerm, GPriority, Term), Opt) :-
     !.
 rportray('$@'(Term, '$sb'(ArgPos, GTerm, GPriority, Pattern)), Opt) :-
     %% Use a different pattern to guide printing of Term
-    subtract(Opt, [quoted(true)], Opt1),
-    write_term('', Opt1),
     b_getval(refactor_text, Text),
     memberchk(priority(Priority), Opt),
     with_position(print_expansion_sb(ArgPos, GTerm, GPriority, Term, Pattern,
     				     Priority, Text), 0, _),
     !.
+rportray('$G'(Term, Goal), Opt) :-
+    !,
+    with_output_to(string(S0), write_term(Term, Opt)),
+    ( call(Goal, S0, S)
+    ->true
+    ; S = S0
+    ),
+    format('~s', [S]).
 rportray('$sb'(TermPos, _GTerm), _Opt) :-
     b_getval(refactor_text, Text),
     with_position(print_subtext(TermPos, Text), 0, _).
@@ -1060,6 +1068,13 @@ print_expansion_0(Into, Pattern, GTerm, TermPos, Priority, Text, From, To) :-
     ; print_expansion_2(Into, Pattern, GTerm, TermPos, Priority, Text, From, To)
     ).
 
+wr_options([portray_goal(refactor:rportray),
+	    spacing(next_argument),
+	    numbervars(true),
+	    quoted(true),
+	    partial(true)]).
+
+
 % Hacks that can only work at 1st level:
 % BUG: assuming no spaces between Term, full stop and new line:
 print_expansion_1('$RM', _, _, TermPos, _, _, From, To) :- !,
@@ -1074,12 +1089,8 @@ print_expansion_1('$TEXT'(Term, Delta), _, _, TermPos, _, _, From, To) :- !,
 print_expansion_1('$LIST.NL'(TermL), _, _, TermPos, _, _, From, To) :- !,
     arg(1, TermPos, From),
     arg(2, TermPos, To),
-    term_write_stop_nl(TermL, [portray_goal(rportray),
-			       spacing(next_argument),
-			       numbervars(true),
-			       quoted(true),
-			       partial(true),
-			       priority(1200)]).
+    wr_options(Opts),
+    term_write_stop_nl(TermL, [priority(1200)|Opts]).
 print_expansion_1(Into, Pattern, GTerm, TermPos, Priority, Text, From, To) :-
     print_expansion_2(Into, Pattern, GTerm, TermPos, Priority, Text, From, To).
 
@@ -1130,20 +1141,17 @@ fix_position_if_braced(term_position(From0, To0, FFrom, FTo, PosL),
     ).
 fix_position_if_braced(Pos, Pos, _, _, _). % fail-safe
 
-write_if_priority(GTerm, GPriority, Term, Priority, Text) :-
-    ( \+prolog_listing:term_needs_braces(GTerm, GPriority),
-      prolog_listing:term_needs_braces(Term, Priority)
-    ->display(Text)
-    ; true
-    ).
+comp_priority(GTerm, GPriority, Term, Priority) :-
+    \+prolog_listing:term_needs_braces(GTerm, GPriority),
+    prolog_listing:term_needs_braces(Term, Priority).
 
 %% print_expansion(?Term:term, N:integer, File:atom, Pos0:integer, SkipTo:integer).
-
+%
 print_expansion_sb(RefPos, GTerm, GPriority, Term, Pattern, Priority, Text) :-
-    write_if_priority(GTerm, GPriority, GTerm, Priority, '('),
+    (comp_priority(GTerm, GPriority, GTerm, Priority)->display('(') ; true),
     fix_position_if_braced(RefPos, TermPos, GTerm, GPriority, Text),
     print_expansion(Term, Pattern, GTerm, TermPos, Priority, Text),
-    write_if_priority(GTerm, GPriority, GTerm, Priority, ')').
+    (comp_priority(GTerm, GPriority, GTerm, Priority)->display(')') ; true).
 
 print_expansion(Var, _, _, RefPos, _, Text) :-
     var(Var),
@@ -1246,7 +1254,11 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Term, Pattern, GTerm,
     !,
     From1 is From + Delta,
     term_priority(Term, 1, Priority1),
-    write_if_priority(GTerm, Priority, Term, Priority, '('),
+    ( comp_priority(GTerm, Priority, Term, Priority)
+    ->display('(')
+    ; Delta = 1 ->display(' ')	% Only if [...] ---> (...)
+    ; true
+    ),
     display_subtext(Text, From1, To1),
     ( PosT \= none ->
       arg(1, PosT, PTo),
@@ -1258,23 +1270,16 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Term, Pattern, GTerm,
     ; To2 is To - Delta,
       maplist(print_expansion_elem(Priority1, Text), FromToL, PosL, ArgL, PatGTrL)
     ),
-    write_if_priority(GTerm, Priority, Term, Priority, ')').
+    (comp_priority(GTerm, Priority, Term, Priority) ->display(')') ; true).
 print_expansion_pos(brace_term_position(From, To, TermPos), {Term}, {Pattern},
 		    {GTerm}, _Priority, Text) :-
     arg(1, TermPos, AFrom),
     arg(2, TermPos, ATo),
     display_subtext(Text, From, AFrom),
     print_expansion_arg({Term}, Text, 1, ATo-To, TermPos, Term, Pattern, GTerm).
-print_expansion_pos(From-To, Term, _Pattern, GTerm, Priority, Text) :-
+print_expansion_pos(From-To, Term, _Pattern, GTerm, _Priority, Text) :-
     Term==GTerm,
-    emit_space_if_required(Term, Priority),
     display_subtext(Text, From, To).
-
-% Kludge to avoid printing of operators that requires space
-emit_space_if_required(Term, Priority) :-
-    wr_options(Opts),
-    write_length(Term, _, [max_length(1), priority(Priority)|Opts]),
-    seek(current_output, -1, current, _).
 
 print_subtext(RefPos, Text) :-
     arg(1, RefPos, From),
@@ -1399,12 +1404,6 @@ line_pos(LinePos) :-
 
 write_t(Term) :-
     write_term(Term, [spacing(next_argument), numbervars(true)]).
-
-wr_options([portray_goal(refactor:rportray),
-	    spacing(next_argument),
-	    numbervars(true),
-	    quoted(true),
-	    partial(true)]).
 
 write_r(N, Term) :-
     wr_options(Opts0),
