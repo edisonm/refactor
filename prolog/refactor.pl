@@ -29,10 +29,12 @@
 
 :- module(refactor, [rename_variable/4,
 		     replace_term/4,
+		     replace_head/4,
 		     replace_body/4,
 		     replace_goal/4,
 		     replace_sentence/3,
 		     expand_term/5,
+		     expand_head/5,
 		     expand_body/5,
 		     expand_goal/5,
 		     expand_sentence/4,
@@ -139,6 +141,9 @@ replace(Level, Sentence, From, Into, Options) :-
 replace_term(Sentence, Term, Expansion, Options) :-
     replace(term, Sentence, Term, Expansion, Options).
 
+replace_head(Sentence, Term, Expansion, Options) :-
+    replace(head, Sentence, Term, Expansion, Options).
+
 replace_body(Sentence, Term, Expansion, Options) :-
     replace(body, Sentence, Term, Expansion, Options).
 
@@ -152,10 +157,13 @@ replace_goal(Sentence, Term, Expansion, Options) :-
 :- multifile
     prolog:xref_open_source/2.	% +SourceId, -Stream
 
+:- multifile
+    term_info:process_error/1.
+
 prolog:xref_open_source(File, Fd) :-
     once(pending_change(_, File, Source)),
     open_codes_stream(Source, Fd).
-    
+
 :- dynamic
     pending_refactor/2,
     pending_change/3.
@@ -270,6 +278,7 @@ rreset :-
 
 :- meta_predicate
 	expand_term(+,+,-,0,+),
+	expand_head(+,+,-,0,+),
 	expand_body(+,+,-,0,+),
 	expand_sentence(+,-,0,+),
 	expand_goal(?,:,-,0,+),
@@ -286,6 +295,9 @@ expand_term(Sentence, Term, Into, Expander, Options) :-
 % \footnote{Further versions will allow
 %   \predref{expand\_sentence}{3} to return a list, as
 %   \predref{term\_expansion}{2} does in many Prolog dialects.}
+
+expand_head(Sentence, Term, Into, Expander, Options) :-
+    expand(head, Sentence, Term, Into, Expander, Options).
 
 expand_body(Sentence, Term, Into, Expander, Options) :-
     expand(body, Sentence, Term, Into, Expander, Options).
@@ -509,6 +521,7 @@ ec_term_level_each(Level, M:SentPattern, Term, Into, Expander, FileChk, ModChk,
     call(ModChk, M),
     with_context_vars(( get_term_info(M, SentPattern, Sent, FileChk, File,
 				      [ variable_names(Dict),
+					syntax_errors(error),
 					subterm_positions(TermPos)
 				      ]),
 			phrase(substitute_term_level(Level, Sent, 1200, Term,
@@ -528,6 +541,15 @@ substitute_term_level(term, Sent, Priority, Term, Into, Expander, TermPos) -->
     substitute_term_rec(Sent, Priority, Term, Into, Expander, TermPos).
 substitute_term_level(sent, Sent, Priority, Term, Into, Expander, TermPos) -->
     substitute_term_norec(top, Sent, Priority, Term, Into, Expander, TermPos).
+substitute_term_level(head, Clause, Priority, Term, Into, Expander, TermPos) -->
+    { Clause = (Term :- _)
+    ->term_priority(Clause, 1, HPriority),
+      term_position(_, _, _, _, [HeadPos, _]) = TermPos
+    ; Term = Clause,
+      HPriority = Priority,
+      HeadPos = TermPos
+    },
+    substitute_term_norec(top, Term, HPriority, Term, Into, Expander, HeadPos).
 substitute_term_level(body, (_ :- Body), _, Term, Into, Expander,
 		      term_position(_, _, _, _, [_, BodyPos])) -->
     {term_priority((_ :- Body), 2, Priority)},
@@ -623,7 +645,7 @@ with_context(Src, Pattern0, Into0, Pattern1, Into2, Goal) :-
     copy_term(Pattern0-Into0, Pattern1-Into1),
     refactor_context(sentence, Sent-Sent),
     Pattern0 = Src,
-    with_pattern_into(Goal, Pattern1, Into1), % Allow changes in Pattern/Into
+    with_pattern_into(once(Goal), Pattern1, Into1), % Allow changes in Pattern/Into
     term_variables(Pattern1, Vars), % Variable bindings in Pattern
     %% Apply changes to Pattern/Into and bind Vars:
     copy_term(t(Pattern1, Into1, Vars), t(Pattern0, Into0, Vars0)),
@@ -1059,9 +1081,10 @@ cut_text(Pos0, Pos, Remaining0, Remaining, Text) :-
 apply_change(print(TermPos, Priority, Pattern, GTerm, Into),
 	     text_desc(Pos, Text0, [CutText, PasteText|Tail]),
 	     text_desc(To,  Text,  Tail)) :-
+    b_getval(refactor_text, RText),
     with_output_to(string(PasteText),
 		   with_position(print_expansion_0(Into, Pattern, GTerm, TermPos,
-						   Priority, Text0, From, To), Pos)),
+						   Priority, RText, From, To), 0)),
     cut_text(Pos, From, Text0, Text1, CutText),
     cut_text(From, To, Text1, Text, _). % Skip
 
