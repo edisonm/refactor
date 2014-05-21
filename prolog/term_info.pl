@@ -57,14 +57,20 @@ get_term_info(M, Pattern, Term, FileChk, File, Options) :-
     call(FileChk, File),
     get_term_info_file(Pattern, Term, File, [module(M)|Options]).
 
+fix_exception(error(Error, stream(_,  Line, Row, Pos)), File,
+	      error(Error, file(File, Line, Row, Pos))) :- !.
+fix_exception(E, _, E).
+
 get_term_info_file(Pattern, Term, File, Options) :-
-	catch(setup_call_cleanup(
-		  ( prolog_canonical_source(File, Path),
-		    prolog_open_source(Path, In)
-		  ),
-		  get_term_info_fd(In, Pattern, Term, Options),
-		  prolog_close_source(In)),
-	  E, (print_message(error, E), fail)).
+    prolog_canonical_source(File, Path),
+    catch(setup_call_cleanup(( prolog_open_source(Path, In)
+			     ),
+			     get_term_info_fd(In, Pattern, Term, Options),
+			     prolog_close_source(In)),
+	  E0, ( fix_exception(E0, Path, E),
+		print_message(error, E),
+		fail
+	      )).
 
 get_term_info_fd(In, Pattern, Term, Options) :-
     repeat,
