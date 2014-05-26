@@ -100,7 +100,7 @@ being_used(M, F/A) :-
 % t_action(show).
 
 %% rename_variable(?Sentence, +Name0:atom, +Name:atom, +Action:t_action) is det.
-
+%
 rename_variable(M:Sent, Name0, Name, Options) :-
     expand_sentence(M:Sent, Sent,
 		    ( refactor_context(variable_names, Dict),
