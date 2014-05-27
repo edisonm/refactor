@@ -6,7 +6,7 @@
 
 :- comment_data:enable.
 
-/* $example_1$
+/* $ex1$
 --- ex1.pl (source)
 +++ ex1.pl (target)
 @@ -1,6 +1,6 @@
@@ -19,15 +19,15 @@
  
 */
 
-test(example_1) :-
+test(ex1) :-
     [ex1],
     rreset,
     with_output_to(string(Result),
 		   replace_term(ex1:_, (same_term(c,a),d,b),(d,b), [])),
-    comment_data(example_1, Pattern),
+    comment_data(ex1, Pattern),
     assertion(Pattern == Result).
 
-/* $example_2$
+/* $ex2$
 --- ex2.pl (source)
 +++ ex2.pl (target)
 @@ -1,3 +1,3 @@
@@ -37,15 +37,15 @@ test(example_1) :-
 +g(f(/*2*/f( f(a  ))), f(/*1*/f( a)), a).
 */
 
-test(example_2) :-
+test(ex2) :-
     [ex2],
     rreset,
     with_output_to(string(Result),
 		   expand_sentence(ex2:f(a,f(f(a)),C), g(C,f(f(a)),a),true, [])),
-    comment_data(example_2, Pattern),
+    comment_data(ex2, Pattern),
     assertion(Pattern == Result).
 
-/* $example_3$
+/* $ex3$
 --- ex3.pl (source)
 +++ ex3.pl (target)
 @@ -1,3 +1,3 @@
@@ -55,16 +55,16 @@ test(example_2) :-
 +ex3 :- ex3, 'ex3', display('ex3').
 */
 
-test(example_3) :-
+test(ex3) :-
     [ex3],
     rreset,
     with_output_to(string(Result),
 		   expand_sentence(ex3:(A :- display(B)),
 				   (A :- A, B, display(B)), true, [])),
-    comment_data(example_3, Pattern),
+    comment_data(ex3, Pattern),
     assertion(Pattern == Result).
 
-/* $example_4$
+/* $ex4$
 --- ex4.pl (source)
 +++ ex4.pl (target)
 @@ -1,3 +1,3 @@
@@ -74,15 +74,15 @@ test(example_3) :-
 +ex4_(f(a), b).
 */
 
-test(example_4) :-
+test(ex4) :-
     [ex4],
     rreset,
     with_output_to(string(Result),
 		   expand_sentence(ex4:ex4(A, B), ex4_(A, B), (A=f(a)), [])),
-    comment_data(example_4, Pattern),
+    comment_data(ex4, Pattern),
     assertion(Pattern == Result).    
 
-/* $example_5$
+/* $ex5$
 --- ex5.pl (source)
 +++ ex5.pl (target)
 @@ -1,7 +1,7 @@
@@ -100,15 +100,15 @@ test(example_4) :-
 +ex5([c|a]).
 */
 
-test(example_5) :-
+test(ex5) :-
     [ex5],
     rreset,
     with_output_to(string(Result),
 		   expand_sentence(ex5:ex5(T), ex5([c|T]), true, [])),
-    comment_data(example_5, Pattern),
+    comment_data(ex5, Pattern),
     assertion(Pattern == Result).
 
-/* $example_6$
+/* $ex6$
 --- ex6.pl (source)
 +++ ex6.pl (target)
 @@ -1,7 +1,7 @@
@@ -123,12 +123,12 @@ test(example_5) :-
 +p(A, B) --> p(B, A), "hello".
 */
 
-test(example_6) :-
+test(ex6) :-
     [ex6],
     rreset,
     with_output_to(string(Result),
 		   replace_goal(ex6:_, p(A,B,L,T), p(B,A,L,T), [])),
-    comment_data(example_6, Pattern),
+    comment_data(ex6, Pattern),
     assertion(Pattern == Result).
 
 /* $ex7_1$
@@ -172,7 +172,7 @@ test(ex7_2) :-
     comment_data(ex7_2, Pattern),
     assertion(Pattern == Result).
 
-/* $example_8$
+/* $ex8$
 --- ex8.pl (source)
 +++ ex8.pl (target)
 @@ -1,5 +1,5 @@
@@ -185,16 +185,16 @@ test(ex7_2) :-
 +ex8([[a,b]]).
 */
 
-test(example_8) :-
+test(ex8) :-
     [ex8],
     rreset,
     with_output_to(string(Result),
 		   expand_sentence(ex8:ex8([[a,b],[c,d]|T]), ex8([[a,b]|T]),
 				   true, [])),
-    comment_data(example_8, Pattern),
+    comment_data(ex8, Pattern),
     assertion(Pattern == Result).
 
-/* $example_9$
+/* $ex9$
 --- ex9.pl (source)
 +++ ex9.pl (target)
 @@ -1,3 +1,3 @@
@@ -204,15 +204,15 @@ test(example_8) :-
 +ex9(a, [f(g, c, a), g(d, e)]).
 */
 
-test(example_9) :-
+test(ex9) :-
     [ex9],
     rreset,
     with_output_to(string(Result),
 		   expand_term(ex9:ex9(X, _), f(A,B), f(A,B,X), true, [])),
-    comment_data(example_9, Pattern),
+    comment_data(ex9, Pattern),
     assertion(Pattern == Result).
 
-/* $example_10_1$
+/* $ex10_1$
 --- ex10.pl (source)
 +++ ex10.pl (target)
 @@ -1,3 +1,3 @@
@@ -222,15 +222,15 @@ test(example_9) :-
 +ex10(f(A), g(C, a(C))).
 */
 
-test(example_10_1) :-
+test(ex10_1) :-
     [ex10],
     rreset,
     with_output_to(string(Result),
 		   expand_term(ex10:ex10(_, _), g(A), g(B,A), (A=a(B),B='$VAR'('C')), [])),
-    comment_data(example_10_1, Pattern),
+    comment_data(ex10_1, Pattern),
     assertion(Pattern == Result).
 
-/* $example_10_2$
+/* $ex10_2$
 --- ex10.pl (source)
 +++ ex10.pl (target)
 @@ -1,3 +1,3 @@
@@ -240,15 +240,15 @@ test(example_10_1) :-
 +ex10(f(A), g(A, f(A))).
 */
 
-test(example_10_2) :-
+test(ex10_2) :-
     [ex10],
     rreset,
     with_output_to(string(Result),
 		   expand_term(ex10:ex10(X, _), g(A), g(A,X), true, [])),
-    comment_data(example_10_2, Pattern),
+    comment_data(ex10_2, Pattern),
     assertion(Pattern == Result).
 
-/* $example_11$
+/* $ex11$
 --- ex11.pl (source)
 +++ ex11.pl (target)
 @@ -1,5 +1,5 @@
@@ -260,15 +260,15 @@ test(example_10_2) :-
      ex11(B).
 */
 
-test(example_11) :-
+test(ex11) :-
     [ex11],
     rreset,
     with_output_to(string(Result),
 		   expand_term(ex11:(ex11([A|_]):-_), ex11(A), ex11_one(A), true, [])),
-    comment_data(example_11, Pattern),
+    comment_data(ex11, Pattern),
     assertion(Pattern == Result).
 
-/* $example_12$
+/* $ex12$
 --- ex12.pl (source)
 +++ ex12.pl (target)
 @@ -1,12 +1,10 @@
@@ -287,15 +287,15 @@ test(example_11) :-
  a.
 */
 
-test(example_12) :-
+test(ex12) :-
     [ex12],
     rreset,
     with_output_to(string(Result),
 		   replace_term(ex12:_, (a, b), b, [])),
-    comment_data(example_12, Pattern),
+    comment_data(ex12, Pattern),
     assertion(Pattern == Result).
 
-/* $example_13$
+/* $ex13$
 --- ex13.pl (source)
 +++ ex13.pl (target)
 @@ -2,7 +2,7 @@
@@ -309,15 +309,15 @@ test(example_12) :-
  q(1,1).
 */
 
-test(example_13) :-
+test(ex13) :-
     [ex13],
     rreset,
     with_output_to(string(Result),
 		   expand_term(ex13:_, T, T, (nonvar(T), T=q(_B,A),A=a), [])),
-    comment_data(example_13, Pattern),
+    comment_data(ex13, Pattern),
     assertion(Pattern == Result).
 
-/* $example_14_1$
+/* $ex14_1$
 --- ex14.pl (source)
 +++ ex14.pl (target)
 @@ -1,24 +1,19 @@
@@ -354,15 +354,15 @@ test(example_13) :-
  a.
 */
 
-test(example_14_1) :-
+test(ex14_1) :-
     [ex14],
     rreset,
     with_output_to(string(Result),
 		   expand_sentence(ex14:(Head :- A=B, Body), (Head :- Body), (A=B),[])),
-    comment_data(example_14_1, Pattern),
+    comment_data(ex14_1, Pattern),
     assertion(Pattern == Result).
 
-/* $example_14_2$
+/* $ex14_2$
 --- ex14.pl (source)
 +++ ex14.pl (target)
 @@ -1,15 +1,12 @@
@@ -396,15 +396,15 @@ test(example_14_1) :-
  a.
 */
 
-test(example_14_2) :-
+test(ex14_2) :-
     [ex14],
     rreset,
     with_output_to(string(Result),
 		   expand_sentence(ex14:(Head :- A=B, Body), (Head :- Body), (A=g(B)),[])),
-    comment_data(example_14_2, Pattern),
+    comment_data(ex14_2, Pattern),
     assertion(Pattern == Result).
 
-/* $example_15$
+/* $ex15$
 --- ex15.pl (source)
 +++ ex15.pl (target)
 @@ -1,6 +1,6 @@
@@ -419,25 +419,25 @@ test(example_14_2) :-
 +ex15({a,_B}).
 +ex15((a,_B)).
 */
-test(example_15) :-
+test(ex15) :-
     [ex15],
     rreset,
     with_output_to(string(Result),
 		   expand_sentence(ex15:ex15(L,A), ex15(L), (A=a), [])),
-    comment_data(example_15, Pattern),
+    comment_data(ex15, Pattern),
     assertion(Pattern == Result).
 
-/* $example_16$
+/* $ex16$
 */
-test(example_16) :-
+test(ex16) :-
     [ex16],
     rreset,
     with_output_to(string(Result),
 		   expand_sentence(ex16:H, H, true, [])),
-    comment_data(example_16, Pattern),
+    comment_data(ex16, Pattern),
     assertion(Pattern == Result).
 
-/* $example_17$
+/* $ex17$
 --- ex17.pl (source)
 +++ ex17.pl (target)
 @@ -1,8 +1,7 @@
@@ -451,15 +451,15 @@ test(example_16) :-
  a.
  
 */
-test(example_17) :-
+test(ex17) :-
     [ex17],
     rreset,
     with_output_to(string(Result),
 		   replace_sentence(ex17:(H:-(A,_B)), (H:-A), [])),
-    comment_data(example_17, Pattern),
+    comment_data(ex17, Pattern),
     assertion(Pattern == Result).
 
-/* $example_18$
+/* $ex18$
 --- ex18.pl (source)
 +++ ex18.pl (target)
 @@ -1,7 +1,6 @@
@@ -472,15 +472,15 @@ test(example_17) :-
  
  p(_C).
 */
-test(example_18) :-
+test(ex18) :-
     [ex18],
     rreset,
     with_output_to(string(Result),
 		   expand_sentence(ex18:(H:-A=B,p(C)), (H:-p(C)), A=B, [])),
-    comment_data(example_18, Pattern),
+    comment_data(ex18, Pattern),
     assertion(Pattern == Result).
 
-/* $example_19_1$
+/* $ex19_1$
 --- ex19.pl (source)
 +++ ex19.pl (target)
 @@ -1,6 +1,6 @@
@@ -493,15 +493,15 @@ test(example_18) :-
  
 */
 
-test(example_19_1) :-
+test(ex19_1) :-
     [ex19],
     rreset,
     with_output_to(string(Result),
 		   expand_sentence(ex19:ex19(C,D), ex19(C,D), C=D, [])),
-    comment_data(example_19_1, Pattern),
+    comment_data(ex19_1, Pattern),
     assertion(Pattern == Result).
 
-/* $example_19_2$
+/* $ex19_2$
 --- ex19.pl (source)
 +++ ex19.pl (target)
 @@ -2,8 +2,8 @@
@@ -518,12 +518,12 @@ test(example_19_1) :-
 +ex19([/*1*/A], [/**/b, A]).
 */
 
-test(example_19_2) :-
+test(ex19_2) :-
     [ex19],
     rreset,
     with_output_to(string(Result),
 		   expand_sentence(ex19:ex19(A,B,C), ex19(A, B), B=C, [])),
-    comment_data(example_19_2, Pattern),
+    comment_data(ex19_2, Pattern),
     assertion(Pattern == Result).
 
 /* $conjex$
@@ -646,6 +646,24 @@ test(ex21) :-
 		   expand_sentence(ex21:ex21(X),ex21(Y),
 				   (X=f(_A,B,C),Y=g(a,B,C)),[])),
     comment_data(ex21, Pattern),
+    assertion(Pattern == Result).
+
+/* $ex22$
+--- ex22.pl (source)
++++ ex22.pl (target)
+@@ -1,4 +1,3 @@
+ :- module(ex22, []).
+ 
+-:- dynamic a/1  .
+ 
+*/
+
+test(ex22) :-
+    [ex22],
+    rreset,
+    with_output_to(string(Result),
+		   replace_sentence(ex22:(:- dynamic _), [], [])),
+    comment_data(ex22, Pattern),
     assertion(Pattern == Result).
 
 :- comment_data:disable.
