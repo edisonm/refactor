@@ -1103,10 +1103,12 @@ wr_options([portray_goal(refactor:rportray),
 
 % Hacks that can only work at 1st level:
 % BUG: assuming no spaces between Term, full stop and new line:
-print_expansion_1('$RM', _, _, TermPos, _, _, From, To) :- !,
+print_expansion_1('$RM', _, _, TermPos, _, Text, From, To) :- !,
     arg(1, TermPos, From),
-    arg(2, TermPos, To0),
-    To is To0 + 2.
+    arg(2, TermPos, Before),
+    sub_string(Text, Before, _, 0, Right),
+    sub_string(Right, Next, _, _, "."),
+    To is Before + Next + 2.
 print_expansion_1('$TEXT'(Term), _, _, TermPos, _, _, From, To) :- !,
     arg(1, TermPos, From),
     arg(2, TermPos, To),
