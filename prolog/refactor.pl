@@ -1018,7 +1018,6 @@ rportray('$LIST,'(L), Opt) :- !,
 rportray('$LIST,_'(L), Opt) :- !,
     maplist(term_write_comma_2(Opt), L).
 rportray('$TEXT'(T), Opt0) :- !,
-    write(user_error,'--->$TEXT'(T)),nl(user_error),
     subtract(Opt0, [quoted(true), portray_goal(_), priority(_)], Opt),
     write_term(T, Opt).
 rportray('$TEXT'(T,_), Opt0) :- !,
