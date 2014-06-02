@@ -2,7 +2,7 @@
 
 :- use_module(library(refactor)).
 
-:- use_module(comment_data).
+:- use_module(library(comment_data)).
 
 :- comment_data:enable.
 
