@@ -666,6 +666,25 @@ test(ex22) :-
     comment_data(ex22, Pattern),
     assertion(Pattern == Result).
 
+/* $ex23$
+--- ex23.pl (source)
++++ ex23.pl (target)
+@@ -1,4 +1,4 @@
+ :- module(ex23, [ex23/1]).
+ 
+ ex23(X) :-
+-    X is 2+6.
++    X is 2+1*6.
+*/
+
+test(ex23) :-
+    [ex23],
+    rreset,
+    with_output_to(string(Result),
+		   replace_term(ex23:_, A+B, A+(1*B), [])),
+    comment_data(ex23, Pattern),
+    assertion(Pattern == Result).
+
 :- comment_data:disable.
 
 :- end_tests(refactor).
