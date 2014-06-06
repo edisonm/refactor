@@ -1089,15 +1089,17 @@ wr_options([portray_goal(refactor:rportray),
 	    quoted(true),
 	    partial(true)]).
 
-
-% Hacks that can only work at 1st level:
-% BUG: assuming no spaces between Term, full stop and new line:
-print_expansion_1('$RM', _, _, TermPos, _, Text, From, To) :- !,
+print_expansion_rm_dot(TermPos, Text, From, To) :-
     arg(1, TermPos, From),
     arg(2, TermPos, Before),
     sub_string(Text, Before, _, 0, Right),
     sub_string(Right, Next, _, _, "."),
     To is Before + Next + 2.
+
+% Hacks that can only work at 1st level:
+% BUG: assuming no spaces between Term, full stop and new line:
+print_expansion_1('$RM', _, _, TermPos, _, Text, From, To) :- !,
+    print_expansion_rm_dot(TermPos, Text, From, To).
 print_expansion_1('$TEXT'(Term), _, _, TermPos, _, _, From, To) :- !,
     arg(1, TermPos, From),
     arg(2, TermPos, To),
@@ -1107,23 +1109,25 @@ print_expansion_1('$TEXT'(Term, Delta), _, _, TermPos, _, _, From, To) :- !,
     arg(2, TermPos, To0),
     write_t(Term),
     To is To0 + Delta.
-print_expansion_1('$LIST.NL'(TermL), _, _, TermPos, _, _, From, To) :- !,
-    arg(1, TermPos, From),
-    arg(2, TermPos, To),
+print_expansion_1('$LIST.NL'(TermL), _, _, TermPos, _, Text, From, To) :- !,
     wr_options(Opts),
-    term_write_stop_nl(TermL, [priority(1200)|Opts]).
+    maplist(term_write_stop_nl([priority(1200)|Opts]), TermL),
+    print_expansion_rm_dot(TermPos, Text, From, To).
 print_expansion_1(Into, Pattern, GTerm, TermPos, Priority, Text, From, To) :-
     print_expansion_2(Into, Pattern, GTerm, TermPos, Priority, Text, From, To).
 
-term_write_stop_nl([], _).
-term_write_stop_nl([T|L], Opt) :-
-    term_write_stop_nl_(L, T, Opt).
+term_write_stop_nl(Opt, Term) :-
+    term_write_stop_nl__(Term, Opt).
 
-term_write_stop_nl_([], T, Opt) :-
-    write_term(T, Opt).
-term_write_stop_nl_([T|L], T0, Opt) :-
-    term_write_stop_nl__(T0, Opt),
-    term_write_stop_nl_(L, T, Opt).
+% term_write_stop_nl([], _).
+% term_write_stop_nl([T|L], Opt) :-
+%     term_write_stop_nl_(L, T, Opt).
+
+% term_write_stop_nl_([], T, Opt) :-
+%     write_term(T, Opt).
+% term_write_stop_nl_([T|L], T0, Opt) :-
+%     term_write_stop_nl__(T0, Opt),
+%     term_write_stop_nl_(L, T, Opt).
 
 term_write_stop_nl__('$NL', _) :- !, nl.
 term_write_stop_nl__('$NOOP'(Term), Opt) :-
@@ -1261,20 +1265,22 @@ print_expansion_pos(term_position(From, To, _FFrom, FFTo, PosL), Term, Pattern,
     !,
     ( FT == FP
     ->display_subtext(Text, From, To1) %% Do nothing to preserve functor layout
-    ; ( valid_op_type_arity(TypeOp, A),
-	current_op(PrecedenceP, TypeOp, FT),
-	current_op(PrecedenceE, TypeOp, FP)
-      ->PrecedenceP >= PrecedenceE
-      ; valid_op_type_arity(TypeOp, A),
-	\+ current_op(_, TypeOp, FT),
-	\+ current_op(_, TypeOp, FP)
-      ->true
-      ; \+ valid_op_type_arity(_, A)
-      )
-    ->write_r(999, FT),
-      ( FFTo > To1 -> true % TODO: try to understand why this happens --EMM
-      ; display_subtext(Text, FFTo, To1)
-      )
+    % TBD: the commented out lines must be re-tested, because them have problems
+    % if the operator is not prefix (e.g., a+b ---> a/b)
+    % ; ( valid_op_type_arity(TypeOp, A),
+    % 	current_op(PrecedenceP, TypeOp, FT),
+    % 	current_op(PrecedenceE, TypeOp, FP)
+    %   ->PrecedenceP >= PrecedenceE
+    %   ; valid_op_type_arity(TypeOp, A),
+    % 	\+ current_op(_, TypeOp, FT),
+    % 	\+ current_op(_, TypeOp, FP)
+    %   ->true
+    %   ; \+ valid_op_type_arity(_, A)
+    %   )
+    % ->write_r(999, FT),
+    %   ( FFTo > To1 -> true % TODO: try to understand why this happens --EMM
+    %   ; display_subtext(Text, FFTo, To1)
+    %   )
     ),
     mapargs(print_expansion_arg(Term, Text), FromToT, PosT, Term, Pattern, GTerm).
 print_expansion_pos(list_position(From, To, PosL, PosT), Term, Pattern, GTerm,
