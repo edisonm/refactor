@@ -1147,35 +1147,45 @@ print_expansion_2(Into, Pattern, GTerm, TermPos, Priority, Text, From, To) :-
 %
 fix_position_if_braced(term_position(From0, To0, FFrom, FTo, PosL),
 		       term_position(From,  To,  FFrom, FTo, PosL),
-		       GTerm, GPriority, Text0 ) :-
+		       GTerm, GPriority, Term, Priority, Text0, Display) :-
     \+ sub_string(Text0, FTo, 1, _, "("),
-    prolog_listing:term_needs_braces(GTerm, GPriority),
-    !,
-    ( between(0, inf, LCount),
-      From is From0 - LCount - 1,
-      sub_string(Text0, From, 1, _, "("),
-      !
-    ),
-    ( between(0, inf, RCount),
-      To1 is To0 + RCount,
-      succ(To1, To),
-      sub_string(Text0, To1, 1, _, ")"),
-      !
+    ( prolog_listing:term_needs_braces(GTerm, GPriority)
+    ->( prolog_listing:term_needs_braces(Term, Priority)
+      ->once(( between(0, inf, LCount),
+	       From is From0 - LCount - 1,
+	       sub_string(Text0, From, 1, _, "(")
+	     )),
+	once(( between(0, inf, RCount),
+	       To1 is To0 + RCount,
+	       succ(To1, To),
+	       sub_string(Text0, To1, 1, _, ")")
+	     ))
+      ),
+      !,
+      Display=no
+    ; ( prolog_listing:term_needs_braces(Term, Priority)
+      ->Display=yes,
+	From = From0,
+	To = To0
+      )
     ).
-fix_position_if_braced(Pos, Pos, _, _, _). % fail-safe
+fix_position_if_braced(Pos, Pos, _, _, _, _, _, no). % fail-safe
 
 comp_priority(GTerm, GPriority, Term, Priority) :-
     \+prolog_listing:term_needs_braces(GTerm, GPriority),
     prolog_listing:term_needs_braces(Term, Priority).
 
+cond_display(yes, A) :- display(A).
+cond_display(no,  _).
+
 %% print_expansion(?Term:term, N:integer, File:atom, Pos0:integer, SkipTo:integer).
 %
 print_expansion_sb(RefPos, GTerm, GPriority, Term, Pattern, Priority, Text) :-
-    (comp_priority(GTerm, GPriority, GTerm, Priority)->display('(') ; true),
-    fix_position_if_braced(RefPos, TermPos, GTerm, GPriority, Text),
+    fix_position_if_braced(RefPos, TermPos, GTerm, GPriority, Term, Priority, Text, Display),
+    cond_display(Display, '('),
     arg(1, TermPos, From),
     with_from(print_expansion(Term, Pattern, GTerm, TermPos, Priority, Text), From),
-    (comp_priority(GTerm, GPriority, GTerm, Priority)->display(')') ; true).
+    cond_display(Display, ')').
 
 % TODO: stream position would be biased --EMM
 with_str_hook(Command, StrHook) :-
