@@ -1253,7 +1253,7 @@ from_to_pairs([Pos|PosL], To0, To) -->
     [From-To1],
     from_to_pairs(PosL, To1, To).
 
-print_expansion_pos(term_position(From, To, _FFrom, FFTo, PosL), Term, Pattern,
+print_expansion_pos(term_position(From, To, _FFrom, _FFTo, PosL), Term, Pattern,
 		    GTerm, _Priority, Text) :-
     compound(Term),
     functor(Term,    FT, A),
