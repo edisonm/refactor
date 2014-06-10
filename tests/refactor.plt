@@ -685,6 +685,25 @@ test(ex23) :-
     comment_data(ex23, Pattern),
     assertion(Pattern == Result).
 
+/* $ex24$
+--- src/main/packages/refactor/tests/ex24.pl (source)
++++ src/main/packages/refactor/tests/ex24.pl (target)
+@@ -1,4 +1,4 @@
+ :- module(ex24, [ex24/1]).
+ 
+ ex24(A) :-
+-    A = key_components/4+ (  hidden, kbmask([+, +, -, -]) ).
++    A = key_components/4+ (  help, hidden, kbmask([+, +, -, -]) ).
+*/
+
+test(ex24) :-
+    [ex24],
+    rreset,
+    with_output_to(string(Result),
+		   replace_term(ex24:_, A/B+P, A/B+(help,P), [])),
+    comment_data(ex24, Pattern),
+    assertion(Pattern == Result).
+
 :- comment_data:disable.
 
 :- end_tests(refactor).
