@@ -890,6 +890,11 @@ substitute_term_into(list_position(_, _, EP, TP), Term, Ref,
 
 term_priority(Term, N, Priority) :-
     nonvar(Term),
+    term_priority_gnd(Term, N, Priority).
+
+term_priority_gnd('$sb'(_, _, _, Term), N, Priority) :- !,
+    term_priority(Term, N, Priority).
+term_priority_gnd(Term, N, Priority) :-
     functor(Term, F, A),
     ( ( A == 1 ->
 	( prolog_listing:prefix_op(F, Priority) -> true
@@ -1119,16 +1124,6 @@ print_expansion_1(Into, Pattern, GTerm, TermPos, Priority, Text, From, To) :-
 term_write_stop_nl(Opt, Term) :-
     term_write_stop_nl__(Term, Opt).
 
-% term_write_stop_nl([], _).
-% term_write_stop_nl([T|L], Opt) :-
-%     term_write_stop_nl_(L, T, Opt).
-
-% term_write_stop_nl_([], T, Opt) :-
-%     write_term(T, Opt).
-% term_write_stop_nl_([T|L], T0, Opt) :-
-%     term_write_stop_nl__(T0, Opt),
-%     term_write_stop_nl_(L, T, Opt).
-
 term_write_stop_nl__('$NL', _) :- !, nl.
 term_write_stop_nl__('$NOOP'(Term), Opt) :-
     with_output_to(string(_),	%Ignore, but process
@@ -1142,33 +1137,45 @@ print_expansion_2(Into, Pattern, GTerm, TermPos, Priority, Text, From, To) :-
     arg(2, TermPos, To),
     with_from(print_expansion(Into, Pattern, GTerm, TermPos, Priority, Text), From).
 
+
 % if the term have been in parentheses, in a place where that was
 % required, include it!!!
 %
 fix_position_if_braced(term_position(From0, To0, FFrom, FTo, PosL),
 		       term_position(From,  To,  FFrom, FTo, PosL),
 		       GTerm, GPriority, Term, Priority, Text0, Display) :-
-    \+ sub_string(Text0, FTo, 1, _, "("),
-    ( prolog_listing:term_needs_braces(GTerm, GPriority)
-    ->( prolog_listing:term_needs_braces(Term, Priority)
-      ->once(( between(0, inf, LCount),
-	       From is From0 - LCount - 1,
-	       sub_string(Text0, From, 1, _, "(")
-	     )),
-	once(( between(0, inf, RCount),
-	       To1 is To0 + RCount,
-	       succ(To1, To),
-	       sub_string(Text0, To1, 1, _, ")")
-	     ))
-      ),
-      !,
-      Display=no
-    ; ( prolog_listing:term_needs_braces(Term, Priority)
-      ->Display=yes,
-	From = From0,
-	To = To0
+    \+ ( From0 == FFrom,
+	 sub_string(Text0, FTo, 1, _, "(")
+       ),
+    ( prolog_listing:term_needs_braces(GTerm, GPriority),
+      ( nonvar(Term),
+	prolog_listing:term_needs_braces(Term, Priority)
+      ; prolog_listing:term_needs_braces(GTerm, Priority)
       )
-    ).
+    ->once(( between(1, From0, LCount),
+	     From is From0 - LCount,
+	     sub_string(Text0, From, 1, _, "(")
+	   )),
+      once(( string_length(Text0, Length),
+	     between(To0, Length, To1),
+	     sub_string(Text0, To1, 1, _, ")"),
+	     succ(To1, To)
+	   )),
+      Display=no
+    ; \+ ( prolog_listing:term_needs_braces(GTerm, GPriority),
+	   \+ ( From0 == FFrom,
+		sub_string(Text0, FTo, 1, _, "(")
+	      )
+	 ),
+      ( nonvar(Term),
+	prolog_listing:term_needs_braces(Term, Priority)
+      ; prolog_listing:term_needs_braces(GTerm, Priority)
+      )
+    ->Display=yes,
+      From = From0,
+      To = To0
+    ),
+    !.
 fix_position_if_braced(Pos, Pos, _, _, _, _, _, no). % fail-safe
 
 comp_priority(GTerm, GPriority, Term, Priority) :-
@@ -1229,10 +1236,11 @@ print_expansion(Term, Pattern, GTerm, RefPos0, Priority, Text) :-
     subpos_location(L, RefPos0, RefPos),
     !,
     print_expansion(Term, Term, GTerm1, RefPos, Priority, Text).
-print_expansion(Term, '$sb'(RefPos, GTerm, GPriority, Pattern), _, _, Priority,
-		Text) :-
+print_expansion(Term, '$sb'(RefPos, GTerm, _, Pattern),
+		_GTerm0, _RefPos0, Priority, Text) :-
     !,
-    print_expansion_sb(RefPos, GTerm, GPriority, Term, Pattern, Priority, Text).
+    print_expansion(Term, Pattern, GTerm, RefPos, Priority, Text).
+    % print_expansion_sb(RefPos, GTerm, GPriority, Term, Pattern, Priority, Text).
 print_expansion(Term, Pattern, GTerm, RefPos, Priority, Text) :-
     ( print_expansion_pos(RefPos, Term, Pattern, GTerm, Priority, Text)
     ->true
@@ -1247,11 +1255,11 @@ print_expansion_elem(Priority, Text, From-To, RefPos, Term, Pattern-GTerm) :-
     print_expansion(Term, Pattern, GTerm, RefPos, Priority, Text),
     display_subtext(Text, From, To).
 
-valid_op_type_arity(xf,  1).
-valid_op_type_arity(yf,  1).
-valid_op_type_arity(xfx, 2).
-valid_op_type_arity(xfy, 2).
-valid_op_type_arity(yfx, 2).
+% valid_op_type_arity(xf,  1).
+% valid_op_type_arity(yf,  1).
+% valid_op_type_arity(xfx, 2).
+% valid_op_type_arity(xfy, 2).
+% valid_op_type_arity(yfx, 2).
 valid_op_type_arity(fy,  1).
 valid_op_type_arity(fx,  1).
 
@@ -1263,34 +1271,35 @@ from_to_pairs([Pos|PosL], To0, To) -->
     [From-To1],
     from_to_pairs(PosL, To1, To).
 
-print_expansion_pos(term_position(From, To, _FFrom, _FFTo, PosL), Term, Pattern,
+print_expansion_pos(term_position(From, To, _FFrom, FFTo, PosL), Term, Pattern,
 		    GTerm, _Priority, Text) :-
     compound(Term),
     functor(Term,    FT, A),
     functor(Pattern, FP, A),
-    %gtrace,
     from_to_pairs(PosL, To1, To, FromToL, []),
     FromToT =.. [FT|FromToL],
     PosT    =.. [FP|PosL],
     !,
     ( FT == FP
     ->display_subtext(Text, From, To1) %% Do nothing to preserve functor layout
-    % TBD: the commented out lines must be re-tested, because them have problems
+    % TBD: the commented out lines must be re-tested, because they have problems
     % if the operator is not prefix (e.g., a+b ---> a/b)
-    % ; ( valid_op_type_arity(TypeOp, A),
-    % 	current_op(PrecedenceP, TypeOp, FT),
-    % 	current_op(PrecedenceE, TypeOp, FP)
-    %   ->PrecedenceP >= PrecedenceE
-    %   ; valid_op_type_arity(TypeOp, A),
-    % 	\+ current_op(_, TypeOp, FT),
-    % 	\+ current_op(_, TypeOp, FP)
-    %   ->true
-    %   ; \+ valid_op_type_arity(_, A)
-    %   )
-    % ->write_r(999, FT),
-    %   ( FFTo > To1 -> true % TODO: try to understand why this happens --EMM
-    %   ; display_subtext(Text, FFTo, To1)
-    %   )
+    ; \+ current_op(_, _, FT),
+      \+ current_op(_, _, FP)
+      % ( valid_op_type_arity(TypeOp, A),
+      % 	current_op(PrecedenceP, TypeOp, FT),
+      % 	current_op(PrecedenceE, TypeOp, FP)
+      % ->PrecedenceP >= PrecedenceE
+      % ; valid_op_type_arity(TypeOp, A),
+      % 	\+ current_op(_, TypeOp, FT),
+      % 	\+ current_op(_, TypeOp, FP)
+      % ->true
+      % ; \+ valid_op_type_arity(_, A)
+      % )
+    ->write_r(999, FT),
+      ( FFTo > To1 -> true % TODO: try to understand why this happens --EMM
+      ; display_subtext(Text, FFTo, To1)
+      )
     ),
     mapargs(print_expansion_arg(Term, Text), FromToT, PosT, Term, Pattern, GTerm).
 print_expansion_pos(list_position(From, To, PosL, PosT), Term, Pattern, GTerm,

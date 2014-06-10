@@ -686,8 +686,8 @@ test(ex23) :-
     assertion(Pattern == Result).
 
 /* $ex24$
---- src/main/packages/refactor/tests/ex24.pl (source)
-+++ src/main/packages/refactor/tests/ex24.pl (target)
+--- ex24.pl (source)
++++ ex24.pl (target)
 @@ -1,4 +1,4 @@
  :- module(ex24, [ex24/1]).
  
