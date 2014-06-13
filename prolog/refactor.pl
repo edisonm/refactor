@@ -508,6 +508,7 @@ collect_ec_term_level(Level, Sentence, Term, Into, Expander, Options, FileComman
 			       FileChk, ModChk, File, Commands),
 	    FileCommands).
 
+:- public mod_prop/2.
 mod_prop(Prop, Module) :- module_property(Module, Prop).
 
 option_modulechk(Options, ModuleChk) :-
@@ -569,13 +570,6 @@ with_context_vars(Goal, NameL, ValueL) :-
 		       Goal,
 		       maplist(nb_delete, NameL)).
 
-:- meta_predicate with_context_vars(0, +, +, -).
-with_context_vars(Goal, NameL, ValueL, OldValueL) :-
-    setup_call_cleanup(( maplist(b_getval, NameL, OldValueL),
-			 maplist(b_setval, NameL, ValueL)),
-		       Goal,
-		       maplist(nb_setval, NameL, OldValueL)).
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% ANCILLARY PREDICATES:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -608,16 +602,6 @@ apply_commands(File-Commands, File-NewText) :-
     maplist_dcg(string_concat_to, NewTextL, "", NewText).
 
 string_concat_to(A, B, C) :- string_concat(B, A, C).
-
-%%	refactor_module(?M)
-%
-%	True when M is a module we should refactor.
-
-refactor_module(M) :-
-    current_module(M),
-    % M \= user,			% Dubious --JW
-    module_property(M, class(user)).
-
 
 %%	refactor_context(?Name, ?Value) is nondet.
 
@@ -670,25 +654,6 @@ map_compound(Pairs, T0, T1, T) :-
     T1 =.. [F|Args1],
     T  =.. [F|Args],
     maplist(map_subterms(Pairs), Args0, Args1, Args).
-
-select_multi(Term, Var) --> ({occurrences_of_var(Var, Term, 1)} -> [] ; [Var]).
-
-select_var(_=Var) --> {var(Var)}, !, [Var].
-select_var(_) --> [].
-
-subtract_eq([], _, []).
-subtract_eq([Elem0|T], L, Set0) :-
-    ( member(Elem, L),
-      Elem0 == Elem ->
-      Set0 = Set
-    ; Set0 = [Elem0|Set]
-    ),
-    subtract_eq(T, L, Set).
-
-unlinked_vars(Term, Vars0, Into, Vars) :-
-    term_variables(Term, VTerm, Vars0),
-    term_variables(Into, VInto),
-    subtract_eq(VInto, VTerm, Vars).
 
 %%	substitute_term_norec(+Term, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
 %
@@ -1260,8 +1225,9 @@ print_expansion_elem(Priority, Text, From-To, RefPos, Term, Pattern-GTerm) :-
 % valid_op_type_arity(xfx, 2).
 % valid_op_type_arity(xfy, 2).
 % valid_op_type_arity(yfx, 2).
-valid_op_type_arity(fy,  1).
-valid_op_type_arity(fx,  1).
+
+% valid_op_type_arity(fy,  1).
+% valid_op_type_arity(fx,  1).
 
 from_to_pairs([], To, To) --> [].
 from_to_pairs([Pos|PosL], To0, To) -->
