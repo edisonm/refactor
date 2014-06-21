@@ -28,7 +28,7 @@
 */
 
 :- module(term_info,
-	  [ get_term_info/6
+	  [ get_term_info/7
 	  ]).
 :- use_module(library(prolog_source)).
 :- use_module(library(included_files)).
@@ -50,33 +50,39 @@ module_file_1(M, File) :-
     '$load_context_module'(File, M, _),
     \+ module_property(_, file(File)).
 
-:- meta_predicate get_term_info(+, ?, ?, 1, -, +).
-get_term_info(M, Pattern, Term, FileChk, File, Options) :-
+:- meta_predicate get_term_info(+, ?, ?, ?, :, -, +).
+get_term_info(M, Pattern, Term, Expanded, CM:AllChkL, File, Options) :-
     module_files(M, Files),
     member(File, Files),
-    call(FileChk, File),
-    get_term_info_file(Pattern, Term, File, [module(M)|Options]).
+    forall(member(FileChk, AllChkL), call(CM:FileChk, File)),
+    get_term_info_file(Expanded, Pattern, Term, File, Options).
 
 fix_exception(error(Error, stream(_,  Line, Row, Pos)), File,
 	      error(Error, file(File, Line, Row, Pos))) :- !.
 fix_exception(E, _, E).
 
-get_term_info_file(Pattern, Term, File, Options) :-
+get_term_info_file(ExHolder, Pattern, Term, File, Options) :-
     prolog_canonical_source(File, Path),
     catch(setup_call_cleanup(( prolog_open_source(Path, In)
 			     ),
-			     get_term_info_fd(In, Pattern, Term, Options),
+			     get_term_info_fd(ExHolder, In, Pattern, Term, Options),
 			     prolog_close_source(In)),
 	  E0, ( fix_exception(E0, Path, E),
 		print_message(error, E),
 		fail
 	      )).
 
-get_term_info_fd(In, Pattern, Term, Options) :-
+get_term_info_fd(ExHolder, In, Pattern, Term, Options) :-
     repeat,
-    prolog_read_source_term(In, Term, _Expanded, Options),
+    ti_read_term(ExHolder, In, Term, Options),
     ( Term == end_of_file ->
       !,
       fail
     ; subsumes_term(Pattern, Term)
     ).
+
+ti_read_term(no, In, Term, Options) :-
+    !,
+    read_term(In, Term, Options).
+ti_read_term(ex(Expanded), In, Term, Options) :-
+    prolog_read_source_term(In, Term, Expanded, Options).

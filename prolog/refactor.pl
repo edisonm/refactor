@@ -488,27 +488,37 @@ do_r_goal_expansion(Term, TermPos) :-
 			  Commands, []),
     forall(member(Command, Commands), assertz(command_db(Command))).
 
-:- meta_predicate level_hook(+,0 ).
-level_hook(goal, Call) :- !,
+:- meta_predicate level_hook(+,+,-,-,0 ).
+level_hook(goal, Options0, Options, Expanded, Call) :- !,
+    %% In goal, expanded=yes:
+    select_option(expanded(Expanded), Options0, Options, yes),
     setup_call_cleanup(asserta((system:goal_expansion(G, T, _, _) :-
 			       r_goal_expansion(G, T)), Ref),
 		       Call,
 		       erase(Ref)).
-level_hook(_, Call) :- call(Call).
+level_hook(_, Options0, Options, Expanded, Call) :-
+    select_option(expanded(Expanded), Options0, Options, no),
+    call(Call).
 
-collect_expansion_commands(Level, Sentence, Term, Into, Expander, Options, FileCommands) :-
-    level_hook(Level, collect_ec_term_level(Level, Sentence, Term, Into,
-					    Expander, Options, FileCommands)).
+collect_expansion_commands(Level, Sentence, Term, Into, Expander, Options0,
+			   FileCommands) :-
+    level_hook(Level, Options0, Options, Expanded,
+	       collect_ec_term_level(Level, Sentence, Expanded, Term, Into,
+				     Expander, Options, FileCommands)).
 
-collect_ec_term_level(Level, Sentence, Term, Into, Expander, Options, FileCommands) :-
-    option_filechk(Options, FileChk),
-    option_modulechk(Options, ModChk),
+expand_holder(yes, ex(_)).
+expand_holder(no,  no).
+
+collect_ec_term_level(Level, Sentence, Expanded, Term, Into, Expander,
+		      OptionL, FileCommands) :-
+    expand_holder(Expanded, ExHolder),
     findall(File-Commands,
-	    ec_term_level_each(Level, Sentence, Term, Into, Expander,
-			       FileChk, ModChk, File, Commands),
+	    ec_term_level_each(Level, Sentence, ExHolder, Term, Into,
+			       Expander, File, Commands, OptionL),
 	    FileCommands).
 
 :- public mod_prop/2.
+mod_prop([],   Module) :- !, current_module(Module).
 mod_prop(Prop, Module) :- module_property(Module, Prop).
 
 option_modulechk(Options, ModuleChk) :-
@@ -517,23 +527,32 @@ option_modulechk(Options, ModuleChk) :-
     ; ModuleChk = current_module
     ).
 
-ec_term_level_each(Level, M:SentPattern, Term, Into, Expander, FileChk, ModChk,
-		   File, Commands) :-
-    call(ModChk, M),
-    with_context_vars(( get_term_info(M, SentPattern, Sent, FileChk, File,
-				      [ variable_names(Dict),
-					syntax_errors(error),
-					subterm_positions(TermPos)
-				      ]),
+ec_term_level_each(Level, M:SentPattern, ExHolder, Term, Into,
+		   Expander, File, Commands, OptionL0) :-
+    option_allchk(OptionL0, OptionL1, AllChkL),
+    select_option(mod_prop(Prop),             OptionL1, OptionL2, []),
+    select_option(variable_names(Dict),       OptionL2, OptionL3, Dict),
+    select_option(syntax_errors(SE),          OptionL3, OptionL4, error),
+    select_option(subterm_positions(TermPos), OptionL4, OptionL5, TermPos),
+    select_option(module(M),                  OptionL5, OptionL6, M),
+    OptionL = [variable_names(Dict),
+	       syntax_errors(SE),
+	       subterm_positions(TermPos),
+	       module(M)|OptionL6],
+    mod_prop(Prop, M),
+    with_context_vars(( get_term_info(M, SentPattern, Sent, ExHolder,
+				      AllChkL, File, OptionL),
 			phrase(substitute_term_level(Level, Sent, 1200, Term,
 						     Into, Expander, TermPos),
 			       Commands, [])
 		      ),
 		      [refactor_variable_names,
 		       refactor_sentence,
+		       refactor_expanded,
 		       refactor_goal_args],
 		      [Dict,
 		       Sent-SentPattern,
+		       ExHolder,
 		       ga(Term, Into, Expander)]).
 
 substitute_term_level(goal, _, _, _, _, _, _) -->
