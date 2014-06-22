@@ -34,9 +34,7 @@
 :- use_module(library(ref_expanders), []).
 :- use_module(library(ref_scenarios), []).
 
-term_expansion((:- comm_commands(Alias)), ClauseL) :-
-    absolute_file_name(Alias, File, [file_type(prolog), access(read)]),
-    current_module(M, File),
+term_expansion((:- comm_commands(M)), ClauseL) :-
     findall(Clause,
 	    ( current_predicate(M:F/A),
 	      functor(H, F, A),
@@ -48,5 +46,5 @@ term_expansion((:- comm_commands(Alias)), ClauseL) :-
 	      )
 	    ), ClauseL).
 
-:- comm_commands(library(ref_expanders)).
-:- comm_commands(library(ref_scenarios)).
+:- comm_commands(ref_expanders).
+:- comm_commands(ref_scenarios).
