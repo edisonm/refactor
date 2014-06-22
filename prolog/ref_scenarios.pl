@@ -46,7 +46,7 @@
 	  ]).
 
 :- use_module(library(ref_context)).
-:- use_module(library(ref_rewriters)).
+:- use_module(library(ref_expanders)).
 :- use_module(library(list_sequence)).
 
 :- meta_predicate

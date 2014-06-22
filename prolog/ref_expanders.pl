@@ -1,4 +1,4 @@
-:- module(ref_rewriters,
+:- module(ref_expanders,
 	  [expand_term/5,
 	   expand_head/5,
 	   expand_body/5,

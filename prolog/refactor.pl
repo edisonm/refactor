@@ -31,7 +31,7 @@
 
 :- reexport(library(ref_command)).
 :- use_module(library(ref_pending)).
-:- use_module(library(ref_rewriters), []).
+:- use_module(library(ref_expanders), []).
 :- use_module(library(ref_scenarios), []).
 
 term_expansion((:- comm_commands(Alias)), ClauseL) :-
@@ -48,5 +48,5 @@ term_expansion((:- comm_commands(Alias)), ClauseL) :-
 	      )
 	    ), ClauseL).
 
-:- comm_commands(library(ref_rewriters)).
+:- comm_commands(library(ref_expanders)).
 :- comm_commands(library(ref_scenarios)).
