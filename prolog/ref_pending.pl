@@ -27,26 +27,29 @@
     the GNU General Public License.
 */
 
-:- module(refactor, [op(1,xfy,($@))]).
+:- module(ref_pending,
+	  [apply_command/1,
+	   save_command/1,
+	   save_changes/2,
+	   pending_command/2,
+	   pending_change/3
+	  ]).
 
-:- reexport(library(ref_command)).
-:- use_module(library(ref_pending)).
-:- use_module(library(ref_rewriters), []).
-:- use_module(library(ref_scenarios), []).
+:- dynamic
+    pending_command/2,
+    pending_change/3.
 
-term_expansion((:- comm_commands(Alias)), ClauseL) :-
-    absolute_file_name(Alias, File, [file_type(prolog), access(read)]),
-    current_module(M, File),
-    findall(Clause,
-	    ( current_predicate(M:F/A),
-	      functor(H, F, A),
-	      predicate_property(M:H, exported),
-	      ( Clause = (:- export(F/A))
-	      ; predicate_property(M:H, meta_predicate Meta),
-		Clause = (:- meta_predicate Meta)
-	      ; Clause = (H :- apply_command(M:H), rdiff_q)
-	      )
-	    ), ClauseL).
+:- meta_predicate apply_command(0).
+apply_command(Refactor) :-
+    save_command(Refactor),
+    call(Refactor).
 
-:- comm_commands(library(ref_rewriters)).
-:- comm_commands(library(ref_scenarios)).
+save_command(Refactor) :-
+    (pending_command(Index0, _) -> succ(Index0, Index) ; Index = 1),
+    asserta(pending_command(Index, Refactor)).
+
+save_change(Index, File-Content) :-
+    asserta(pending_change(Index, File, Content)).
+
+save_changes(Index, FileContentL) :-
+    maplist(save_change(Index), FileContentL).
