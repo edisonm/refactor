@@ -131,9 +131,9 @@ replace_goal(Sentence, Term, Expansion, Options) :-
 % NOTE: Only works if exactly one clause match
 unfold_goal(Module, MGoal, Options) :-
     findall(clause(MGoal, Body0), clause(MGoal, Body0), [clause(MGoal, Body0)]),
-    MGoal = M:_,
-    (Module == M -> Body = Body0 ; Body = M:Body),
-    replace_goal(Module:_, MGoal, Body, Options).
+    MGoal = M:Goal,
+    (Module == M -> Body = Body0 ; Body = M:Body0),
+    replace_goal(Module:_, Goal, Body, Options).
 
 :- meta_predicate remove_call(+,+,0,+).
 remove_call(Sentence, Call, Expander, Options) :-
