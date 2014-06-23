@@ -35,10 +35,10 @@
 :- use_module(library(ref_scenarios), []).
 
 term_expansion((:- comm_commands(M)), ClauseL) :-
+    module_property(M, exports(PIL)),
     findall(Clause,
-	    ( current_predicate(M:F/A),
+	    ( member(F/A, PIL),
 	      functor(H, F, A),
-	      predicate_property(M:H, exported),
 	      ( Clause = (:- export(F/A))
 	      ; predicate_property(M:H, meta_predicate Meta),
 		Clause = (:- meta_predicate Meta)
