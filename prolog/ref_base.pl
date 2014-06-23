@@ -203,16 +203,10 @@ collect_ec_term_level(Level, Sentence, Expanded, Term, Into, Expander,
 mod_prop([],   Module) :- !, current_module(Module).
 mod_prop(Prop, Module) :- module_property(Module, Prop).
 
-option_modulechk(Options, ModuleChk) :-
-    ( memberchk(mod_prop(Prop), Options) ->
-      ModuleChk = mod_prop(Prop)
-    ; ModuleChk = current_module
-    ).
-
 ec_term_level_each(Level, M:SentPattern, ExHolder, Term, Into,
 		   Expander, File, Commands, OptionL0) :-
     option_allchk(OptionL0, OptionL1, AllChkL),
-    select_option(mod_prop(Prop),             OptionL1, OptionL2, []),
+    select_option(module_property(Prop),      OptionL1, OptionL2, []),
     select_option(variable_names(Dict),       OptionL2, OptionL3, Dict),
     select_option(syntax_errors(SE),          OptionL3, OptionL4, error),
     select_option(subterm_positions(TermPos), OptionL4, OptionL5, TermPos),
