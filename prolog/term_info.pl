@@ -51,11 +51,11 @@ module_file_1(M, File) :-
     \+ module_property(_, file(File)).
 
 :- meta_predicate get_term_info(+, ?, ?, ?, :, -, +).
-get_term_info(M, Pattern, Term, Expanded, CM:AllChkL, File, Options) :-
+get_term_info(M, Pattern, Term, ExHolder, CM:AllChkL, File, Options) :-
     module_files(M, Files),
     member(File, Files),
     forall(member(FileChk, AllChkL), call(CM:FileChk, File)),
-    get_term_info_file(Expanded, Pattern, Term, File, Options).
+    get_term_info_file(ExHolder, Pattern, Term, File, Options).
 
 fix_exception(error(Error, stream(_,  Line, Row, Pos)), File,
 	      error(Error, file(File, Line, Row, Pos))) :- !.
