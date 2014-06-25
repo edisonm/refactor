@@ -63,7 +63,7 @@ remove_useless_exports(Module, Options) :-
     expand_sentence(Module:(:-export(K)), Exp,
 		    ( once(list_sequence(L, K)),
 		      include(being_used(Module), L, N),
-		      ( N = []                   -> Exp = '$RM'
+		      ( N = []                   -> Exp = []
 		      ; L \= N, list_sequence(N,S), Exp = (:- export(S))
 		      )
 		    ), Options).
