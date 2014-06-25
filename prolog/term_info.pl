@@ -50,11 +50,11 @@ module_file_1(M, File) :-
     '$load_context_module'(File, M, _),
     \+ module_property(_, file(File)).
 
-:- meta_predicate get_term_info(+, ?, ?, ?, :, -, +).
-get_term_info(M, Pattern, Term, ExHolder, CM:AllChkL, File, Options) :-
+:- meta_predicate get_term_info(+, ?, ?, ?, 1, -, +).
+get_term_info(M, Pattern, Term, ExHolder, AllChk, File, Options) :-
     module_files(M, Files),
     member(File, Files),
-    forall(member(FileChk, AllChkL), call(CM:FileChk, File)),
+    call(AllChk, File),
     get_term_info_file(ExHolder, Pattern, Term, File, Options).
 
 fix_exception(error(Error, stream(_,  Line, Row, Pos)), File,

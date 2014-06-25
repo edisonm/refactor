@@ -205,7 +205,7 @@ mod_prop(Prop, Module) :- module_property(Module, Prop).
 
 ec_term_level_each(Level, M:SentPattern, ExHolder, Term, Into,
 		   Expander, File, Commands, OptionL0) :-
-    option_allchk(OptionL0, OptionL1, AllChkL),
+    option_allchk(OptionL0, OptionL1, AllChk),
     select_option(module_property(Prop),      OptionL1, OptionL2, []),
     select_option(variable_names(Dict),       OptionL2, OptionL3, Dict),
     select_option(syntax_errors(SE),          OptionL3, OptionL4, error),
@@ -217,7 +217,7 @@ ec_term_level_each(Level, M:SentPattern, ExHolder, Term, Into,
 	       module(M)|OptionL6],
     mod_prop(Prop, M),
     with_context_vars(( get_term_info(M, SentPattern, Sent, ExHolder,
-				      AllChkL, File, OptionL),
+				      AllChk, File, OptionL),
 			phrase(substitute_term_level(Level, Sent, 1200, Term,
 						     Into, Expander, TermPos),
 			       Commands, [])
