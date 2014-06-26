@@ -632,16 +632,18 @@ rportray_clause(C, Offs, OptL) :-
     ).
 
 :- public rportray/2.
-rportray('$sb'(ArgPos, GTerm, GPriority, Term), Opt) :-
+rportray('$sb'(ArgPos, GTerm, GPriority, Term), OptL) :-
     b_getval(refactor_text, Text),
-    memberchk(priority(Priority), Opt),
-    print_expansion_sb(ArgPos, GTerm, GPriority, Term, Term, Priority, Text),
+    memberchk(priority(Priority), OptL),
+    memberchk(module(M),          OptL),
+    print_expansion_sb(ArgPos, GTerm, GPriority, Term, Term, M, Priority, Text),
     !.
-rportray('$@'(Term, '$sb'(ArgPos, GTerm, GPriority, Pattern)), Opt) :- !,
+rportray('$@'(Term, '$sb'(ArgPos, GTerm, GPriority, Pattern)), OptL) :- !,
     %% Use a different pattern to guide printing of Term
     b_getval(refactor_text, Text),
-    memberchk(priority(Priority), Opt),
-    print_expansion_sb(ArgPos, GTerm, GPriority, Term, Pattern, Priority, Text),
+    memberchk(priority(Priority), OptL),
+    memberchk(module(M),          OptL),
+    print_expansion_sb(ArgPos, GTerm, GPriority, Term, Pattern, M, Priority, Text),
     !.
 rportray('$G'(Term, Goal), Opt) :-
     !,
@@ -888,7 +890,7 @@ print_expansion(Term, '$sb'(RefPos, GTerm, _, Pattern),
 		_GTerm0, _RefPos0, M, Priority, Text) :-
     !,
     print_expansion(Term, Pattern, GTerm, RefPos, M, Priority, Text).
-    % print_expansion_sb(RefPos, GTerm, GPriority, Term, Pattern, Priority, Text).
+    % print_expansion_sb(RefPos, GTerm, GPriority, Term, Pattern, M, Priority, Text).
 print_expansion(Term, Pattern, GTerm, RefPos, M, Priority, Text) :-
     ( print_expansion_pos(RefPos, Term, Pattern, GTerm, M, Priority, Text)
     ->true
