@@ -23,7 +23,7 @@ test(ex1) :-
     [ex1],
     rreset,
     with_output_to(string(Result),
-		   replace_term(ex1:_, (same_term(c,a),d,b),(d,b), [])),
+		   replace_term(_, (((same_term(c,a),d,b))),(((d,b))), [module(ex1)])),
     comment_data(ex1, Pattern),
     assertion(Pattern == Result).
 
@@ -41,7 +41,7 @@ test(ex2) :-
     [ex2],
     rreset,
     with_output_to(string(Result),
-		   expand_sentence(ex2:f(a,f(f(a)),C), g(C,f(f(a)),a),true, [])),
+		   expand_sentence(f(a,f(f(a)),C), g(C,f(f(a)),a),true, [module(ex2)])),
     comment_data(ex2, Pattern),
     assertion(Pattern == Result).
 
@@ -59,8 +59,8 @@ test(ex3) :-
     [ex3],
     rreset,
     with_output_to(string(Result),
-		   expand_sentence(ex3:(A :- display(B)),
-				   (A :- A, B, display(B)), true, [])),
+		   expand_sentence((A :- display(B)),
+				   (A :- A, B, display(B)), true, [module(ex3)])),
     comment_data(ex3, Pattern),
     assertion(Pattern == Result).
 
@@ -78,7 +78,7 @@ test(ex4) :-
     [ex4],
     rreset,
     with_output_to(string(Result),
-		   expand_sentence(ex4:ex4(A, B), ex4_(A, B), (A=f(a)), [])),
+		   expand_sentence(ex4(A, B), ex4_(A, B), (A=f(a)), [module(ex4)])),
     comment_data(ex4, Pattern),
     assertion(Pattern == Result).    
 
@@ -104,7 +104,7 @@ test(ex5) :-
     [ex5],
     rreset,
     with_output_to(string(Result),
-		   expand_sentence(ex5:ex5(T), ex5([c|T]), true, [])),
+		   expand_sentence(ex5(T), ex5([c|T]), true, [module(ex5)])),
     comment_data(ex5, Pattern),
     assertion(Pattern == Result).
 
@@ -127,7 +127,7 @@ test(ex6) :-
     [ex6],
     rreset,
     with_output_to(string(Result),
-		   replace_goal(ex6:_, p(A,B,L,T), p(B,A,L,T), [])),
+		   replace_goal(_, p(A,B,L,T), p(B,A,L,T), [module(ex6)])),
     comment_data(ex6, Pattern),
     assertion(Pattern == Result).
 
@@ -145,8 +145,8 @@ test(ex7_1) :-
     [ex7],
     rreset,
     with_output_to(string(Result),
-		   expand_sentence(ex7:aaa([[X,_]],[d], []),
-				   aab([['$VAR'('_')]], e, [X], [[c,d],[b,c,d]]), true, [])),
+		   expand_sentence(aaa([[X,_]],[d], []),
+				   aab([['$VAR'('_')]], e, [X], [[c,d],[b,c,d]]), true, [module(ex7)])),
     comment_data(ex7_1, Pattern),
     assertion(Pattern == Result).
 
@@ -167,8 +167,8 @@ test(ex7_2) :-
     [ex7],
     rreset,
     with_output_to(string(Result),
-		   expand_sentence(ex7:aaa([[X,_]],[d], []),
-				   aaa([['$VAR'('_')]], [X], [[c,d],[b,c,d]]), true, [])),
+		   expand_sentence(aaa([[X,_]],[d], []),
+				   aaa([['$VAR'('_')]], [X], [[c,d],[b,c,d]]), true, [module(ex7)])),
     comment_data(ex7_2, Pattern),
     assertion(Pattern == Result).
 
@@ -189,8 +189,8 @@ test(ex8) :-
     [ex8],
     rreset,
     with_output_to(string(Result),
-		   expand_sentence(ex8:ex8([[a,b],[c,d]|T]), ex8([[a,b]|T]),
-				   true, [])),
+		   expand_sentence(ex8([[a,b],[c,d]|T]), ex8([[a,b]|T]),
+				   true, [module(ex8)])),
     comment_data(ex8, Pattern),
     assertion(Pattern == Result).
 
@@ -208,7 +208,7 @@ test(ex9) :-
     [ex9],
     rreset,
     with_output_to(string(Result),
-		   expand_term(ex9:ex9(X, _), f(A,B), f(A,B,X), true, [])),
+		   expand_term(ex9(X, _), f(A,B), f(A,B,X), true, [module(ex9)])),
     comment_data(ex9, Pattern),
     assertion(Pattern == Result).
 
@@ -226,7 +226,7 @@ test(ex10_1) :-
     [ex10],
     rreset,
     with_output_to(string(Result),
-		   expand_term(ex10:ex10(_, _), g(A), g(B,A), (A=a(B),B='$VAR'('C')), [])),
+		   expand_term(ex10(_, _), g(A), g(B,A), ((A=a(B),B='$VAR'('C'))), [module(ex10)])),
     comment_data(ex10_1, Pattern),
     assertion(Pattern == Result).
 
@@ -244,7 +244,7 @@ test(ex10_2) :-
     [ex10],
     rreset,
     with_output_to(string(Result),
-		   expand_term(ex10:ex10(X, _), g(A), g(A,X), true, [])),
+		   expand_term(ex10(X, _), g(A), g(A,X), true, [module(ex10)])),
     comment_data(ex10_2, Pattern),
     assertion(Pattern == Result).
 
@@ -264,7 +264,7 @@ test(ex11) :-
     [ex11],
     rreset,
     with_output_to(string(Result),
-		   expand_term(ex11:(ex11([A|_]):-_), ex11(A), ex11_one(A), true, [])),
+		   expand_term((ex11([A|_]):-_), ex11(A), ex11_one(A), true, [module(ex11)])),
     comment_data(ex11, Pattern),
     assertion(Pattern == Result).
 
@@ -291,7 +291,7 @@ test(ex12) :-
     [ex12],
     rreset,
     with_output_to(string(Result),
-		   replace_term(ex12:_, (a, b), b, [])),
+		   replace_term(_, (((a, b))), b, [module(ex12)])),
     comment_data(ex12, Pattern),
     assertion(Pattern == Result).
 
@@ -313,7 +313,7 @@ test(ex13) :-
     [ex13],
     rreset,
     with_output_to(string(Result),
-		   expand_term(ex13:_, T, T, (nonvar(T), T=q(_B,A),A=a), [])),
+		   expand_term(_, T, T, ((nonvar(T), T=q(_B,A),A=a)), [module(ex13)])),
     comment_data(ex13, Pattern),
     assertion(Pattern == Result).
 
@@ -358,7 +358,7 @@ test(ex14_1) :-
     [ex14],
     rreset,
     with_output_to(string(Result),
-		   expand_sentence(ex14:(Head :- A=B, Body), (Head :- Body), (A=B),[])),
+		   expand_sentence((Head :- A=B, Body), (Head :- Body), (A=B),[module(ex14)])),
     comment_data(ex14_1, Pattern),
     assertion(Pattern == Result).
 
@@ -400,7 +400,7 @@ test(ex14_2) :-
     [ex14],
     rreset,
     with_output_to(string(Result),
-		   expand_sentence(ex14:(Head :- A=B, Body), (Head :- Body), (A=g(B)),[])),
+		   expand_sentence((Head :- A=B, Body), (Head :- Body), (A=g(B)),[module(ex14)])),
     comment_data(ex14_2, Pattern),
     assertion(Pattern == Result).
 
@@ -423,7 +423,7 @@ test(ex15) :-
     [ex15],
     rreset,
     with_output_to(string(Result),
-		   expand_sentence(ex15:ex15(L,A), ex15(L), (A=a), [])),
+		   expand_sentence(ex15(L,A), ex15(L), (A=a), [module(ex15)])),
     comment_data(ex15, Pattern),
     assertion(Pattern == Result).
 
@@ -433,7 +433,7 @@ test(ex16) :-
     [ex16],
     rreset,
     with_output_to(string(Result),
-		   expand_sentence(ex16:H, H, true, [])),
+		   expand_sentence(H, H, true, [module(ex16)])),
     comment_data(ex16, Pattern),
     assertion(Pattern == Result).
 
@@ -455,7 +455,7 @@ test(ex17) :-
     [ex17],
     rreset,
     with_output_to(string(Result),
-		   replace_sentence(ex17:(H:-(A,_B)), (H:-A), [])),
+		   replace_sentence((H:-(A,_B)), (H:-A), [module(ex17)])),
     comment_data(ex17, Pattern),
     assertion(Pattern == Result).
 
@@ -476,7 +476,7 @@ test(ex18) :-
     [ex18],
     rreset,
     with_output_to(string(Result),
-		   expand_sentence(ex18:(H:-A=B,p(C)), (H:-p(C)), A=B, [])),
+		   expand_sentence((H:-A=B,p(C)), (H:-p(C)), A=B, [module(ex18)])),
     comment_data(ex18, Pattern),
     assertion(Pattern == Result).
 
@@ -497,7 +497,7 @@ test(ex19_1) :-
     [ex19],
     rreset,
     with_output_to(string(Result),
-		   expand_sentence(ex19:ex19(C,D), ex19(C,D), C=D, [])),
+		   expand_sentence(ex19(C,D), ex19(C,D), C=D, [module(ex19)])),
     comment_data(ex19_1, Pattern),
     assertion(Pattern == Result).
 
@@ -522,7 +522,7 @@ test(ex19_2) :-
     [ex19],
     rreset,
     with_output_to(string(Result),
-		   expand_sentence(ex19:ex19(A,B,C), ex19(A, B), B=C, [])),
+		   expand_sentence(ex19(A,B,C), ex19(A, B), B=C, [module(ex19)])),
     comment_data(ex19_2, Pattern),
     assertion(Pattern == Result).
 
@@ -551,7 +551,7 @@ test(conjex) :-
     [conjex],
     rreset,
     with_output_to(string(Result),
-		   replace_conjunction(conjex:_, (a(A),b(B)), c(A-B), [])),
+		   replace_conjunction(_, ((a(A),b(B))), c(A-B), [module(conjex)])),
     comment_data(conjex, Pattern),
     assertion(Pattern == Result).
 
@@ -618,11 +618,11 @@ test(conjex) :-
 test(two_changes) :-
     [conjex],
     rreset,
-    with_output_to(string(Result1), replace_term(conjex:_,a(B),aa(B),[])),
+    with_output_to(string(Result1), replace_term(_,a(B),aa(B),[module(conjex)])),
     comment_data(two_changes_1, Pattern1),
     assertion(Pattern1 == Result1),
     with_output_to(string(Result2),
-		   replace_term(conjex:_,aa(a),aa(b), [append])),
+		   replace_term(_,aa(a),aa(b), [module(conjex)])),
     comment_data(two_changes_2, Pattern2),
     assertion(Pattern2 == Result2),
     with_output_to(string(Result12), rshow),
@@ -643,8 +643,8 @@ test(ex21) :-
     [ex21],
     rreset,
     with_output_to(string(Result),
-		   expand_sentence(ex21:ex21(X),ex21(Y),
-				   (X=f(_A,B,C),Y=g(a,B,C)),[])),
+		   expand_sentence(ex21(X),ex21(Y),
+				   ((X=f(_A,B,C),Y=g(a,B,C))),[module(ex21)])),
     comment_data(ex21, Pattern),
     assertion(Pattern == Result).
 
@@ -662,7 +662,7 @@ test(ex22) :-
     [ex22],
     rreset,
     with_output_to(string(Result),
-		   replace_sentence(ex22:(:- dynamic _), [], [])),
+		   replace_sentence((:- dynamic _), [], [module(ex22)])),
     comment_data(ex22, Pattern),
     assertion(Pattern == Result).
 
@@ -681,7 +681,7 @@ test(ex23) :-
     [ex23],
     rreset,
     with_output_to(string(Result),
-		   replace_term(ex23:_, A+B, A+(1*B), [])),
+		   replace_term(_, A+B, A+(1*B), [module(ex23)])),
     comment_data(ex23, Pattern),
     assertion(Pattern == Result).
 
@@ -700,7 +700,7 @@ test(ex24) :-
     [ex24],
     rreset,
     with_output_to(string(Result),
-		   replace_term(ex24:_, A/B+P, A/B+(help,P), [])),
+		   replace_term(_, A/B+P, A/B+(help,P), [module(ex24)])),
     comment_data(ex24, Pattern),
     assertion(Pattern == Result).
 
