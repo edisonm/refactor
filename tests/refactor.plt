@@ -291,7 +291,7 @@ test(ex12) :-
     [ex12],
     rreset,
     with_output_to(string(Result),
-		   replace_term(_, (((a, b))), b, [module(ex12)])),
+		   replace_term(_, (a, b), b, [module(ex12)])),
     comment_data(ex12, Pattern),
     assertion(Pattern == Result).
 
@@ -313,7 +313,7 @@ test(ex13) :-
     [ex13],
     rreset,
     with_output_to(string(Result),
-		   expand_term(_, T, T, ((nonvar(T), T=q(_B,A),A=a)), [module(ex13)])),
+		   expand_term(_, T, T, (nonvar(T), T=q(_B,A),A=a), [module(ex13)])),
     comment_data(ex13, Pattern),
     assertion(Pattern == Result).
 

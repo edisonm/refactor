@@ -81,10 +81,9 @@ being_used(M, F/A) :-
 %
 rename_variable(Sent, Name0, Name, Options) :-
     expand_sentence(Sent, Sent,
-		    ( refactor_context(variable_names, Dict),
-		      \+ memberchk(Name =_, Dict),
+		    ( \+ memberchk(Name =_, Dict),
 		      memberchk(Name0='$VAR'(Name), Dict)
-		    ), Options).
+		    ), [variable_names(Dict)|Options]).
 
 rename_functor(Sentence, Functor/Arity, NewName, Options) :-
     functor(Term, Functor, Arity),
