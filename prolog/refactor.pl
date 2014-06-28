@@ -29,7 +29,7 @@
 
 :- module(refactor, [op(1,xfy,($@))]).
 
-:- reexport(library(ref_command)).
+:- reexport(library(ref_shell)).
 :- use_module(library(ref_pending)).
 :- use_module(library(ref_expanders), []).
 :- use_module(library(ref_scenarios), []).

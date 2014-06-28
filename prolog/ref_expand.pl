@@ -37,7 +37,7 @@
 :- use_module(library(maplist_dcg)).
 :- use_module(library(mapargs)).
 :- use_module(library(location_utils)).
-:- use_module(library(ref_pending)).
+:- use_module(library(ref_changes)).
 :- use_module(library(ref_context)).
 
 :- thread_local file_commands_db/2, command_db/1.
@@ -52,8 +52,7 @@ prolog:xref_open_source(File, Fd) :-
 :- meta_predicate expand(+,?,?,?,0,-).
 expand(Level, Sentence, Term, Into, Expander, Options) :-
     meta_expansion(Level, Sentence, Term, Into, Expander, Options, FileContent),
-    once(pending_command(Index, _)), % Kludge, fix asap.
-    save_changes(Index, FileContent).
+    save_changes(FileContent).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

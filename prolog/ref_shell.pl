@@ -27,7 +27,7 @@
     the GNU General Public License.
 */
 
-:- module(ref_command,
+:- module(ref_shell,
 	  [rcommit/0,
 	   rshow/0,
 	   rlist/0,
@@ -126,9 +126,9 @@ rrewind :-
 
 rrewind(Index) :-
     findall(Command, ( pending_command(Index0, Command),
-			Index0 > Index,
-			rdrop(Index0, _)
-		      ),
+		       Index0 > Index,
+		       rdrop(Index0, _)
+		     ),
 	    CommandR),
     reverse(CommandR, CommandL),
     maplist(apply_command, CommandL).

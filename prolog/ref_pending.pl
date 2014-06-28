@@ -30,26 +30,17 @@
 :- module(ref_pending,
 	  [apply_command/1,
 	   save_command/1,
-	   save_changes/2,
 	   pending_command/2,
-	   pending_change/3
 	  ]).
 
 :- dynamic
-    pending_command/2,
-    pending_change/3.
+    pending_command/2.
 
 :- meta_predicate apply_command(0).
-apply_command(Refactor) :-
-    save_command(Refactor),
-    call(Refactor).
+apply_command(Command) :-
+    call(Command),
+    save_command(Command).
 
-save_command(Refactor) :-
+save_command(Command) :-
     (pending_command(Index0, _) -> succ(Index0, Index) ; Index = 1),
-    asserta(pending_command(Index, Refactor)).
-
-save_change(Index, File-Content) :-
-    asserta(pending_change(Index, File, Content)).
-
-save_changes(Index, FileContentL) :-
-    maplist(save_change(Index), FileContentL).
+    asserta(pending_command(Index, Command)).
