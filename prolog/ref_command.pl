@@ -27,10 +27,12 @@
     the GNU General Public License.
 */
 
-:- module(ref_pending,
+:- module(ref_command,
 	  [apply_command/1,
-	   save_command/1,
 	   pending_command/2,
+	   save_command/1,
+	   undo_command/2,
+	   reset_commands/0
 	  ]).
 
 :- dynamic
@@ -44,3 +46,9 @@ apply_command(Command) :-
 save_command(Command) :-
     (pending_command(Index0, _) -> succ(Index0, Index) ; Index = 1),
     asserta(pending_command(Index, Command)).
+
+undo_command(Index, Command) :-
+    retract(pending_command(Index, Command)).
+
+reset_commands :-
+    retractall(pending_command(_, _)).

@@ -28,42 +28,24 @@
 */
 
 :- module(ref_shell,
-	  [rcommit/0,
+	  [ref_commit/0,
 	   rshow/0,
-	   rlist/0,
-	   rlist/1,
 	   rdiff/0,
-	   rdiff_q/0,
 	   rdiff/1,
 	   rdiff/2,
-	   rsave/1,
-	   rundo/0,
-	   rdelete/1,
-	   rrewind/0,
-	   rrewind/1,
-	   rreset/0
+	   rsave/1
 	  ]).
 
 :- use_module(library(file_changes)).
-:- use_module(library(ref_pending)).
+:- use_module(library(ref_changes)).
 
-rcommit :-
-    once(pending_command(Index, _)),
+ref_commit :-
+    once(pending_change(Index)),
     rdiff(save, 0, Index),
-    rreset.
-
-rlist :-
-    \+ ( rlist(_),
-	 fail
-       ).
-
-rlist(Index) :-
-    pending_command(Index, Command),
-    with_output_to(string(SCommand), portray_clause(Command)),
-    print_message(information, format('Index ~w, Command: ~s', [Index, SCommand])).
+    reset_changes.
 
 rshow :-
-    once(pending_command(Index, _)),
+    once(pending_change(Index)),
     rdiff(show, 0, Index).
 
 rsave(Diff):-
@@ -74,15 +56,8 @@ rsave(Diff):-
 rdiff :-
     once(rdiff(_)).
 
-rdiff_q :-
-    ( current_prolog_flag(verbose, silent)
-    ->true
-    ; once(rdiff(Index)),
-      print_message(informational, format('Saved changes in index ~w', [Index]))
-    ).
-
 rdiff(Index) :-
-    pending_command(Index, _),
+    pending_change(Index),
     succ(Index0, Index),
     rdiff(show, Index0, Index).
 
@@ -105,34 +80,3 @@ rdiff(Action, Index0, Index) :-
 	     ; do_file_change(Action, File, File, Content)
 	     )
 	   )).
-
-rundo :-
-    rundo(_).
-
-rdelete(Index) :-
-    rundo(Index),
-    rrewind(Index).
-
-rundo(Index) :-
-    rdrop(Index, Command),
-    print_message(information, format('Undone ~w ---> ~w', [Index, Command])).
-
-rdrop(Index, Command) :-
-    retract(pending_command(Index, Command)),
-    retractall(pending_change(Index, _, _)).
-
-rrewind :-
-    rrewind(0).
-
-rrewind(Index) :-
-    findall(Command, ( pending_command(Index0, Command),
-		       Index0 > Index,
-		       rdrop(Index0, _)
-		     ),
-	    CommandR),
-    reverse(CommandR, CommandL),
-    maplist(apply_command, CommandL).
-
-rreset :-
-    retractall(pending_command(_, _)),
-    retractall(pending_change(_, _, _)).

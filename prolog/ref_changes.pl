@@ -27,24 +27,30 @@
     the GNU General Public License.
 */
 
-:- module(refactor, [op(1,xfy,($@))]).
+:- module(ref_changes,
+	  [pending_change/1,
+	   pending_change/3,
+	   save_changes/1,
+	   undo_changes/1,
+	   reset_changes/0
+	  ]).
 
-:- reexport(library(ref_shell)).
-:- reexport(library(ref_replay)).
-:- use_module(library(ref_expanders), []).
-:- use_module(library(ref_scenarios), []).
+:- dynamic
+    pending_change/1,
+    pending_change/3.
 
-term_expansion((:- comm_commands(M)), ClauseL) :-
-    module_property(M, exports(PIL)),
-    findall(Clause,
-	    ( member(F/A, PIL),
-	      functor(H, F, A),
-	      ( Clause = (:- export(F/A))
-	      ; predicate_property(M:H, meta_predicate Meta),
-		Clause = (:- meta_predicate Meta)
-	      ; Clause = (H :- apply_command_q(M:H))
-	      )
-	    ), ClauseL).
+save_change(Index, File-Content) :-
+    asserta(pending_change(Index, File, Content)).
 
-:- comm_commands(ref_expanders).
-:- comm_commands(ref_scenarios).
+save_changes(FileContentL) :-
+    (pending_change(Index0) -> succ(Index0, Index) ; Index = 1),
+    asserta(pending_change(Index)),
+    maplist(save_change(Index), FileContentL).
+
+undo_changes(Index) :-
+    retract(pending_change(Index)),
+    retractall(pending_change(Index, _, _)).
+
+reset_changes :-    
+    retractall(pending_change(_)),
+    retractall(pending_change(_, _, _)).
