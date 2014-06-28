@@ -88,17 +88,33 @@ meta_expansion(Level, Sentence, Term, Into, Expander, Options, FileContent) :-
 		[-atom, -singleton]), % At this point we are not interested in styles
     apply_file_commands(FileCommands, FileContent).
 
-/*
-collect_expansion_commands(goal, Caller, Term, Into, Expander, Options,
-			   FileCommands) :-
-    refactor_option_filechk(Options, FileChk),
-    prolog_walk_code(
-	[ trace_reference(Term),
-	  infer_meta_predicates(false),
-	  evaluate(false),
-	  on_trace(collect_file_commands(Caller, Term, Into, Expander, FileChk))
-	]),
-    findall(F-C, retract(file_commands_db(F, C)), FileCommands).
+:- public r_goal_expansion/2.
+
+r_goal_expansion(Goal, TermPos) :-
+    once(do_r_goal_expansion(Goal, TermPos)),
+    fail.
+
+do_r_goal_expansion(Term, TermPos) :-
+    refactor_context(sentence, Sent),
+    refactor_context(sent_pattern, SentPattern),
+    subsumes_term(SentPattern, Sent),
+    refactor_context(goal_args, ga(Pattern, Into, Expander)),
+    phrase(substitute_term_norec(sub, Term, 999, Pattern, Into, Expander, TermPos),
+	   Commands, []),
+    forall(member(Command, Commands), assertz(command_db(Command))).
+
+:- meta_predicate level_hook(+,+,-,-,0 ).
+level_hook(goal, Options0, Options, Expanded, Call) :- !,
+    %% In goal, expanded=yes:
+    select_option(expanded(Expanded), Options0, Options, yes),
+    setup_call_cleanup(asserta((system:goal_expansion(G, T, _, _) :-
+			       r_goal_expansion(G, T)), Ref),
+		       Call,
+		       erase(Ref)).
+level_hook(_, Options0, Options, Expanded, Call) :-
+    select_option(expanded(Expanded), Options0, Options, no),
+    call(Call).
+
 
 :- public collect_file_commands/8.
 :- meta_predicate collect_file_commands(?,0,?,?,?,?,?,?).
@@ -114,32 +130,29 @@ collect_expansion_commands(goal, Caller, Term, Into, Expander, Options,
 collect_file_commands(CallerPattern, Pattern, Into, Expander, FileChk,
 		      Callee, Caller, From) :-
     subsumes_term(CallerPattern-Pattern, Caller-Callee),
-    ( From = clause_term_position(ClauseRef, TermPos0)
+    ( From = clause_term_position(ClauseRef, TermPos)
     ->clause_property(ClauseRef, file(File))
-    ; From = file_term_position(File, TermPos0)
+    ; From = file_term_position(File, TermPos)
     ->true
     ; print_message(error, acheck(refactor(Callee, From))),
       fail
     ),
     call(FileChk, File),
-    Callee = M:Term0,
-    trim_term(Term0, Term, TermPos0, TermPos),
+    Callee = M:Term,
+    % trim_term(Term0, Term, TermPos0, TermPos),
     Pattern = M:Pattern2,
-    with_sentence(with_dict(substitute_term_norec(sub, Term, 999, Pattern2, Into,
-						  Expander, TermPos, Commands,
-						  []),
-			    []),
-		  Caller-CallerPattern),
-    assertz(file_commands_db(File, Commands)).
+    with_context_vars(phrase(substitute_term_norec(sub, Term, 999, Pattern2, Into,
+						   Expander, TermPos),
+			     Commands, []),
+		      [refactor_sent_pattern,
+		       refactor_sentence,
+		       refactor_goal_args],
+		     [CallerPattern,
+		      Caller,
+		      ga(Term, Into, Expander)]),
+    assertz(file_commands_db(File, M:Commands)).
 
-:- meta_predicate with_dict(0, +).
-with_dict(Goal, Dict) :-
-    with_context_vars(Goal, [refactor_variable_names], [Dict]).
-
-:- meta_predicate with_sentence(0, ?).
-with_sentence(Goal, Sent) :-
-    with_context_vars(Goal, [refactor_sentence], [Sent]).
-
+/*
 trim_term(Term, TTerm,
 	  term_position(From, To, FFrom, FTo, SubPos),
 	  term_position(From, To, FFrom, FTo, TSubPos)) :-
@@ -152,36 +165,22 @@ trim_term_list([0-0|SubPosL], [_|Args], TSubPosL, TArgsL) :- !,
     trim_term_list(SubPosL, Args, TSubPosL, TArgsL).
 trim_term_list([SubPos|SubPosL], [Arg|Args], [SubPos|TSubPosL], [Arg|TArgsL]) :-
     trim_term_list(SubPosL, Args, TSubPosL, TArgsL).
-
 */
 
-:- public r_goal_expansion/2.
-
-r_goal_expansion(Goal, TermPos) :-
-    once(do_r_goal_expansion(Goal, TermPos)),
-    fail.
-
-do_r_goal_expansion(Term, TermPos) :-
-    refactor_context(sentence, Sent),
-    refactor_context(sent_pattern, SentPattern),
-    subsumes_term(SentPattern, Sent),
-    refactor_context(goal_args, ga(Pattern, Into, Expander)),
-    substitute_term_norec(sub, Term, 999, Pattern, Into, Expander, TermPos,
-			  Commands, []),
-    forall(member(Command, Commands), assertz(command_db(Command))).
-
-:- meta_predicate level_hook(+,+,-,-,0 ).
-level_hook(goal, Options0, Options, Expanded, Call) :- !,
-    %% In goal, expanded=yes:
-    select_option(expanded(Expanded), Options0, Options, yes),
-    setup_call_cleanup(asserta((system:goal_expansion(G, T, _, _) :-
-			       r_goal_expansion(G, T)), Ref),
-		       Call,
-		       erase(Ref)).
-level_hook(_, Options0, Options, Expanded, Call) :-
-    select_option(expanded(Expanded), Options0, Options, no),
-    call(Call).
-
+collect_expansion_commands(goal_cw, Caller, Term, Into, Expander, OptionL0,
+			   FileCommands) :-
+    !,
+    option_allchk(OptionL0, OptionL1, AllChk),
+    select_option(module(M), OptionL1, OptionL2, M),
+    prolog_walk_code(
+	[ trace_reference(M:Term),
+	  infer_meta_predicates(false),
+	  evaluate(false),
+	  on_trace(collect_file_commands(Caller, Term, Into, Expander, AllChk)),
+	  module(M)
+	| OptionL2
+	]),
+    findall(File-Commands, retract(file_commands_db(File, Commands)), FileCommands).
 collect_expansion_commands(Level, Sentence, Term, Into, Expander, Options0,
 			   FileCommands) :-
     level_hook(Level, Options0, Options, Expanded,
@@ -292,10 +291,13 @@ apply_file_commands(Pairs, FileContent) :-
 	    Compacted),
     maplist(apply_commands, Compacted, FileContent).
 
-:- use_module(library(lambda)).
+cg1(M:L, ML) :-
+    maplist(cg2(M), L, ML).
+
+cg2(M, E, M:E).
 
 compact_group(Key-MLList, Key-List) :-
-    maplist(\ (M:L)^ML^maplist([M,L]+\E^(M:E)^true, L, ML), MLList, LList),
+    maplist(cg1, MLList, LList),
     append(LList, UList),
     UList \== [],
     sort(UList, List).
@@ -932,20 +934,22 @@ print_expansion_elem(M, Priority, Text, From-To, RefPos, Term, Pattern-GTerm) :-
 % valid_op_type_arity(fy,  1).
 % valid_op_type_arity(fx,  1).
 
-from_to_pairs([], To, To) --> [].
-from_to_pairs([Pos|PosL], To0, To) -->
-    { arg(1, Pos, To0),
-      arg(2, Pos, From)
+from_to_pairs([], _, To, To) --> [].
+from_to_pairs([Pos|PosL], From0, To0, To) -->
+    { arg(1, Pos, To1),
+      (To1 = 0 -> To0 = From0 ; To0 = To1),
+      arg(2, Pos, From1),
+      (From1 = 0 -> From = To0 ; From = From1)
     },
-    [From-To1],
-    from_to_pairs(PosL, To1, To).
+    [From-To2],
+    from_to_pairs(PosL, From, To2, To).
 
 print_expansion_pos(term_position(From, To, _FFrom, FFTo, PosL), Term, Pattern,
 		    GTerm, M, _Priority, Text) :-
     compound(Term),
     functor(Term,    FT, A),
     functor(Pattern, FP, A),
-    from_to_pairs(PosL, To1, To, FromToL, []),
+    from_to_pairs(PosL, FFTo, To1, To, FromToL, []),
     FromToT =.. [FT|FromToL],
     PosT    =.. [FP|PosL],
     !,
@@ -973,7 +977,7 @@ print_expansion_pos(term_position(From, To, _FFrom, FFTo, PosL), Term, Pattern,
     mapargs(print_expansion_arg(Term, M, Text), FromToT, PosT, Term, Pattern, GTerm).
 print_expansion_pos(list_position(From, To, PosL, PosT), Term, Pattern, GTerm, M,
 		    Priority, Text) :-
-    from_to_pairs(PosL, To1, To2, FromToL, []),
+    from_to_pairs(PosL, From, To1, To2, FromToL, []),
     length(PosL, N),
     ( trim_list(N, Term, ArgL, ATail)
     ->Delta = 0
