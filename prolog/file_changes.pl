@@ -69,4 +69,3 @@ dump_output(end_of_file, _) :- !.
 dump_output(Codes, Out) :-
     format('~s~n', [Codes]),
     dump_output(Out).
-    
