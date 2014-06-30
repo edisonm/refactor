@@ -770,8 +770,33 @@ print_expansion_rm_dot(TermPos, Text, From, To) :-
     sub_string(Right, Next, _, _, "."),
     To is Before + Next + 2.
 
+/*
 % Hacks that can only work at 1st level:
-% BUG: assuming no spaces between Term, full stop and new line:
+% BUG: assuming no spaces between Term, full stop and new line.
+% The following predicate would give a hint about how to implement
+% the correct dot position:
+
+:- use_module(library(prolog_source)).
+clause_line_interval(Clause, LineI) :-
+    clause_property(Clause, line_count(Line1)),
+    ( clause_property(Clause, file(File)),
+      module_property(Module, file(File)),
+      catch(open(File, read, In), _, fail),
+      set_stream(In, newline(detect)),
+      call_cleanup(( read_source_term_at_location(In, _Term,
+						  [ line(Line1),
+						    module(Module)
+						  ]),
+		     stream_property(In, position(Pos))
+		   ),
+		   close(In)),
+      stream_position_data(line_count, Pos, Line20 ),
+      succ(Line2, Line20 ),	% one line back
+      Line1 \= Line2
+    ->LineI = Line1-Line2
+    ; LineI = Line1
+    ).
+*/
 print_expansion_1('$RM', _, _, TermPos, _, _, Text, From, To) :- !,
     print_expansion_rm_dot(TermPos, Text, From, To).
 print_expansion_1('$TEXT'(Term), _, _, TermPos, M, _, _, From, To) :- !,
