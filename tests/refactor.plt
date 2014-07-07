@@ -704,6 +704,37 @@ test(ex24) :-
     comment_data(ex24, Pattern),
     assertion(Pattern == Result).
 
+/* $ex26$
+--- ex26.pl (source)
++++ ex26.pl (target)
+@@ -1,3 +1,3 @@
+ :- module(ex26, [ex26/1]).
+ 
+-ex26('$sb'(_, _, _, '$sb'(_, _, _, _))).
++ex26_('$sb'(_, _, _, '$sb'(_, _, _, _))).
+*/
+
+test(ex26) :-
+    [ex26],
+    rreset,
+    with_output_to(string(Result),
+		   replace_term(_, ex26(A),ex26_(A), [module(ex26)])),
+    comment_data(ex26, Pattern),
+    assertion(Pattern == Result).
+
+test(self_refactor_1) :-
+    rreset,
+    with_output_to(string(Result),
+		   replace_term(_, print_expansion(A, B, C, D, E, F),
+				print_expansion_(A, B, C, D, E, F), [module(ref_expand)])),
+    assertion(Result \== "").
+
+test(self_refactor_2) :-
+    rreset,
+    with_output_to(string(Result),
+		   replace_term(_, rportray(A, B), rportray_(A, B), [module(ref_expand)])),
+    assertion(Result \== "").
+
 :- comment_data:disable.
 
 :- end_tests(refactor).
