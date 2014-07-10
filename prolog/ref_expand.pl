@@ -27,7 +27,7 @@
     the GNU General Public License.
 */
 
-:- module(ref_expand, [expand/6]).
+:- module(ref_expand, [expand/5]).
 
 :- use_module(library(readutil)).
 :- use_module(library(file_changes)).
@@ -50,9 +50,9 @@ prolog:xref_open_source(File, Fd) :-
     once(pending_change(_, File, Source)),
     open_codes_stream(Source, Fd).
 
-:- meta_predicate expand(+,?,?,?,0,-).
-expand(Level, Sentence, Term, Into, Expander, Options) :-
-    meta_expansion(Level, Sentence, Term, Into, Expander, Options, FileContent),
+:- meta_predicate expand(+,?,?,0,-).
+expand(Level, Term, Into, Expander, Options) :-
+    meta_expansion(Level, Term, Into, Expander, Options, FileContent),
     save_changes(FileContent).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -75,17 +75,16 @@ with_styles(Goal, StyleL) :-
 %% RULES (1st argument of refactor/2):
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-:- meta_predicate meta_expansion(+,?,?,-,0,+,-).
+:- meta_predicate meta_expansion(+,?,-,0,+,-).
 
-%%	meta_expansion(+Level, +Sentence, +Term, +Into,
-%%		       :Expander, -FileChanges) is det
+%%	meta_expansion(+Level, +Term, +Into, :Expander, -FileChanges) is det
 %
 %	Expand  terms  that  subsume  Term  in  sentences  that  subsume
 %	Sentence into Into if Expander is true.
 
-meta_expansion(Level, Sentence, Term, Into, Expander, Options, FileContent) :-
-    with_styles(collect_expansion_commands(Level, Sentence, Term, Into,
-					   Expander, Options, FileCommands),
+meta_expansion(Level, Term, Into, Expander, Options, FileContent) :-
+    with_styles(collect_expansion_commands(Level, Term, Into, Expander,
+					   Options, FileCommands),
 		[-atom, -singleton]), % At this point we are not interested in styles
     apply_file_commands(FileCommands, FileContent).
 
@@ -153,26 +152,16 @@ collect_file_commands(CallerPattern, Pattern, Into, Expander, FileChk,
 		      ga(Term, Into, Expander)]),
     assertz(file_commands_db(File, M:Commands)).
 
-/*
-trim_term(Term, TTerm,
-	  term_position(From, To, FFrom, FTo, SubPos),
-	  term_position(From, To, FFrom, FTo, TSubPos)) :-
-    Term =.. [F|Args],
-    trim_term_list(SubPos, Args, TSubPos, TArgs),
-    TTerm =.. [F|TArgs].
+select_option(Holder-Default, OptionL0, OptionL) :-
+    select_option(Holder, OptionL0, OptionL, Default).
 
-trim_term_list([], ArgsL, [], ArgsL).
-trim_term_list([0-0|SubPosL], [_|Args], TSubPosL, TArgsL) :- !,
-    trim_term_list(SubPosL, Args, TSubPosL, TArgsL).
-trim_term_list([SubPos|SubPosL], [Arg|Args], [SubPos|TSubPosL], [Arg|TArgsL]) :-
-    trim_term_list(SubPosL, Args, TSubPosL, TArgsL).
-*/
-
-collect_expansion_commands(goal_cw, Caller, Term, Into, Expander, OptionL0,
+collect_expansion_commands(goal_cw, Term, Into, Expander, OptionL0,
 			   FileCommands) :-
     !,
     option_allchk(OptionL0, OptionL1, AllChk),
-    select_option(module(M), OptionL1, OptionL2, M),
+    maplist_dcg(select_option, [module(M)     -M,
+				caller(Caller)-Caller],
+		OptionL1, OptionL2),
     (nonvar(M)-> OptionL3 = [module(M)|OptionL2] ; OptionL3 = OptionL2),
     prolog_walk_code(
 	[ trace_reference(M:Term),
@@ -182,20 +171,19 @@ collect_expansion_commands(goal_cw, Caller, Term, Into, Expander, OptionL0,
 	| OptionL3
 	]),
     findall(File-Commands, retract(file_commands_db(File, Commands)), FileCommands).
-collect_expansion_commands(Level, Sentence, Term, Into, Expander, Options0,
-			   FileCommands) :-
+collect_expansion_commands(Level, Term, Into, Expander, Options0, FileCommands) :-
     level_hook(Level, Options0, Options, Expanded,
-	       collect_ec_term_level(Level, Sentence, Expanded, Term, Into,
-				     Expander, Options, FileCommands)).
+	       collect_ec_term_level(Level, Expanded, Term, Into, Expander,
+				     Options, FileCommands)).
 
 expand_holder(yes, ex(_)).
 expand_holder(no,  no).
 
-collect_ec_term_level(Level, Sentence, Expanded, Term, Into, Expander,
+collect_ec_term_level(Level, Expanded, Term, Into, Expander,
 		      OptionL, FileCommands) :-
     expand_holder(Expanded, ExHolder),
     findall(File-Commands,
-	    ec_term_level_each(Level, Sentence, ExHolder, Term, Into,
+	    ec_term_level_each(Level, ExHolder, Term, Into,
 			       Expander, File, Commands, OptionL),
 	    FileCommands).
 
@@ -203,16 +191,19 @@ collect_ec_term_level(Level, Sentence, Expanded, Term, Into, Expander,
 mod_prop([],   Module) :- !, current_module(Module).
 mod_prop(Prop, Module) :- module_property(Module, Prop).
 
-ec_term_level_each(Level, SentPattern, ExHolder, Term, Into,
+ec_term_level_each(Level, ExHolder, Term, Into,
 		   Expander, File, M:Commands, OptionL0) :-
     option_allchk(OptionL0, OptionL1, AllChk),
-    select_option(module_property(Prop),      OptionL1, OptionL2, []),
-    select_option(syntax_errors(SE),          OptionL2, OptionL3, error),
-    select_option(subterm_positions(TermPos), OptionL3, OptionL4, TermPos),
-    select_option(module(M),                  OptionL4, OptionL5, M),
+    maplist_dcg(select_option, [module_property(Prop)-[],
+				syntax_errors(SE)-error,
+				subterm_positions(TermPos)-TermPos,
+				module(M)-M,
+				sentence(SentPattern)-SentPattern
+			       ],
+		OptionL1, OptionL2),
     OptionL = [syntax_errors(SE),
 	       subterm_positions(TermPos),
-	       module(M)|OptionL5],
+	       module(M)|OptionL2],
     mod_prop(Prop, M),
     with_context_vars(( get_term_info(M, SentPattern, Sent, ExHolder,
 				      AllChk, File, OptionL),

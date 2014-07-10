@@ -28,21 +28,21 @@
 */
 
 :- module(ref_scenarios,
-	  [replace_term/4,
-	   replace_head/4,
-	   replace_body/4,
-	   replace_goal/4,
+	  [replace_term/3,
+	   replace_head/3,
+	   replace_body/3,
+	   replace_goal/3,
 	   replace_sentence/3,
-	   rename_variable/4,
-	   replace_term_id/4,
+	   rename_variable/3,
+	   replace_term_id/3,
 	   unfold_goal/2,
 	   rename_predicate/3,
-	   rename_functor/4,
+	   rename_functor/3,
 	   remove_useless_exports/1,
+	   replace_conjunction/3,
 	   replace_conjunction/4,
-	   replace_conjunction/5,
-	   remove_call/3,
-	   remove_call/4
+	   remove_call/2,
+	   remove_call/3
 	  ]).
 
 :- use_module(library(ref_context)).
@@ -77,25 +77,25 @@ being_used(M, F/A) :-
 % t_action(save).
 % t_action(show).
 
-%% rename_variable(?Sentence, +Name0:atom, +Name:atom, +Action:t_action) is det.
+%% rename_variable(?Sent, +Name0:atom, +Name:atom, +Action:t_action) is det.
 %
-rename_variable(Sent, Name0, Name, Options) :-
+rename_variable(Name0, Name, Options) :-
     expand_sentence(Sent, Sent,
 		    ( \+ memberchk(Name =_, Dict),
 		      memberchk(Name0='$VAR'(Name), Dict)
 		    ), [variable_names(Dict)|Options]).
 
-rename_functor(Sentence, Functor/Arity, NewName, Options) :-
+rename_functor(Functor/Arity, NewName, Options) :-
     functor(Term, Functor, Arity),
     Term =.. [_|Args],
     Expansion =.. [NewName|Args],
-    replace_term_id(Sentence, Term, Expansion, Options).
+    replace_term_id(Term, Expansion, Options).
 
-replace_term_id(Sentence, Term, Expansion, Options) :-
-    replace_term(Sentence, Term, Expansion, Options),
+replace_term_id(Term, Expansion, Options) :-
+    replace_term(Term, Expansion, Options),
     functor(Term, F0, A0),
     functor(Expansion, F, A),
-    replace_term(Sentence, F0/A0, F/A, Options).
+    replace_term(F0/A0, F/A, Options).
 
 % BUG: This have to be applied only once --EMM
 :- meta_predicate rename_predicate(+,+,+).
@@ -109,40 +109,39 @@ rename_predicate(M:Name0/Arity, Name, Options) :-
     expand_sentence((M:H0 :- B), (M:H :- B), true, Options),
     expand_sentence(H0, H, true, Options),
     expand_sentence((M:H0), (M:H), true, Options),
-    replace_term(_, Name0/Arity, Name/Arity, [module(M)|Options]). % Replace PIs
+    replace_term(Name0/Arity, Name/Arity, [module(M)|Options]). % Replace PIs
 
-:- meta_predicate replace_term(?,?,?,+).
-replace_term(Sentence, Term, Expansion, Options) :-
-    expand_term(Sentence, Term, Expansion, true, Options).
+replace_term(Term, Into, Options) :-
+    expand_term(Term, Into, true, Options).
 
-replace_head(Sentence, Term, Expansion, Options) :-
-    expand_head(Sentence, Term, Expansion, true, Options).
+replace_head(Term, Into, Options) :-
+    expand_head(Term, Into, true, Options).
 
-replace_body(Sentence, Term, Expansion, Options) :-
-    expand_body(Sentence, Term, Expansion, true, Options).
+replace_body(Term, Into, Options) :-
+    expand_body(Term, Into, true, Options).
 
-replace_sentence(Sentence, Expansion, Options) :-
-    expand_sentence(Sentence, Expansion, true, Options).
+replace_sentence(Sentence, Into, Options) :-
+    expand_sentence(Sentence, Into, true, Options).
 
-:- meta_predicate replace_goal(?,?,?,+).
-replace_goal(Sentence, Term, Expansion, Options) :-
-    expand_goal(Sentence, Term, Expansion, true, Options).
+:- meta_predicate replace_goal(?,?,+).
+replace_goal(Term, Into, Options) :-
+    expand_goal(Term, Into, true, Options).
 
 % NOTE: Only works if exactly one clause match
 unfold_goal(MGoal, Options) :-
     findall(clause(MGoal, Body0), clause(MGoal, Body0), [clause(MGoal, Body0)]),
     MGoal = M:Goal,
-    expand_goal(_, Goal, Body,
+    expand_goal(Goal, Body,
 		(Module == M -> Body = Body0 ; Body = M:Body0),
 		[module(Module)|Options]).
 
-:- meta_predicate remove_call(+,+,0,+).
-remove_call(Sentence, Call, Expander, Options) :-
-    expand_body(Sentence, Term, _, (do_remove_call(Term, Call), Expander),
+:- meta_predicate remove_call(+,0,+).
+remove_call(Call, Expander, Options) :-
+    expand_body(Term, _, (do_remove_call(Term, Call), Expander),
 		Options).
 
-remove_call(Sentence, Call, Options) :-
-    remove_call(Sentence, Call, true, Options).
+remove_call(Call, Options) :-
+    remove_call(Call, true, Options).
 
 do_remove_call(Term, Call) :-
     ( subsumes_term((_ :- Call), Term)
@@ -160,18 +159,18 @@ do_remove_call(Term, Call) :-
     ),
     refactor_context(into, X).
 
-:- meta_predicate replace_conjunction(?, ?, ?, 0, +).
-replace_conjunction(Sentence, Conj, Repl, Expander, Options) :-
+:- meta_predicate replace_conjunction(?, ?, 0, +).
+replace_conjunction(Conj, Repl, Expander, Options) :-
     replace_last_literal(Conj, Conj2, CLit, CBody),
     replace_last_literal(Repl, Repl2, RLit, RBody),
     copy_term(t(Conj2, CLit, CBody, Repl2, RLit, RBody), Term),
-    expand_term(Sentence, Conj2, Repl2,
+    expand_term(Conj2, Repl2,
 		( bind_lit_body(Term, CLit, CBody, RLit, RBody),
 		  Expander
 		), Options).
 
-replace_conjunction(Sentence, Conj, Replacement, Options) :-
-    replace_conjunction(Sentence, Conj, Replacement, true, Options).
+replace_conjunction(Conj, Replacement, Options) :-
+    replace_conjunction(Conj, Replacement, true, Options).
 
 replace_last_literal(Conj, Body, Conj, Body) :- var(Conj), !.
 replace_last_literal((A,Conj), (A,Conj2), Lit, Body) :- !,
