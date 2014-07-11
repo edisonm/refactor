@@ -205,6 +205,7 @@ ec_term_level_each(Level, ExHolder, Term, Into,
 	       subterm_positions(TermPos),
 	       module(M)|OptionL2],
     mod_prop(Prop, M),
+    (Level = sent -> SentPattern = Term ; true), % speed up
     with_context_vars(( get_term_info(M, SentPattern, Sent, ExHolder,
 				      AllChk, File, OptionL),
 			phrase(substitute_term_level(Level, Sent, 1200, Term,
