@@ -34,6 +34,7 @@
 	   replace_goal/3,
 	   replace_sentence/3,
 	   rename_variable/3,
+	   rename_variables/2,
 	   replace_term_id/3,
 	   unfold_goal/2,
 	   rename_predicate/3,
@@ -81,8 +82,19 @@ being_used(M, F/A) :-
 %
 rename_variable(Name0, Name, Options) :-
     expand_sentence(Sent, Sent,
-		    ( \+ memberchk(Name =_, Dict),
+		    ( \+ memberchk(Name=_, Dict),
 		      memberchk(Name0='$VAR'(Name), Dict)
+		    ), [variable_names(Dict)|Options]).
+
+rename_variables(RenameL, Options) :-
+    expand_sentence(Sent, Sent,
+		    ( findall(Name0='$VAR'(Name),
+			      ( ARename=(Name0=Name),
+				member(ARename, RenameL),
+				\+ memberchk(Name=_, Dict)
+			      ), ARenameL),
+		      intersection(ARenameL, Dict, AppliedL),
+		      AppliedL \= []
 		    ), [variable_names(Dict)|Options]).
 
 rename_functor(Functor/Arity, NewName, Options) :-
