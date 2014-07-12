@@ -115,7 +115,7 @@ rename_predicate(M:Name0/Arity, Name, Options) :-
     functor(H0, Name0, Arity),
     H0 =.. [Name0|Args],
     H  =.. [Name|Args],
-    replace_goal(_, M:H0, H, Options), % Replace calls
+    replace_goal(M:H0, H, Options), % Replace calls
     % Replace heads:
     expand_sentence((  H0 :- B),   (H :- B), true, Options),
     expand_sentence((M:H0 :- B), (M:H :- B), true, Options),
