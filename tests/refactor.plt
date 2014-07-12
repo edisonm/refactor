@@ -428,7 +428,7 @@ test(ex15) :-
     [ex15],
     rreset,
     with_output_to(string(Result),
-		   expand_sentence(ex15(L,A), ex15(L), (A=a), [module(ex15)])),
+		   expand_sentence(ex15(L,A), [ex15(L)], (A=a), [module(ex15)])),
     comment_data(ex15, Pattern),
     assertion(Pattern == Result).
 
@@ -624,6 +624,8 @@ test(two_changes) :-
     [conjex],
     rreset,
     with_output_to(string(Result1), replace_term(a(B),aa(B),[module(conjex)])),
+    with_output_to(string(ResultD), rdiff),
+    assertion(ResultD == Result1),
     comment_data(two_changes_1, Pattern1),
     assertion(Pattern1 == Result1),
     with_output_to(string(Result2),
@@ -632,7 +634,12 @@ test(two_changes) :-
     assertion(Pattern2 == Result2),
     with_output_to(string(Result12), rshow),
     comment_data(two_changes_12, Pattern12),
-    assertion(Pattern12 == Result12).
+    assertion(Pattern12 == Result12),
+    once(rundo),
+    with_output_to(string(Result3), rshow),
+    assertion(Result3==ResultD),
+    rsave('/tmp/two_changes.diff'),
+    delete_file('/tmp/two_changes.diff').
 
 /* $ex21$
 --- ex21.pl (source)
@@ -739,6 +746,15 @@ test(self_refactor_2) :-
     with_output_to(string(Result),
 		   replace_term(rportray(A, B), rportray_(A, B), [module(ref_expand)])),
     assertion(Result \== "").
+
+test(save_changes) :-
+    copy_file('ex1_.pl', '/tmp/ex1_.pl'),
+    ['/tmp/ex1_.pl'],
+    rreset,
+    with_output_to(string(Result),
+		   replace_term((((same_term(c,a),d,b))),(((d,b))), [module(ex1_)])),
+    assertion(Result\==""),
+    rcommit.
 
 :- comment_data:disable.
 
