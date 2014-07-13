@@ -194,6 +194,7 @@ mod_prop(Prop, Module) :- module_property(Module, Prop).
 ec_term_level_each(Level, ExHolder, Term, Into,
 		   Expander, File, M:Commands, OptionL0) :-
     option_allchk(OptionL0, OptionL1, AllChk),
+    (Level = sent -> SentPattern = Term ; true), % speed up
     maplist_dcg(select_option, [module_property(Prop)-[],
 				syntax_errors(SE)-error,
 				subterm_positions(TermPos)-TermPos,
@@ -205,7 +206,6 @@ ec_term_level_each(Level, ExHolder, Term, Into,
 	       subterm_positions(TermPos),
 	       module(M)|OptionL2],
     mod_prop(Prop, M),
-    (Level = sent -> SentPattern = Term ; true), % speed up
     with_context_vars(( get_term_info(M, SentPattern, Sent, ExHolder,
 				      AllChk, File, OptionL),
 			phrase(substitute_term_level(Level, Sent, 1200, Term,
