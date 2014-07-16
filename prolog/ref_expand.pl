@@ -29,6 +29,7 @@
 
 :- module(ref_expand, [expand/5]).
 
+:- use_module(library(prolog_codewalk)).
 :- use_module(library(readutil)).
 :- use_module(library(file_changes)).
 :- use_module(library(term_info)).
@@ -600,8 +601,6 @@ compound_positions(Line1, Pos1, Pos0, Pos) :-
     !,
     Pos is Pos0 + Pos1.
 compound_positions(_, Pos, _, Pos).
-
-% :- use_module(library(prolog_codewalk), []). % For filepos_line/4
 
 textpos_line(Text, CharPos, Line, LinePos) :-
     setup_call_cleanup(
