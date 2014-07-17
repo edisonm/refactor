@@ -302,13 +302,35 @@ apply_commands(File-Commands, File-NewText) :-
     ),
     length(Commands, N),
     print_message(informational, format('~w changes in ~w', [N, File])),
-    with_context_vars(maplist_dcg(apply_change,
-				  Commands,
-				  text_desc(0, Text, NewTextL),
-				  text_desc(_, Remaining, [Remaining])),
+    with_context_vars(maplist(apply_change(Text), Commands, FromToPTextU),
 		      [refactor_text, refactor_file],
 		      [Text, File]),
-    maplist_dcg(string_concat_to, NewTextL, "", NewText).
+    sort(FromToPTextU, FromToPTextL),
+    phrase(maplist_dcg(string_concat_to(Text), FromToPTextL),
+	   0-"", Pos-NewText0 ),
+    sub_string(Text, Pos, _, 0, TText),
+    string_concat(NewText0, TText, NewText).
+
+string_concat_to(RText, t(From, To, PasteText), Pos-Text0, To-Text) :-
+    Length is From - Pos,
+    sub_string(RText, Pos, Length, _, Text1),
+    string_concat(Text0, Text1, Text2),
+    string_concat(Text2, PasteText, Text).
+
+apply_change(Text,
+	     M:subst(TermPos, Priority, Pattern, Term, Into),
+	     t(From, To, PasteText)) :-
+    wr_options(OptionL0),
+    OptionL = [module(M), priority(Priority)|OptionL0 ],
+    with_output_to(string(PasteText),
+		   print_expansion_0(Into, Pattern, Term, TermPos,
+				     OptionL, Text, From, To)).
+
+    % Length is To - From,
+    % sub_string(RText, Pos, Length, _, CutText).
+
+				% cut_text(Pos, From, Text0, Text1, CutText),
+				% cut_text(From, To, Text1, Text, _). % Skip
 
 string_concat_to(A, B, C) :- string_concat(B, A, C).
 
@@ -731,17 +753,6 @@ cut_text(Pos0, Pos, Remaining0, Remaining, Text) :-
     ; Remaining0 = Remaining,
       Text = ""
     ).
-
-apply_change(M:subst(TermPos, Priority, Pattern, Term, Into),
-	     text_desc(Pos, Text0, [CutText, PasteText|Tail]),
-	     text_desc(To,  Text,  Tail)) :-
-    b_getval(refactor_text, RText),
-    wr_options(OptionL0),
-    OptionL = [module(M), priority(Priority)|OptionL0 ],
-    with_output_to(string(PasteText),
-		   print_expansion_0(Into, Pattern, Term, TermPos, OptionL, RText, From, To)),
-    cut_text(Pos, From, Text0, Text1, CutText),
-    cut_text(From, To, Text1, Text, _). % Skip
 
 print_expansion_0(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
     ( nonvar(Into) ->
