@@ -326,14 +326,6 @@ apply_change(Text,
 		   print_expansion_0(Into, Pattern, Term, TermPos,
 				     OptionL, Text, From, To)).
 
-    % Length is To - From,
-    % sub_string(RText, Pos, Length, _, CutText).
-
-				% cut_text(Pos, From, Text0, Text1, CutText),
-				% cut_text(From, To, Text1, Text, _). % Skip
-
-string_concat_to(A, B, C) :- string_concat(B, A, C).
-
 :- meta_predicate with_context(?, ?, ?, ?, ?, 0).
 with_context(Src, Pattern0, Into0, Pattern1, Into2, Goal) :-
     copy_term(Pattern0-Into0, Pattern1-Into1),
@@ -744,15 +736,6 @@ term_write_comma_(Opt, Term) :- write(', '), write_term(Term, Opt).
 term_write_comma_2(Opt, Term) :- write_term(Term, Opt), write(', ').
 
 :- use_module(library(listing), []).
-
-cut_text(Pos0, Pos, Remaining0, Remaining, Text) :-
-    ( Pos > Pos0 ->
-      Seek is Pos - Pos0,
-      sub_string(Remaining0, 0, Seek, _, Text),
-      sub_string(Remaining0, Seek, _, 0, Remaining)
-    ; Remaining0 = Remaining,
-      Text = ""
-    ).
 
 print_expansion_0(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
     ( nonvar(Into) ->
