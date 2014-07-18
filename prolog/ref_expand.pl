@@ -41,6 +41,7 @@
 :- use_module(library(location_utils)).
 :- use_module(library(ref_changes)).
 :- use_module(library(ref_context)).
+:- use_module(library(fix_termpos)).
 
 :- thread_local file_commands_db/2, command_db/1.
 
@@ -196,195 +197,6 @@ collect_ec_term_level(Level, Expanded, Term, Into, Expander,
 mod_prop([],   Module) :- !, current_module(Module).
 mod_prop(Prop, Module) :- module_property(Module, Prop).
 
-fix_subterm_positions(FPos, TPos, TermPos0, TermPos) :-
-    compound(TermPos0 ),
-    !,
-    % stream_position_data(char_count, FPos, HFrom),
-    % stream_position_data(char_count, TPos, ToDotNl),
-    % HTo is ToDotNl - 2,
-    fix_subterm_position_rec(TermPos0, TermPos).
-    % b_getval(refactor_text, Text),
-    % fix_subterm_position_from_right(Text, HTo, TermPos0, TermPos).
-    % fix_subterm_position_from_left(Text, HFrom, TermPos0, TermPos).
-    % nb_setarg(2, TermPos, HTo).
-
-fix_subterm_positions(_, _, TermPos, TermPos).
-
-fix_subterm_position_from_right(Text, FFrom, Pos0, Pos) :-
-    fix_subterm_position_rec(Pos0, Pos),
-    arg(2, Pos, To1),
-    ( FFrom < To1 ->
-      RL is To1 - FFrom,
-      sub_string(Text, FFrom, RL, _, TextL),
-      print_message(warning, format("Misplaced text `~w'", [TextL]))
-    ; true
-    ),
-    count_parenthesis_right(Text, 0, To1, To, FFrom, 0, N),
-    arg(1, Pos, From1),
-    seekn_parenthesis_left(N, Text, From1, From),
-    nb_setarg(1, Pos, From),
-    nb_setarg(2, Pos, To).
-
-match_comment(CharPos, Length) :-
-    b_getval(refactor_comments, CommentL),
-    member(Pos-Text, CommentL),
-    stream_position_data(char_count, Pos, CharPos),
-    string_length(Text, Length).
-
-count_parenthesis_right(Text, D0, T0, T, F, N0, N) :-
-    T1 is T0 + D0,
-    T1 =< F,
-    match_comment(T1, D),
-    !,
-    D1 is D0 + D,
-    count_parenthesis_right(Text, D1, T0, T, F, N0, N).
-count_parenthesis_right(Text, D0, T0, T, F, N0, N) :-
-    T1 is T0 + D0,
-    T1 =< F,
-    ( sub_string(Text, T1, 1, _, ")")
-    ->succ(N0, N1),
-      succ(T1, T2),
-      D = 0
-    ; N0 = N1,
-      T2 = T0,
-      succ(D0, D)
-    ),
-    !,
-    count_parenthesis_right(Text, D, T2, T, F, N1, N).
-count_parenthesis_right(_, _, T, T, _, N, N).
-
-seek1_parenthesis_left(Text, F0, F) :-
-    match_comment(F1, D),
-    F0 =:= F1 + D,
-    !,
-    seek1_parenthesis_left(Text, F1, F).
-seek1_parenthesis_left(Text, F0, F) :-
-    succ(F1, F0),
-    ( sub_string(Text, F1, _, _, "(")
-    ->F = F1
-    ; seek1_parenthesis_left(Text, F1, F)
-    ).
-
-seekn_parenthesis_left(0,  _,    F,  F) :- !.
-seekn_parenthesis_left(N0, Text, F0, F) :-
-    N0>0,
-    seek1_parenthesis_left(Text, F0, F1),
-    succ(N, N0),
-    seekn_parenthesis_left(N, Text, F1, F).
-
-fix_subterm_position_from_left(Text, FTo, Pos0, Pos) :-
-    fix_subterm_position_rec(Pos0, Pos),
-    arg(1, Pos, From1),
-    ( From1 < FTo ->
-      RL is FTo - From1,
-      sub_string(Text, From1, RL, _, TextL),
-      print_message(warning, format("Misplaced text `~w'", [TextL]))
-    ; true
-    ),
-    count_parenthesis_left(Text, 1, From1, From, FTo, 0, N),
-    arg(2, Pos, To1),
-    seekn_parenthesis_right(N, Text, To1, To),
-    nb_setarg(1, Pos, From),
-    nb_setarg(2, Pos, To).
-
-count_parenthesis_left(Text, D0, F0, F, T, N0, N) :-
-    F1 is F0 - D0,
-    T =< F1,
-    match_comment(F2, D),
-    F1 =:= F2 + D,
-    !,
-    D1 is D0 + D,
-    count_parenthesis_left(Text, D1, F0, F, T, N0, N).
-count_parenthesis_left(Text, D0, F0, F, T, N0, N) :-
-    F1 is F0 - D0,
-    T =< F1,
-    ( sub_string(Text, F1, 1, _, "(")
-    ->succ(N0, N1),
-      F2 = F1,
-      D = 1
-    ; N0 = N1,
-      F2 = F0,
-      succ(D0, D)
-    ),
-    !,
-    count_parenthesis_left(Text, D, F2, F, T, N1, N).
-count_parenthesis_left(_, _, F, F, _, N, N).
-
-seek1_parenthesis_right(Text, T0, T) :-
-    match_comment(T0, D),
-    !,
-    T1 is T0 + D,
-    seek1_parenthesis_right(Text, T1, T).
-seek1_parenthesis_right(Text, T0, T) :-
-    succ(T0, T1),
-    ( sub_string(Text, T0, _, _, ")")
-    ->T = T1
-    ; seek1_parenthesis_right(Text, T1, T)
-    ).
-
-seekn_parenthesis_right(0,  _,     T,  T) :- !.
-seekn_parenthesis_right(N0, Text, T0, T) :-
-    N0>0,
-    seek1_parenthesis_right(Text, T0, T1),
-    succ(N, N0 ),
-    seekn_parenthesis_right(N, Text, T1, T).
-
-fix_positions(From0, To0, FFrom, FTo, From, To, PosL0, PosL) :-
-    ( PosL0 = [LPos0, RPos0 ],
-      arg(1, LPos0, FromL), % From0
-      arg(2, RPos0, ToR), % To0
-      FromL < FFrom,
-      FTo   < ToR
-    ->b_getval(refactor_text, Text),
-      fix_subterm_position_from_right(Text, FFrom, LPos0, LPos),
-      fix_subterm_position_from_left(Text, FTo, RPos0, RPos),
-      PosL  = [LPos, RPos],
-      arg(1, LPos, From),
-      arg(2, RPos, To)
-    ; PosL0 = [Pos0],
-      arg(1, Pos0, FromL),
-      FTo < FromL,
-      b_getval(refactor_text, Text),
-      sub_string(Text, FTo, 1, _, Char),
-      Char \= "("
-    ->fix_subterm_position_from_left(Text, FTo, Pos0, Pos),
-      PosL = [Pos],
-      From = From0,
-      arg(2, Pos, To)
-    ; maplist(fix_subterm_position_rec, PosL0, PosL),
-      ( PosL = []
-      ->From = From0,
-	To   = To0
-      ; PosL = [LPos|_],
-	append(_, [RPos], PosL),
-	arg(1, LPos, From1),
-	arg(2, RPos, To1),
-	From is min(From0, From1),
-	To is max(To0, To1) 
-      )
-    ).
-
-fix_subterm_position_rec(term_position(From0, To0, FFrom, FTo, Pos0 ),
-			 term_position(From,  To,  FFrom, FTo, Pos)) :-
-    fix_positions(From0, To0, FFrom, FTo, From, To, Pos0, Pos).
-fix_subterm_position_rec(From-To, From-To).
-fix_subterm_position_rec(string_position(From, To),
-			 string_position(From, To)).
-fix_subterm_position_rec(brace_term_position(From, To, Arg0 ),
-			 brace_term_position(From, To, Arg)) :-
-    fix_subterm_position_rec(Arg0, Arg).
-fix_subterm_position_rec(list_position(From, To, Elms0, Tail0),
-			 list_position(From, To, Elms,  Tail)) :-
-    maplist(fix_subterm_position_rec, Elms0, Elms),
-    fix_subterm_position_rec(Tail0, Tail).
-fix_subterm_position_rec(none, none).
-fix_subterm_position_rec(map_position(From, To, TypeFrom, TypeTo, KVPos0 ),
-			 map_position(From, To, TypeFrom, TypeTo, KVPos)) :-
-    maplist(fix_subterm_position_rec, KVPos0, KVPos).
-fix_subterm_position_rec(key_value_position(From0, To0, SFrom, STo, Key, KPos0, VPos0),
-			 key_value_position(From,  To,  SFrom, STo, Key, KPos , VPos)) :-
-    fix_positions(From0, To0, SFrom, STo, From, To, [KPos0, VPos0 ], [KPos, VPos]).
-
 ec_term_level_each(Level, ExHolder, Term, Into,
 		   Expander, File, M:Commands, OptionL0) :-
     option_allchk(OptionL0, OptionL1, AllChk),
@@ -405,9 +217,10 @@ ec_term_level_each(Level, ExHolder, Term, Into,
 	       module(M)|OptionL2],
     mod_prop(Prop, M),
     with_context_vars(( get_term_info(M, SentPattern, Sent, ExHolder,
-				      AllChk, File, In, OptionL),
-			stream_property(In, position(TPos)),
-			fix_subterm_positions(FPos, TPos, TermPos, FTermPos),
+				      AllChk, File, _In, OptionL),
+			% stream_property(In, position(TPos)),
+			fix_termpos(TermPos, FTermPos),
+			% FTermPos = TermPos,
 		        phrase(substitute_term_level(Level, Sent, 1200, Term,
 						     Into, Expander, FTermPos),
 			       Commands, [])
@@ -507,8 +320,8 @@ apply_commands(File-Commands, File-NewText) :-
 		      [refactor_text, refactor_file],
 		      [Text, File]),
     sort(FromToPTextU, FromToPTextL),
-    phrase(maplist_dcg(string_concat_to(Text), FromToPTextL),
-	   0-"", Pos-NewText0 ),
+    maplist_dcg(string_concat_to(Text), FromToPTextL,
+		0-"", Pos-NewText0 ),
     sub_string(Text, Pos, _, 0, TText),
     string_concat(NewText0, TText, NewText).
 
@@ -1024,10 +837,10 @@ print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
 % if the term have been in parentheses, in a place where that was
 % required, include it!!!
 %
-fix_position_if_braced(term_position(From0, To0, FFrom, FTo, PosL),
-		       term_position(From,  To,  FFrom, FTo, PosL),
+fix_position_if_braced(term_position(From, To, FFrom, FTo, PosL),
+		       term_position(From, To, FFrom, FTo, PosL),
 		       Term, GPriority, Into, Priority, Text, Display) :-
-    \+ ( From0 == FFrom,
+    \+ ( From==FFrom,
 	 sub_string(Text, FTo, 1, _, "(")
        ),
     ( prolog_listing:term_needs_braces(Term, GPriority),
@@ -1035,18 +848,9 @@ fix_position_if_braced(term_position(From0, To0, FFrom, FTo, PosL),
 	prolog_listing:term_needs_braces(Into, Priority)
       ; prolog_listing:term_needs_braces(Term, Priority)
       )
-    ->once(( between(1, From0, LCount),
-	     From is From0 - LCount,
-	     sub_string(Text, From, 1, _, "(")
-	   )),
-      once(( string_length(Text, Length),
-	     between(To0, Length, To1),
-	     sub_string(Text, To1, 1, _, ")"),
-	     succ(To1, To)
-	   )),
-      Display=no
+    ->Display=no
     ; \+ ( prolog_listing:term_needs_braces(Term, GPriority),
-	   \+ ( From0 == FFrom,
+	   \+ ( From==FFrom,
 		sub_string(Text, FTo, 1, _, "(")
 	      )
 	 ),
@@ -1054,9 +858,7 @@ fix_position_if_braced(term_position(From0, To0, FFrom, FTo, PosL),
 	prolog_listing:term_needs_braces(Into, Priority)
       ; prolog_listing:term_needs_braces(Term, Priority)
       )
-    ->Display=yes,
-      From = From0,
-      To = To0
+    ->Display=yes
     ),
     !.
 fix_position_if_braced(Pos, Pos, _, _, _, _, _, no). % fail-safe
