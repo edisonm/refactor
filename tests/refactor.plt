@@ -281,8 +281,7 @@ test(ex11) :-
  
  ex12 :-
 -    ( a  ),
--    b.
-+    ( b.
+     b.
  
  ex12 :-
      a,
@@ -451,7 +450,7 @@ test(ex16) :-
  ex17 :-
 -    a,
 -    ( b  ).
-+    a  ).
++    a.
  
  a.
  
@@ -704,8 +703,8 @@ test(ex23) :-
  :- module(ex24, [ex24/1]).
  
  ex24(A) :-
--    A = key_components/4+ (  hidden, kbmask([+, +, -, -]) ).
-+    A = key_components/4+ (  help, hidden, kbmask([+, +, -, -]) ).
+-    A = /****/ key_components/4+ (/*1*/ ( hidden ), ( kbmask([+, +, -, -]) ) /*2*/).
++    A = /****/ key_components/4+ (/*1*/ help, (/*1*/ ( hidden ), ( kbmask([+, +, -, -]) ) /*2*/) /*2*/).
 */
 
 test(ex24) :-

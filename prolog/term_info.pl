@@ -28,7 +28,7 @@
 */
 
 :- module(term_info,
-	  [ get_term_info/7
+	  [ get_term_info/8
 	  ]).
 :- use_module(library(prolog_source)).
 :- use_module(library(included_files)).
@@ -50,18 +50,18 @@ module_file_1(M, File) :-
     '$load_context_module'(File, M, _),
     \+ module_property(_, file(File)).
 
-:- meta_predicate get_term_info(+, ?, ?, ?, 1, -, +).
-get_term_info(M, Pattern, Term, ExHolder, AllChk, File, Options) :-
+:- meta_predicate get_term_info(+, ?, ?, ?, 1, -, -, +).
+get_term_info(M, Pattern, Term, ExHolder, AllChk, File, In, Options) :-
     module_files(M, Files),
     member(File, Files),
     call(AllChk, File),
-    get_term_info_file(ExHolder, Pattern, Term, File, Options).
+    get_term_info_file(ExHolder, Pattern, Term, File, In, Options).
 
 fix_exception(error(Error, stream(_,  Line, Row, Pos)), File,
 	      error(Error, file(File, Line, Row, Pos))) :- !.
 fix_exception(E, _, E).
 
-get_term_info_file(ExHolder, Pattern, Term, File, Options) :-
+get_term_info_file(ExHolder, Pattern, Term, File, In, Options) :-
     prolog_canonical_source(File, Path),
     catch(setup_call_cleanup(( prolog_open_source(Path, In)
 			     ),
