@@ -35,9 +35,9 @@
 %
 %   Takes a subterm position, as returned by the subterm_positons option of
 %   read_term/2 and increases its precision, avoiding some minor mistmatches
-%   with the text, that for a refactoring tool is instrumental.  This fix will
-%   also ensure that the parenthesis enclosing a term be contained in the scope
-%   of such term, widening the positions 1 and 2 of the given term position
+%   with the text, that for a refactoring tool is instrumental.  This method
+%   also ensures that the parenthesis enclosing a term are contained in its
+%   scope, widening the positions 1 and 2 of the given term position
 %   specifier. The current implementation is aware of comments.
 %
 %   @tbd This implementation have performance issues, needs optimization.

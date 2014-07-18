@@ -42,6 +42,7 @@
 :- use_module(library(ref_changes)).
 :- use_module(library(ref_context)).
 :- use_module(library(fix_termpos)).
+:- use_module(library(prolog_source)). % expand/4
 
 :- thread_local file_commands_db/2, command_db/1.
 
@@ -110,16 +111,13 @@ do_r_goal_expansion(Term, TermPos) :-
 	   Commands, []),
     forall(member(Command, Commands), assertz(command_db(Command))).
 
-:- meta_predicate level_hook(+,+,-,-,0 ).
-level_hook(goal, Options0, Options, Expanded, Call) :- !,
-    %% In goal, expanded=yes:
-    select_option(expanded(Expanded), Options0, Options, yes),
-    setup_call_cleanup(asserta((system:goal_expansion(G, T, _, _) :-
-			       r_goal_expansion(G, T)), Ref),
+:- meta_predicate level_hook(+,+,0 ).
+level_hook(goal, Term, Call) :- !,
+    setup_call_cleanup(asserta((system:goal_expansion(Term, T, _, _) :-
+			       r_goal_expansion(Term, T)), Ref),
 		       Call,
 		       erase(Ref)).
-level_hook(_, Options0, Options, Expanded, Call) :-
-    select_option(expanded(Expanded), Options0, Options, no),
+level_hook(_, _, Call) :-
     call(Call).
 
 
@@ -148,14 +146,18 @@ collect_file_commands(CallerPattern, Pattern, Into, Expander, FileChk,
     Callee = M:Term,
     % trim_term(Term0, Term, TermPos0, TermPos),
     Pattern = M:Pattern2,
-    with_context_vars(phrase(substitute_term_norec(sub, Term, 999, Pattern2, Into,
-						   Expander, TermPos),
+    % TODO: fix_termpos(TermPos, FTermPos),
+    with_context_vars(phrase(substitute_term_norec(sub, Term, 999, Pattern2,
+						   Into, Expander, TermPos),
 			     Commands, []),
 		      [refactor_sent_pattern,
 		       refactor_sentence,
-		       refactor_goal_args],
+		       refactor_comments,
+		       refactor_goal_args
+		      ],
 		     [CallerPattern,
 		      Caller,
+		      [], % TODO: Fill the gap
 		      ga(Term, Into, Expander)]),
     assertz(file_commands_db(File, M:Commands)).
 
@@ -178,29 +180,23 @@ collect_expansion_commands(goal_cw, Term, Into, Expander, OptionL0,
 	| OptionL3
 	]),
     findall(File-Commands, retract(file_commands_db(File, Commands)), FileCommands).
-collect_expansion_commands(Level, Term, Into, Expander, Options0, FileCommands) :-
-    level_hook(Level, Options0, Options, Expanded,
-	       collect_ec_term_level(Level, Expanded, Term, Into, Expander,
+collect_expansion_commands(Level, Term, Into, Expander, Options, FileCommands) :-
+    level_hook(Level, Term,
+	       collect_ec_term_level(Level, Term, Into, Expander,
 				     Options, FileCommands)).
 
-expand_holder(yes, ex(_)).
-expand_holder(no,  no).
-
-collect_ec_term_level(Level, Expanded, Term, Into, Expander,
-		      OptionL, FileCommands) :-
-    expand_holder(Expanded, ExHolder),
+collect_ec_term_level(Level, Term, Into, Expander, OptionL, FileCommands) :-
     findall(File-Commands,
-	    ec_term_level_each(Level, ExHolder, Term, Into,
-			       Expander, File, Commands, OptionL),
+	    ec_term_level_each(Level, Term, Into, Expander, File, Commands, OptionL),
 	    FileCommands).
 
 :- public mod_prop/2.
 mod_prop([],   Module) :- !, current_module(Module).
 mod_prop(Prop, Module) :- module_property(Module, Prop).
 
-ec_term_level_each(Level, ExHolder, Term, Into,
-		   Expander, File, M:Commands, OptionL0) :-
+ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
     option_allchk(OptionL0, OptionL1, AllChk),
+    (Level = goal -> DExpand=yes ; DExpand = no),
     (Level = sent -> SentPattern = Term ; true), % speed up
     maplist_dcg(select_option, [module_property(Prop)-[],
 				syntax_errors(SE)-error,
@@ -208,7 +204,9 @@ ec_term_level_each(Level, ExHolder, Term, Into,
 				module(M)-M,
 				term_position(FPos)-FPos,
 				sentence(SentPattern)-SentPattern,
-				comments(Comments)-Comments
+				comments(Comments)-Comments,
+				expand(Expand)-DExpand,
+				expanded(Expanded)-Expanded
 			       ],
 		OptionL1, OptionL2),
     OptionL = [syntax_errors(SE),
@@ -217,10 +215,16 @@ ec_term_level_each(Level, ExHolder, Term, Into,
 	       comments(Comments),
 	       module(M)|OptionL2],
     mod_prop(Prop, M),
-    with_context_vars(( get_term_info(M, SentPattern, Sent, ExHolder,
-				      AllChk, File, _In, OptionL),
+    with_context_vars(( get_term_info(M, SentPattern, Sent,
+				      AllChk, File, In, OptionL),
 			% stream_property(In, position(TPos)),
 			fix_termpos(TermPos, FTermPos),
+			( Expand = no
+			->true
+			; prolog_source:( expand(Sent, FTermPos, In, Expanded),
+					  update_state(Sent, Expanded, M)
+					)
+			),
 		        phrase(substitute_term_level(Level, Sent, 1200, Term,
 						     Into, Expander, FTermPos),
 			       Commands, [])
@@ -233,7 +237,7 @@ ec_term_level_each(Level, ExHolder, Term, Into,
 		       refactor_goal_args],
 		      [SentPattern,
 		       Sent,
-		       ExHolder,
+		       Expanded,
 		       OptionL,
 		       Comments,
 		       ga(Term, Into, Expander)]).
@@ -1139,9 +1143,9 @@ write_b(Term, OptL, Offs, Pos0) :-
 
 and_layout(T) :- T = (_,_).
 
-write_b1(Term, _, Offs, Pos) :-
+write_b1(Term, OptL, Offs, Pos) :-
     prolog_listing:or_layout(Term), !,
-    write_b_layout(Term, or,  Offs, Pos).
+    write_b_layout(Term, OptL, or,  Offs, Pos).
 write_b1(Term, OptL, Offs, Pos) :-
     and_layout(Term), !,
     write_b_layout(Term, OptL, and, Offs, Pos).
