@@ -32,12 +32,11 @@
 %% fix_termpos(+TermPos, -FixedTermPos) is det
 %
 %   Takes a subterm position, as returned by the subterm_positons option of
-%   read_term/2 and increases its precision, avoiding some mistmatches between
-%   the term and the text.  This is also true regarding parenthesis, this fix
-%   will ensure that if the term is enclosed between proper defined parenthesis
-%   such that the parenthesis are also contained in the scope of such term,
-%   defined in the positions 1 and 2 of a term position specifier. The current
-%   implementation is aware of comments.
+%   read_term/2 and increases its precision, avoiding some minor mistmatches
+%   with the text, that for a refactoring tool is instrumental.  This fix will
+%   also ensure that the parenthesis enclosing a term be contained in the scope
+%   of such term, widening the positions 1 and 2 of the given term position
+%   specifier. The current implementation is aware of comments.
 %
 %   @tbd This implementation have performance issues, needs optimization.
 %
