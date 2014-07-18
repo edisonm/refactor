@@ -33,12 +33,13 @@
 %
 %   Takes a subterm position, as returned by the subterm_positons option of
 %   read_term/2 and increases its precision, avoiding some mistmatches between
-%   the term moved and the generated text.  This is also true regarding
-%   parenthesis, this fix will ensure that if the term is enclosed between
-%   parenthesis and such parenthesis are required, the parenthesis are also
-%   contained in the scope of such term (positions 1 and 2 of a term position
-%   specifier.  The current implementation is aware of comments, but have
-%   performance issues.
+%   the term and the text.  This is also true regarding parenthesis, this fix
+%   will ensure that if the term is enclosed between proper defined parenthesis
+%   such that the parenthesis are also contained in the scope of such term,
+%   defined in the positions 1 and 2 of a term position specifier. The current
+%   implementation is aware of comments.
+%
+%   @tbd This implementation have performance issues, needs optimization.
 %
 fix_termpos(term_position(From0, To0, FFrom, FTo, Pos0 ),
 	    term_position(From,  To,  FFrom, FTo, Pos)) :-
