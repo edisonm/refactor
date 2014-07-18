@@ -105,7 +105,8 @@ do_r_goal_expansion(Term, TermPos) :-
     refactor_context(sent_pattern, SentPattern),
     subsumes_term(SentPattern, Sent),
     refactor_context(goal_args, ga(Pattern, Into, Expander)),
-    phrase(substitute_term_norec(sub, Term, 999, Pattern, Into, Expander, TermPos),
+    fix_termpos(TermPos, FTermPos),
+    phrase(substitute_term_norec(sub, Term, 999, Pattern, Into, Expander, FTermPos),
 	   Commands, []),
     forall(member(Command, Commands), assertz(command_db(Command))).
 
@@ -220,7 +221,6 @@ ec_term_level_each(Level, ExHolder, Term, Into,
 				      AllChk, File, _In, OptionL),
 			% stream_property(In, position(TPos)),
 			fix_termpos(TermPos, FTermPos),
-			% FTermPos = TermPos,
 		        phrase(substitute_term_level(Level, Sent, 1200, Term,
 						     Into, Expander, FTermPos),
 			       Commands, [])
@@ -1142,19 +1142,21 @@ and_layout(T) :- T = (_,_).
 write_b1(Term, _, Offs, Pos) :-
     prolog_listing:or_layout(Term), !,
     write_b_layout(Term, or,  Offs, Pos).
-write_b1(Term, _, Offs, Pos) :-
+write_b1(Term, OptL, Offs, Pos) :-
     and_layout(Term), !,
-    write_b_layout(Term, and, Offs, Pos).
+    write_b_layout(Term, OptL, and, Offs, Pos).
 write_b1(Term, OptL, _, _) :-
     write_term(Term, OptL).
 
-write_b_layout(Term, Layout, Offs, Pos) :-
+write_b_layout(Term, OptL0, Layout, Offs, Pos) :-
     bin_op(Term, Op, Left, Right, A, B),
     !,
-    write_b(A, Left, Offs, Pos),
+    merge_options([priority(Left)], OptL0, OptL1),
+    write_b(A, OptL1, Offs, Pos),
     LinePos is Offs + Pos,
     nl_indent(Layout, Op, LinePos),
-    write_b(B, Right, Offs, Pos).
+    merge_options([priority(Right)], OptL0, OptL2),
+    write_b(B, OptL2, Offs, Pos).
 
 nl_indent(or, Op, LinePos0) :-
     nl,

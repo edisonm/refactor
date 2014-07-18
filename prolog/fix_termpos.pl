@@ -27,7 +27,9 @@
     the GNU General Public License.
 */
 
-:- module(ref_expand, [fix_termpos/2]).
+:- module(fix_termpos, [fix_termpos/2]).
+
+:- use_module(library(maplist_dcg)).
 
 %% fix_termpos(+TermPos, -FixedTermPos) is det
 %
