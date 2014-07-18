@@ -733,6 +733,29 @@ test(ex26) :-
     comment_data(ex26, Pattern),
     assertion(Pattern == Result).
 
+/* $ex27$
+--- ex27.pl (source)
++++ ex27.pl (target)
+@@ -1,5 +1,8 @@
+ :- module(ex27, []).
+ 
+ ex27 :-
++	b((ex27, []).
++
++ex27 :-
+ 	X = (5,2),
+-	b(X).
++	b(X)).
+*/
+
+test(ex27) :-
+    [ex27],
+    rreset,
+    with_output_to(string(Result),
+		   expand_term((A=V,Body),Body,A=V,[module(ex27)])),
+    comment_data(ex27, Pattern),
+    assertion(Pattern == Result).
+
 test(self_refactor_1) :-
     rreset,
     with_output_to(string(Result),
