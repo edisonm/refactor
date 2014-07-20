@@ -66,13 +66,13 @@ fix_termpos(key_value_position(From0, To0, SFrom, STo, Key, KPos0, VPos0),
 fix_termpos_from_right(Text, Pos0, Pos, FFrom, From) :-
     fix_termpos(Pos0, Pos),
     arg(2, Pos, To1),
-    ( FFrom < To1 ->
-      RL is To1 - FFrom,
+    ( FFrom < To1
+    ->RL is To1 - FFrom,
       sub_string(Text, FFrom, RL, _, TextL),
       print_message(warning, format("Misplaced text `~w'", [TextL]))
     ; true
     ),
-    count_parenthesis_right(Text, 0, To1, To, FFrom, 0, N),
+    count_parenthesis_right(Text, FFrom, To1, To, 0, N),
     arg(1, Pos, From1),
     seekn_parenthesis_left(N, Text, From1, From),
     nb_setarg(1, Pos, From),
@@ -84,27 +84,24 @@ match_comment(CharPos, Length) :-
     stream_position_data(char_count, Pos, CharPos),
     string_length(Text, Length).
 
-count_parenthesis_right(Text, D0, T0, T, F, N0, N) :-
-    T1 is T0 + D0,
-    T1 =< F,
-    match_comment(T1, D),
+count_parenthesis_right(Text, F, T0, T, N0, N) :-
+    seek_sub_string(Text, ")", F, T0, T1),
     !,
-    D1 is D0 + D,
-    count_parenthesis_right(Text, D1, T0, T, F, N0, N).
-count_parenthesis_right(Text, D0, T0, T, F, N0, N) :-
-    T1 is T0 + D0,
-    T1 =< F,
-    ( sub_string(Text, T1, 1, _, ")")
-    ->succ(N0, N1),
-      succ(T1, T2),
-      D = 0
-    ; N0 = N1,
-      T2 = T0,
-      succ(D0, D)
-    ),
-    !,
-    count_parenthesis_right(Text, D, T2, T, F, N1, N).
-count_parenthesis_right(_, _, T, T, _, N, N).
+    succ(N0, N1),
+    T2 is T1 + 1,		% length(")")
+    count_parenthesis_right(Text, F, T2, T, N1, N).
+count_parenthesis_right(_, _, T, T, N, N).
+
+seek_sub_string(Text, SubText, F, T0, T) :-
+    T0 =< F,
+    ( match_comment(T0, D)
+    ->T1 is T0 + D,
+      seek_sub_string(Text, SubText, F, T1, T)
+    ; sub_string(Text, T0, _, _, SubText)
+    ->T = T0
+    ; succ(T0, T1),
+      seek_sub_string(Text, SubText, F, T1, T)
+    ). 
 
 seek1_parenthesis_left(Text, F0, F) :-
     match_comment(F1, D),
