@@ -74,11 +74,7 @@ being_used(M, F/A) :-
     functor(H, F, A),
     predicate_property(C:H, imported_from(M)), C \== user.
 
-% :- type t_action/1.
-% t_action(save).
-% t_action(show).
-
-%% rename_variable(?Sent, +Name0:atom, +Name:atom, +Action:t_action) is det.
+%% rename_variable(?Sent, +Name0:atom, +Options) is det.
 %
 rename_variable(Name0, Name, Options) :-
     expand_sentence(Sent, Sent,
@@ -115,7 +111,11 @@ rename_predicate(M:Name0/Arity, Name, Options) :-
     functor(H0, Name0, Arity),
     H0 =.. [Name0|Args],
     H  =.. [Name|Args],
-    replace_goal(M:H0, H, Options), % Replace calls
+    expand_goal(H0, H,
+		( predicate_property(CM:H0, imported_from(M))
+		; M = CM
+		),
+		[module(CM)|Options]),	% Replace calls
     % Replace heads:
     expand_sentence((  H0 :- B),   (H :- B), true, Options),
     expand_sentence((M:H0 :- B), (M:H :- B), true, Options),
