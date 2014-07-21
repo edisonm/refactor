@@ -74,8 +74,10 @@ being_used(M, F/A) :-
     functor(H, F, A),
     predicate_property(C:H, imported_from(M)), C \== user.
 
-%% rename_variable(?Sent, +Name0:atom, +Options) is det.
+%% rename_variable(?Name0:atom, +Name:atom, +Options) is det.
 %
+% Rename a variable in a Term, provided that such variable doesn't exist in such
+% term.
 rename_variable(Name0, Name, Options) :-
     expand_sentence(Sent, Sent,
 		    ( \+ memberchk(Name=_, Dict),
