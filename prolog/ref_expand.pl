@@ -106,7 +106,7 @@ do_r_goal_expansion(Term, TermPos) :-
     refactor_context(sent_pattern, SentPattern),
     subsumes_term(SentPattern, Sent),
     refactor_context(goal_args, ga(Pattern, Into, Expander)),
-    fix_termpos(TermPos, FTermPos),
+    fix_subtermpos(TermPos, FTermPos),
     phrase(substitute_term_norec(sub, Term, 999, Pattern, Into, Expander, FTermPos),
 	   Commands, []),
     forall(member(Command, Commands), assertz(command_db(Command))).
