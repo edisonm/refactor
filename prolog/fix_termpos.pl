@@ -53,7 +53,7 @@ extend_bounds_comm_dot(TermPos) :-
     arg(2, TermPos, To1),
     b_getval(refactor_text, Text),
     string_length(Text, L),
-    seek_sub_string(Text, ".", L, To1, To),
+    seek_sub_string(Text, ".", 1, L, To1, To),
     nb_setarg(2, TermPos, To).
 
 %% fix_subtermpos(+TermPos, -FixedTermPos) is det
@@ -124,12 +124,12 @@ include_comments_right(Text, From, To, ToC) :-
 	      ( comment_bound(FromC, ToC),
 		From =< FromC,
 		ToC =< To,
-		\+ seek_sub_string(Text, ")", From, ToC, _),
-		\+ seek_sub_string(Text, "]", From, ToC, _),
-		\+ seek_sub_string(Text, "}", From, ToC, _),
-		\+ seek_sub_string(Text, "(", From, ToC, _),
-		\+ seek_sub_string(Text, "[", From, ToC, _),
-		\+ seek_sub_string(Text, "{", From, ToC, _)
+		\+ seek_sub_string(Text, ")", 1, From, ToC, _),
+		\+ seek_sub_string(Text, "]", 1, From, ToC, _),
+		\+ seek_sub_string(Text, "}", 1, From, ToC, _),
+		\+ seek_sub_string(Text, "(", 1, From, ToC, _),
+		\+ seek_sub_string(Text, "[", 1, From, ToC, _),
+		\+ seek_sub_string(Text, "{", 1, From, ToC, _)
 	      ), FromToC),
       append(_, [_-ToC], FromToC)
     ->true
@@ -137,22 +137,22 @@ include_comments_right(Text, From, To, ToC) :-
     ).
 
 count_parenthesis_right(Text, F, T0, T, N0, N) :-
-    seek_sub_string(Text, ")", F, T0, T1),
+    seek_sub_string(Text, ")", 1, F, T0, T1),
     !,
     succ(N0, N1),
-    T2 is T1 + 1,		% length(")")
+    T2 is T1 + 1,		% length(")")expand
     count_parenthesis_right(Text, F, T2, T, N1, N).
 count_parenthesis_right(_, _, T, T, N, N).
 
-seek_sub_string(Text, SubText, F, T0, T) :-
+seek_sub_string(Text, SubText, SubTextN, F, T0, T) :-
     T0 =< F,
     ( match_comment(T0, D)
     ->T1 is T0 + D,
-      seek_sub_string(Text, SubText, F, T1, T)
-    ; sub_string(Text, T0, _, _, SubText)
+      seek_sub_string(Text, SubText, SubTextN, F, T1, T)
+    ; sub_string(Text, T0, SubTextN, _, SubText)
     ->T = T0
     ; succ(T0, T1),
-      seek_sub_string(Text, SubText, F, T1, T)
+      seek_sub_string(Text, SubText, SubTextN, F, T1, T)
     ). 
 
 seek1_parenthesis_left(Text, F0, F) :-
@@ -196,13 +196,11 @@ include_comments_right(Text, From, To) :-
     ( comment_bound(FromC, ToC),
       arg(1, S, To0 ),
       ( To0 < FromC,
-	\+ seek_sub_string(Text, ",", FromC, To0, _),
-	\+ seek_sub_string(Text, ")", FromC, To0, _),
-	\+ seek_sub_string(Text, "]", FromC, To0, _),
-	\+ seek_sub_string(Text, "}", FromC, To0, _),
-	\+ seek_sub_string(Text, "(", FromC, To0, _),
-	\+ seek_sub_string(Text, "[", FromC, To0, _),
-	\+ seek_sub_string(Text, "{", FromC, To0, _)
+	L is FromC - To0,
+	sub_string(Text, To0, L, _, Text1),
+	\+ ( sub_string(Text1, _, 1, _, Char),
+	     \+ member(Char, " \t\n")
+	   )
       ->nb_setarg(1, S, ToC),
 	fail
       ; !,
@@ -277,16 +275,28 @@ fix_subtermpos_rec(From0, To0, FFrom, FTo, From, To, PosL0, PosL) :-
       To = To0
     ).
 
-include_comments_left(Text, From, To, FromC) :-
-    ( comment_bound(FromC, ToC),
-      From =< FromC,
-      ToC =< To,
-      \+ seek_sub_string(Text, ")", To, ToC, _),
-      \+ seek_sub_string(Text, "]", To, ToC, _),
-      \+ seek_sub_string(Text, "}", To, ToC, _),
-      \+ seek_sub_string(Text, "(", To, ToC, _),
-      \+ seek_sub_string(Text, "[", To, ToC, _),
-      \+ seek_sub_string(Text, "{", To, ToC, _)
+include_comments_left(Text, From, To, NFrom) :-
+    S = s(From),
+    T = s(From),
+    ( ( comment_bound(FromC, ToC),
+	From =< FromC,
+	ToC =< To
+      ; FromC = To,
+	ToC = To
+      ),
+      arg(1, T, To0 ),
+      nb_setarg(1, T, ToC),
+      ( L is FromC - To0,
+	L > 0,
+	sub_string(Text, To0, L, _, Text1),
+	\+ ( sub_string(Text1, _, 1, _, Char),
+	     \+ member(Char, " \t\n")
+	   )
+      ->fail
+      ; nb_setarg(1, S, FromC),
+	fail
+      )
     ->true
-    ; FromC = To
-     ).
+    ; true
+    ),
+    arg(1, S, NFrom).
