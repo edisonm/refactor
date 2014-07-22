@@ -226,25 +226,18 @@ count_parenthesis_left(Text, D0, F0, F, T, N0, N) :-
     count_parenthesis_left(Text, D, F2, F, T, N1, N).
 count_parenthesis_left(_, _, F, F, _, N, N).
 
-seek1_parenthesis_right(Text, L, T0, T) :-
-    match_comment(T0, D),
-    !,
-    T1 is T0 + D,
-    seek1_parenthesis_right(Text, L, T1, T).
-seek1_parenthesis_right(Text, L, T0, T) :-
-    T0 < L,
-    succ(T0, T1),
-    ( sub_string(Text, T0, _, _, ")")
-    ->T = T1
-    ; seek1_parenthesis_right(Text, L, T1, T)
+seekn_parenthesis_right(0, _, _, T, T) :- !.
+seekn_parenthesis_right(N, Text, L, T0, T) :-
+    S = s(0),
+    ( seek_sub_string(Text, ")", 1, L, T0, T1),
+      arg(1, S, N0),
+      succ(N0, N1),
+      ( N1 = N -> !,
+	succ(T1, T)
+      ; nb_setarg(1, S, N1),
+	fail
+      )
     ).
-
-seekn_parenthesis_right(0,  _,    _, T,  T) :- !.
-seekn_parenthesis_right(N0, Text, L, T0, T) :-
-    N0>0,
-    seek1_parenthesis_right(Text, L, T0, T1),
-    succ(N, N0 ),
-    seekn_parenthesis_right(N, Text, L, T1, T).
 
 fix_boundaries_from_right(Text, Pos, From0, To0, From2, To2, From, To) :-
     arg(2, Pos, To1),
