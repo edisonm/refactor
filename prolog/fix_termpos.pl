@@ -69,7 +69,7 @@ get_term_outerpos(TermPos) :-
     arg(2, TermPos, To),
     b_getval(refactor_text, Text),
     string_length(Text, L),
-    seek_sub_string(Text, ".", 1, L, To, OuterTo),
+    once(seek_sub_string(Text, ".", 1, L, To, OuterTo)),
     assertz(term_outerpos(From, To, OuterFrom, OuterTo)).
 
 %% fix_subtermpos(+TermPos, -FixedTermPos) is det
@@ -105,7 +105,7 @@ fix_subtermpos(list_position(From, To, Elms0, Tail0 ),
     ; succ(From, From1),
       maplist_dcg(fix_termpos_from_left(Text), Elms0, Elms, From1, To1),
       succ(ToT, To),
-      seek_sub_string(Text, "|", 1, ToT, To1, ToL),
+      once(seek_sub_string(Text, "|", 1, ToT, To1, ToL)),
       succ(ToL, FromT),
       fix_termpos_from_left(Text, Tail0, Tail, FromT, _)
     ).
@@ -140,16 +140,29 @@ count_parenthesis_right(Text, F, T0, T, N0, N) :-
     count_parenthesis_right(Text, F, T2, T, N1, N).
 count_parenthesis_right(_, _, T, T, N, N).
 
+comment_bound(From, To, FromC, ToC) :-
+    comment_bound(FromC, ToC),
+    From < FromC,
+    ( FromC < To
+    ->true
+    ; !,
+      fail
+    ).
+
 seek_sub_string(Text, SubText, SubTextN, F, T0, T) :-
-    T0 =< F,
-    ( match_comment(T0, D)
-    ->T1 is T0 + D,
-      seek_sub_string(Text, SubText, SubTextN, F, T1, T)
-    ; sub_string(Text, T0, SubTextN, _, SubText)
-    ->T = T0
-    ; succ(T0, T1),
-      seek_sub_string(Text, SubText, SubTextN, F, T1, T)
-    ). 
+    S = s(T0),
+    ( comment_bound(T0, F, FC, TC)
+    ; FC = F,
+      TC = F
+    ),
+    arg(1, S, T1),
+    ( D1 is FC - T1,
+      sub_string(Text, T1, D1, _, Frame),
+      sub_string(Frame, D, SubTextN, _, SubText),
+      T is T1 + D
+    ; nb_setarg(1, S, TC),
+      fail
+    ).
 
 seek1_parenthesis_left(Text, F0, F) :-
     match_comment(F1, D),
@@ -233,13 +246,7 @@ seekn_parenthesis_right(N0, Text, L, T0, T) :-
     succ(N, N0 ),
     seekn_parenthesis_right(N, Text, L, T1, T).
 
-% ------------From0 --------------- FFrom
-% --------------|--------------------|---
-
-fix_boundaries_from_right(Text, Pos,
-			  From0, To0,
-			  From2, To2,
-			  From, To) :-
+fix_boundaries_from_right(Text, Pos, From0, To0, From2, To2, From, To) :-
     arg(2, Pos, To1),
     ( To0 < To1
     ->RL is To1 - To0,
@@ -267,16 +274,16 @@ fix_termpos_from_left(Text, Pos0, Pos, FTo, To) :-
     nb_setarg(2, Pos, To2),
     assertz(term_outerpos(From2, To2, From, To)).
 
-fix_boundaries_from_left(Text, Pos, FTo, From2, To2, From, To) :-
+fix_boundaries_from_left(Text, Pos, From0, From2, To2, From, To) :-
     arg(1, Pos, From1),
-    ( From1 < FTo ->
-      RL is FTo - From1,
+    ( From1 < From0 ->
+      RL is From0 - From1,
       sub_string(Text, From1, RL, _, TextL),
       print_message(warning, format("Misplaced text <-- `~w'", [TextL]))
     ; true
     ),
-    count_parenthesis_left(Text, 1, From1, From2, FTo, 0, N),
-    include_comments_left(Text, FTo, From2, From),
+    count_parenthesis_left(Text, 1, From1, From2, From0, 0, N),
+    include_comments_left(Text, From0, From2, From),
     arg(2, Pos, To1),
     string_length(Text, L),
     seekn_parenthesis_right(N, Text, L, To1, To2),
