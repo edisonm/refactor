@@ -1,4 +1,4 @@
-:- module(ex27, []).
+:- module(ex27, [ex27/0]).
 
 b(_).
 

@@ -112,7 +112,7 @@ test(ex5) :-
 --- ex6.pl (source)
 +++ ex6.pl (target)
 @@ -1,7 +1,7 @@
- :- module(ex6, []).
+ :- module(ex6, [q/3]).
  
  q(A, B, L) :-
 -    p(A, B, L, []).
@@ -324,7 +324,7 @@ test(ex13) :-
 /* $ex14_1$
 --- ex14.pl (source)
 +++ ex14.pl (target)
-@@ -1,24 +1,19 @@
+@@ -1,22 +1,17 @@
  :- module(ex14, [ex14/2]).
  
 -ex14([A, B], _C) :-
@@ -354,8 +354,6 @@ test(ex13) :-
 -    B = [x|T],
 +ex14(A, [x|T]) :-
      ex14(A, T).
- 
- a.
 */
 
 test(ex14_1) :-
@@ -388,7 +386,7 @@ test(ex14_1) :-
      true.
  
  ex14(A, B) :-
-@@ -17,8 +14,7 @@
+@@ -17,6 +14,5 @@
      \+ A,
      \+ B.
  
@@ -396,8 +394,6 @@ test(ex14_1) :-
 -    B = [x|T],
 +ex14(A, g([x|T])) :-
      ex14(A, T).
- 
- a.
 */
 
 test(ex14_2) :-
