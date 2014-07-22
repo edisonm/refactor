@@ -70,6 +70,8 @@ get_term_outerpos(TermPos) :-
     b_getval(refactor_text, Text),
     string_length(Text, L),
     once(seek_sub_string(Text, ".", 1, L, To, OuterTo)),
+    nb_setarg(1, TermPos, OuterFrom),
+    nb_setarg(2, TermPos, OuterTo),
     assertz(term_outerpos(From, To, OuterFrom, OuterTo)).
 
 %% fix_subtermpos(+TermPos, -FixedTermPos) is det
@@ -259,15 +261,15 @@ fix_boundaries_from_right(Text, Pos, From0, To0, From2, To2, From, To) :-
 fix_termpos_from_right(Text, FFrom, Pos0, Pos, From0 ) :-
     fix_subtermpos(Pos0, Pos),
     fix_boundaries_from_right(Text, Pos, From0, FFrom, From2, To2, From, To),
-    nb_setarg(1, Pos, From2),
-    nb_setarg(2, Pos, To2),
+    nb_setarg(1, Pos, From),
+    nb_setarg(2, Pos, To),
     assertz(term_outerpos(From2, To2, From, To)).
 
 fix_termpos_from_left(Text, Pos0, Pos, FTo, To) :-
     fix_subtermpos(Pos0, Pos),
     fix_boundaries_from_left(Text, Pos, FTo, From2, To2, From, To),
-    nb_setarg(1, Pos, From2),
-    nb_setarg(2, Pos, To2),
+    nb_setarg(1, Pos, From),  % if using From2 and To2, comments not included
+    nb_setarg(2, Pos, To),    % TODO: make this parameterizable
     assertz(term_outerpos(From2, To2, From, To)).
 
 fix_boundaries_from_left(Text, Pos, From0, From2, To2, From, To) :-
@@ -310,12 +312,13 @@ fix_subtermpos_rec(From0, To0, FFrom, FTo, From, To, PosL0, PosL) :-
       To = To0
     ).
 
+% TODO: this looks a bit clumsy
 include_comments_left(Text, From, To, NFrom) :-
-    S = s(From),
+    S = s(_),
     T = s(From),
     ( ( comment_bound(FromC, ToC),
-	From =< FromC,
-	ToC =< To
+	From < FromC,
+	ToC < To
       ; FromC = To,
 	ToC = To
       ),
@@ -327,11 +330,17 @@ include_comments_left(Text, From, To, NFrom) :-
 	\+ ( sub_string(Text1, _, 1, _, Char),
 	     \+ member(Char, [" ", "\t", "\n"])
 	   )
-      ->fail
+      ->arg(1, S, From1),
+	( var(From1)
+	->nb_setarg(1, S, FromC)
+	; true
+	),
+	fail
       ; nb_setarg(1, S, FromC),
 	fail
       )
     ->true
     ; true
     ),
-    arg(1, S, NFrom).
+    arg(1, S, NFrom),
+    (var(NFrom) -> NFrom = To ; true).
