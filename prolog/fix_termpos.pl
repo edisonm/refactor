@@ -135,22 +135,35 @@ comment_bound(From, To) :-
     b_getval(refactor_comments, CommentL),
     comment_bound(CommentL, From, To).
 
+/*
 rcomment_bound(From, To) :-
     b_getval(refactor_comments, CommentL),
     reverse(CommentL, CommentR),
     comment_bound(CommentR, From, To).
+*/
 
-count_parenthesis_right(Text, F, T0, T, N) :-
-    S = s(0, T0),
-    forall(seek_sub_string(Text, ")", 1, F, T0, T1),
-	   ( arg(1, S, N1),
-	     succ(N1, N2),
-	     nb_setarg(1, S, N2),
-	     succ(T1, T2),
-	     nb_setarg(2, S, T2)
-	   )),
-    arg(1, S, N),
-    arg(2, S, T).
+count_sub_string(Text, From0, To0, SubText, SubTextN, From, To, N) :-
+    ( seek_sub_string(Text, SubText, SubTextN, To0, From0, From1)
+    ->From = From1,
+      To1 is From1 + SubTextN,
+      ( To1 =< To0
+      ->S = s(1, To1),
+	forall(seek_sub_string(Text, SubText, SubTextN, To0, To1, To2),
+	       ( arg(1, S, N1),
+		 succ(N1, N2),
+		 nb_setarg(1, S, N2),
+		 To3 is To2 + SubTextN,
+		 nb_setarg(2, S, To3)
+	       )),
+	arg(1, S, N),
+	arg(2, S, To)
+      ; N = 1,
+	To = To1
+      )
+    ; From = To0,
+      To = From0,
+      N = 0
+    ).
 
 comment_bound(From, To, FromC, ToC) :-
     comment_bound(FromC, ToC),
@@ -169,6 +182,7 @@ seek_sub_string(Text, SubText, SubTextN, F, T0, T) :-
     ),
     arg(1, S, T1),
     ( D1 is FC - T1,
+      D1 >= 0,
       sub_string(Text, T1, D1, _, Frame),
       sub_string(Frame, D, SubTextN, _, SubText),
       T is T1 + D
@@ -215,29 +229,6 @@ include_comments_right(Text, From, To) :-
     ),
     arg(1, S, To).
 
-count_parenthesis_left(Text, D0, F0, F, T, N0, N) :-
-    F1 is F0 - D0,
-    T =< F1,
-    match_comment(F2, D),
-    F1 =:= F2 + D,
-    !,
-    D1 is D0 + D,
-    count_parenthesis_left(Text, D1, F0, F, T, N0, N).
-count_parenthesis_left(Text, D0, F0, F, T, N0, N) :-
-    F1 is F0 - D0,
-    T =< F1,
-    ( sub_string(Text, F1, 1, _, "(")
-    ->succ(N0, N1),
-      F2 = F1,
-      D = 1
-    ; N0 = N1,
-      F2 = F0,
-      succ(D0, D)
-    ),
-    !,
-    count_parenthesis_left(Text, D, F2, F, T, N1, N).
-count_parenthesis_left(_, _, F, F, _, N, N).
-
 seekn_parenthesis_right(0, _, _, T, T) :- !.
 seekn_parenthesis_right(N, Text, L, T0, T) :-
     S = s(0),
@@ -259,7 +250,7 @@ fix_boundaries_from_right(Text, Pos, From0, To0, From2, To2, From, To) :-
       print_message(warning, format("Misplaced text --> `~w'", [TextL]))
     ; true
     ),
-    count_parenthesis_right(Text, To0, To1, To2, N),
+    count_sub_string(Text, To1, To0, ")", 1, _, To2, N),
     include_comments_right(Text, To2, To),
     arg(1, Pos, From1),
     seekn_parenthesis_left(N, Text, From1, From2),
@@ -287,7 +278,7 @@ fix_boundaries_from_left(Text, Pos, From0, From2, To2, From, To) :-
       print_message(warning, format("Misplaced text <-- `~w'", [TextL]))
     ; true
     ),
-    count_parenthesis_left(Text, 1, From1, From2, From0, 0, N),
+    count_sub_string(Text, From0, From1, "(", 1, From2, _, N),
     include_comments_left(Text, From0, From2, From),
     arg(2, Pos, To1),
     string_length(Text, L),
