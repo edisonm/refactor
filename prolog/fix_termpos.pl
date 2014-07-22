@@ -125,20 +125,32 @@ match_comment(CharPos, Length) :-
     stream_position_data(char_count, Pos, CharPos),
     string_length(Text, Length).
 
-comment_bound(From, To) :-
-    b_getval(refactor_comments, CommentL),
+comment_bound(CommentL, From, To) :-
     member(Pos-Text, CommentL),
     stream_position_data(char_count, Pos, From),
     string_length(Text, Length),
     To is Length + From.
 
-count_parenthesis_right(Text, F, T0, T, N0, N) :-
-    seek_sub_string(Text, ")", 1, F, T0, T1),
-    !,
-    succ(N0, N1),
-    T2 is T1 + 1,		% length(")")expand
-    count_parenthesis_right(Text, F, T2, T, N1, N).
-count_parenthesis_right(_, _, T, T, N, N).
+comment_bound(From, To) :-
+    b_getval(refactor_comments, CommentL),
+    comment_bound(CommentL, From, To).
+
+rcomment_bound(From, To) :-
+    b_getval(refactor_comments, CommentL),
+    reverse(CommentL, CommentR),
+    comment_bound(CommentR, From, To).
+
+count_parenthesis_right(Text, F, T0, T, N) :-
+    S = s(0, T0),
+    forall(seek_sub_string(Text, ")", 1, F, T0, T1),
+	   ( arg(1, S, N1),
+	     succ(N1, N2),
+	     nb_setarg(1, S, N2),
+	     succ(T1, T2),
+	     nb_setarg(2, S, T2)
+	   )),
+    arg(1, S, N),
+    arg(2, S, T).
 
 comment_bound(From, To, FromC, ToC) :-
     comment_bound(FromC, ToC),
@@ -247,7 +259,7 @@ fix_boundaries_from_right(Text, Pos, From0, To0, From2, To2, From, To) :-
       print_message(warning, format("Misplaced text --> `~w'", [TextL]))
     ; true
     ),
-    count_parenthesis_right(Text, To0, To1, To2, 0, N),
+    count_parenthesis_right(Text, To0, To1, To2, N),
     include_comments_right(Text, To2, To),
     arg(1, Pos, From1),
     seekn_parenthesis_left(N, Text, From1, From2),
