@@ -63,6 +63,7 @@ fix_exception(E, _, E).
 
 get_term_info_file(Pattern, Term, File, In, Options) :-
     prolog_canonical_source(File, Path),
+    print_message(informational, format("Reading ~w", Path)),
     catch(setup_call_cleanup(prolog_open_source(Path, In),
 			     get_term_info_fd(In, Pattern, Term, Options),
 			     prolog_close_source(In)),
