@@ -213,8 +213,8 @@ include_comments_left(Text, To, From) :-
     S = s(To),
     ( rcomment_bound(FromC, ToC),
       arg(1, S, From0 ),
-      ( From0 >= ToC,
-        L is From0 - ToC,
+      From0 >= ToC,
+      ( L is From0 - ToC,
 	sub_string(Text, ToC, L, _, Text1),
 	\+ ( sub_string(Text1, _, 1, _, Char),
 	     \+ member(Char, [" ", "\t", "\n"])
@@ -233,8 +233,8 @@ include_comments_right(Text, From, To) :-
     S = s(From),
     ( comment_bound(FromC, ToC),
       arg(1, S, To0 ),
-      ( To0 < FromC,
-	L is FromC - To0,
+      To0 =< FromC,
+      ( L is FromC - To0,
 	sub_string(Text, To0, L, _, Text1),
 	\+ ( sub_string(Text1, _, 1, _, Char),
 	     \+ member(Char, [" ", "\t", "\n"])

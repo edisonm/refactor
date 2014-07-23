@@ -160,7 +160,7 @@ test(ex7_1) :-
  :- module(ex7, [aaa/3]).
  
 -aaa([[d, _]], [/**/ d /* d */], []).
-+aaa([[_]], [/**/ d /* d */], [[c, /**/ d /* d */], [b, c, /**/ d /* d */]]).
++aaa([[_]], [d], [[c, /**/ d /* d */], [b, c, /**/ d /* d */]]).
 */
 
 test(ex7_2) :-
@@ -324,7 +324,7 @@ test(ex13) :-
 /* $ex14_1$
 --- ex14.pl (source)
 +++ ex14.pl (target)
-@@ -1,22 +1,17 @@
+@@ -1,24 +1,19 @@
  :- module(ex14, [ex14/2]).
  
 -ex14([A, B], _C) :-
@@ -354,6 +354,8 @@ test(ex13) :-
 -    B = [x|T],
 +ex14(A, [x|T]) :-
      ex14(A, T).
+ 
+ a.
 */
 
 test(ex14_1) :-
@@ -386,7 +388,7 @@ test(ex14_1) :-
      true.
  
  ex14(A, B) :-
-@@ -17,6 +14,5 @@
+@@ -17,8 +14,7 @@
      \+ A,
      \+ B.
  
@@ -394,6 +396,8 @@ test(ex14_1) :-
 -    B = [x|T],
 +ex14(A, g([x|T])) :-
      ex14(A, T).
+ 
+ a.
 */
 
 test(ex14_2) :-
@@ -700,7 +704,7 @@ test(ex23) :-
  
  ex24(A) :-
 -    A = /****/ key_components/4+ (/*1*/ ( hidden ), ( kbmask([+, +, -, -]) ) /*2*/).
-+    A = /****/ key_components/4+ (/*1*/ help, (/*1*/ ( hidden ), ( kbmask([+, +, -, -]) ) /*2*/) /*2*/).
++    A = /****/ key_components/4+ (help, (/*1*/ ( hidden ), ( kbmask([+, +, -, -]) ) /*2*/)).
 */
 
 test(ex24) :-
@@ -749,7 +753,7 @@ test(ex27) :-
     [ex27],
     rreset,
     with_output_to(string(Result),
-		   expand_term((A=V,Body),Body,A=V,[module(ex27)])),
+		   expand_term((A=V,Body),A@@Body,A=V,[module(ex27)])),
     comment_data(ex27, Pattern),
     assertion(Pattern == Result).
 
