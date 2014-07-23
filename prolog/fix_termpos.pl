@@ -29,17 +29,17 @@
 
 :- module(fix_termpos, [fix_termpos/2,
 			fix_subtermpos/2,
-			term_outerpos/4
+			term_innerpos/4
 		       ]).
 
 :- use_module(library(maplist_dcg)).
 
-%% term_outerpos(From, To, OuterFrom, OuterTo)
+%% term_innerpos(OFrom, OTo, InnerFrom, InnerTo)
 %
-%  Contains the position of the surrounding of a term, that includes comments
-%  and extra parenthesis up to the begining of other terms or space characters.
+%  Contains the inner positions of a term, that exclude comments and some
+%  extra parenthesis.
 %
-:- dynamic term_outerpos/4.
+:- dynamic term_innerpos/4.
 
 %% fix_termpos(+TermPos, -FixedTermPos) is det
 %
@@ -49,7 +49,7 @@
 %  @see fix_subtermpos/2
 %
 fix_termpos(TermPos, FTermPos) :-
-    retractall(term_outerpos(_, _, _, _)),
+    retractall(term_innerpos(_, _, _, _)),
     fix_subtermpos(TermPos, FTermPos),
     get_term_outerpos(FTermPos).
 
@@ -72,7 +72,7 @@ get_term_outerpos(TermPos) :-
     once(seek_sub_string(Text, ".", 1, L, To, OuterTo)),
     nb_setarg(1, TermPos, OuterFrom),
     nb_setarg(2, TermPos, OuterTo),
-    assertz(term_outerpos(From, To, OuterFrom, OuterTo)).
+    assertz(term_innerpos(OuterFrom, OuterTo, From, To)).
 
 %% fix_subtermpos(+TermPos, -FixedTermPos) is det
 %
@@ -263,14 +263,14 @@ fix_termpos_from_right(Text, FFrom, Pos0, Pos, From0 ) :-
     fix_boundaries_from_right(Text, Pos, From0, FFrom, From2, To2, From, To),
     nb_setarg(1, Pos, From),
     nb_setarg(2, Pos, To),
-    assertz(term_outerpos(From2, To2, From, To)).
+    assertz(term_innerpos(From, To, From2, To2)).
 
 fix_termpos_from_left(Text, Pos0, Pos, FTo, To) :-
     fix_subtermpos(Pos0, Pos),
     fix_boundaries_from_left(Text, Pos, FTo, From2, To2, From, To),
     nb_setarg(1, Pos, From),  % if using From2 and To2, comments not included
     nb_setarg(2, Pos, To),    % TODO: make this parameterizable
-    assertz(term_outerpos(From2, To2, From, To)).
+    assertz(term_innerpos(From, To, From2, To2)).
 
 fix_boundaries_from_left(Text, Pos, From0, From2, To2, From, To) :-
     arg(1, Pos, From1),

@@ -732,7 +732,7 @@ test(ex26) :-
 /* $ex27$
 --- ex27.pl (source)
 +++ ex27.pl (target)
-@@ -3,5 +3,5 @@
+@@ -3,8 +3,8 @@
  b(_).
  
  ex27 :-
@@ -740,6 +740,9 @@ test(ex26) :-
 -    b(X).
 +    % test
 +    b((5,2)).
+ 
+ ex27_2 :-
+     @@(_A, _B).
 */
 
 test(ex27) :-
@@ -748,6 +751,28 @@ test(ex27) :-
     with_output_to(string(Result),
 		   expand_term((A=V,Body),Body,A=V,[module(ex27)])),
     comment_data(ex27, Pattern),
+    assertion(Pattern == Result).
+
+/* $ex27_2$
+--- ex27.pl (source)
++++ ex27.pl (target)
+@@ -6,7 +6,6 @@
+     X = (5,2), % test
+     b(X).
+ 
+-ex27_2 :-
+-    @@(_A, _B).
++@@(_B, _A).
+ 
+ @@(_, _).
+*/
+
+test(ex27_2) :-
+    [ex27],
+    rreset,
+    with_output_to(string(Result),
+		   replace_sentence((ex27_2:- @@(A,B)),(\\(@@(B,A))),[module(ex27)])),
+    comment_data(ex27_2, Pattern),
     assertion(Pattern == Result).
 
 test(self_refactor_1) :-
