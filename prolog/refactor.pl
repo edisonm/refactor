@@ -31,7 +31,7 @@
 
 :- reexport(library(ref_shell)).
 :- reexport(library(ref_replay)).
-:- use_module(library(ref_expand), except([expand/5])).
+:- reexport(library(ref_expand), except([expand/5])).
 :- use_module(library(ref_expanders), []).
 :- use_module(library(ref_scenarios), []).
 

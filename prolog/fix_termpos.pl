@@ -137,12 +137,10 @@ comment_bound(From, To) :-
     b_getval(refactor_comments, CommentL),
     comment_bound(CommentL, From, To).
 
-/*
 rcomment_bound(From, To) :-
     b_getval(refactor_comments, CommentL),
     reverse(CommentL, CommentR),
     comment_bound(CommentR, From, To).
-*/
 
 count_sub_string(Text, From0, To0, SubText, SubTextN, From, To, N) :-
     ( seek_sub_string(Text, SubText, SubTextN, To0, From0, From1)
@@ -211,6 +209,26 @@ seekn_parenthesis_left(N0, Text, F0, F) :-
     succ(N, N0),
     seekn_parenthesis_left(N, Text, F1, F).
 
+include_comments_left(Text, To, From) :-
+    S = s(To),
+    ( rcomment_bound(FromC, ToC),
+      arg(1, S, From0 ),
+      ( From0 >= ToC,
+        L is From0 - ToC,
+	sub_string(Text, ToC, L, _, Text1),
+	\+ ( sub_string(Text1, _, 1, _, Char),
+	     \+ member(Char, [" ", "\t", "\n"])
+	   )
+      ->nb_setarg(1, S, FromC),
+	fail
+      ; !,
+	fail
+      )
+    ->true
+    ; true
+    ),
+    arg(1, S, From).
+
 include_comments_right(Text, From, To) :-
     S = s(From),
     ( comment_bound(FromC, ToC),
@@ -244,7 +262,7 @@ seekn_parenthesis_right(N, Text, L, T0, T) :-
       )
     ).
 
-fix_boundaries_from_right(Text, Pos, From0, To0, From2, To2, From, To) :-
+fix_boundaries_from_right(Text, Pos, To0, From2, To2, From, To) :-
     arg(2, Pos, To1),
     ( To0 < To1
     ->RL is To1 - To0,
@@ -256,11 +274,11 @@ fix_boundaries_from_right(Text, Pos, From0, To0, From2, To2, From, To) :-
     include_comments_right(Text, To2, To),
     arg(1, Pos, From1),
     seekn_parenthesis_left(N, Text, From1, From2),
-    include_comments_left(Text, From0, From2, From).
+    include_comments_left(Text, From2, From).
 
-fix_termpos_from_right(Text, FFrom, Pos0, Pos, From0 ) :-
+fix_termpos_from_right(Text, FFrom, Pos0, Pos ) :-
     fix_subtermpos(Pos0, Pos),
-    fix_boundaries_from_right(Text, Pos, From0, FFrom, From2, To2, From, To),
+    fix_boundaries_from_right(Text, Pos, FFrom, From2, To2, From, To),
     nb_setarg(1, Pos, From),
     nb_setarg(2, Pos, To),
     assertz(term_innerpos(From, To, From2, To2)).
@@ -281,7 +299,7 @@ fix_boundaries_from_left(Text, Pos, From0, From2, To2, From, To) :-
     ; true
     ),
     count_sub_string(Text, From0, From1, "(", 1, From2, _, N),
-    include_comments_left(Text, From0, From2, From),
+    include_comments_left(Text, From2, From),
     arg(2, Pos, To1),
     string_length(Text, L),
     seekn_parenthesis_right(N, Text, L, To1, To2),
@@ -293,7 +311,7 @@ fix_subtermpos_rec(From0, To0, FFrom, FTo, From, To, PosL0, PosL) :-
     ( PosL0 = [LPos0, RPos0 ],
       arg(2, LPos0, ToL),
       ToL =< FFrom
-    ->fix_termpos_from_right(Text, FFrom, LPos0, LPos, From0),
+    ->fix_termpos_from_right(Text, FFrom, LPos0, LPos),
       fix_termpos_from_left(Text, RPos0, RPos, FTo, _),
       PosL  = [LPos, RPos],
       arg(1, LPos, From),
@@ -311,36 +329,3 @@ fix_subtermpos_rec(From0, To0, FFrom, FTo, From, To, PosL0, PosL) :-
       From = From0,
       To = To0
     ).
-
-% TODO: this looks a bit clumsy
-include_comments_left(Text, From, To, NFrom) :-
-    S = s(_),
-    T = s(From),
-    ( ( comment_bound(FromC, ToC),
-	From < FromC,
-	ToC < To
-      ; FromC = To,
-	ToC = To
-      ),
-      arg(1, T, To0 ),
-      nb_setarg(1, T, ToC),
-      ( L is FromC - To0,
-	L > 0,
-	sub_string(Text, To0, L, _, Text1),
-	\+ ( sub_string(Text1, _, 1, _, Char),
-	     \+ member(Char, [" ", "\t", "\n"])
-	   )
-      ->arg(1, S, From1),
-	( var(From1)
-	->nb_setarg(1, S, FromC)
-	; true
-	),
-	fail
-      ; nb_setarg(1, S, FromC),
-	fail
-      )
-    ->true
-    ; true
-    ),
-    arg(1, S, NFrom),
-    (var(NFrom) -> NFrom = To ; true).

@@ -500,6 +500,14 @@ substitute_term_norec(Sub, Term, Priority, Pattern, Into, Expander, TermPos) -->
     },
     perform_substitution(Priority, Term, Term2, Pattern2, Into3, Unifier, TermPos).
 
+:- redefine_system_predicate(arg(_,_,_)).
+arg(A,B,C) :-
+    catch(system:arg(A,B,C), E,
+	  ( print_message(error,E),
+	    gtrace
+	  )
+	 ).
+
 %%	perform_substitution(+Priority, +SrcTerm, +Pattern, +Into, +Unifier, +TermPos)
 %
 %	Substitute occurences of Pattern with Into after calling
@@ -512,19 +520,33 @@ substitute_term_norec(Sub, Term, Priority, Pattern, Into, Expander, TermPos) -->
 
 perform_substitution(Priority, Term, Term2, Pattern2, Into2, BindingL, TermPos) -->
     { copy_term(Term2, GTerm),
-      unifier(Term2, Term, UL0),
-      maplist_dcg(non_singleton(UL0), UL0, UL1, []),
+      unifier(Term2, Term, Var1, Var2),
+      maplist(eq, Var1, Var2, UL0),
+      partition(singleton(Var1-Var2), UL0, UL5, UL1),
+      maplist(unif_eq, UL5),
+      partition(singleton(Var2), UL0, _, UL6),
       maplist_dcg(substitute_2, UL1, sub(Term2, UL3), sub(Term3, [])),
-      % UL1=UL2, Term2=Term3, UL3=[],
       UL1=UL2,
       with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term3),
 			[refactor_bind], [BindingL]),
       maplist(subst_unif(Term3, TermPos, GTerm), UL3),
       maplist(subst_unif(Term3, TermPos, GTerm), UL2),
-      maplist(subst_fvar(Term2, TermPos, GTerm), UL0)
+      maplist(subst_fvar(Term2, TermPos, GTerm), UL6)
     },
     !,
     [subst(TermPos, Priority, Pattern2, GTerm, Into2)].
+
+unif_eq(V=V).
+
+not_in(Term, V=_) :-
+    occurrences_of_var(V, Term, 0 ).
+
+singleton(L, V1=V2) :-
+    var(V1),
+    var(V2),
+    ( occurrences_of_var(V1, L, 1)
+    ; occurrences_of_var(V2, L, 1)
+    ).
 
 non_singleton(L, V1=V2) -->
     ( { var(V1),
@@ -537,10 +559,9 @@ non_singleton(L, V1=V2) -->
     ; [V1=V2]
     ).
 
-unifier(Term1, Term2, L) :-
+unifier(Term1, Term2, Var1, Var2) :-
     term_variables(Term1, Var1),
-    copy_term(Term1-Var1, Term2-Var2),
-    maplist(eq, Var1, Var2, L).
+    copy_term(Term1-Var1, Term2-Var2).
 
 eq(A, B, A=B).
 
