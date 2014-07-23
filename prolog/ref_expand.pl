@@ -522,24 +522,18 @@ perform_substitution(Priority, Term, Term2, Pattern2, Into2, BindingL, TermPos) 
     { copy_term(Term2, GTerm),
       unifier(Term2, Term, Var1, Var2),
       maplist(eq, Var1, Var2, UL0),
-      % write(user_error, +UL0),nl(user_error),
-      % gtrace,
-      partition(singleton_l(Var1-Var2), UL0, UL5, UL1),
+      partition(singleton(Var1-Var2), UL0, UL5, UL2),
+      partition(singleton_r(Var2), UL0, _, UL6),
       maplist(unif_eq, UL5),
-      % maplist(unif_if_var, UL1),
-      % maplist(eq, _, Var5, UL5),
-      % write(user_error, -UL5-Var5),nl(user_error),
-      maplist_dcg(substitute_2, UL1, sub(Term2, UL3), sub(Term3, [])),
-      % maplist_dcg(substitute_eq, UL3, Var2, Var3),
-      % maplist(eq, Var1, Var3, UL4),
-      % partition(is_eq, UL4, _, UL41),
-      % write(user_error, -UL3-UL41-UL0),nl(user_error),
-      UL1=UL2,
+      maplist_dcg(substitute_2, UL2, sub(Term2, UL3), sub(Term3, [])),
+      partition(choose1(UL3), UL6, _, UL7),
+      maplist(eq, _, Var7, UL7),
+      partition(singleton_r(Var7), UL7, _, UL1),
       with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term3),
 			[refactor_bind], [BindingL]),
       maplist(subst_unif(Term3, TermPos, GTerm), UL3),
-      maplist(subst_unif(Term3, TermPos, GTerm), UL2)
-%      maplist(subst_fvar(Term2, TermPos, GTerm), UL1)
+      maplist(subst_unif(Term3, TermPos, GTerm), UL2),
+      maplist(subst_fvar(Term2, TermPos, GTerm), UL1)
     },
     !,
     [subst(TermPos, Priority, Pattern2, GTerm, Into2)].
@@ -550,6 +544,11 @@ unif_if_var(V=T) :-
     ; true
     ).
 
+choose1(UL3, V=_) :-
+    member(V2=_, UL3),
+    V2 == V,
+    !.
+
 unif_eq(V=V).
 
 is_eq(A=B) :-
@@ -558,12 +557,16 @@ is_eq(A=B) :-
 not_in(Term, V=_) :-
     occurrences_of_var(V, Term, 0 ).
 
-singleton_l(L, V1=V2) :-
+singleton(L, V1=V2) :-
     var(V1),
     var(V2),
     ( occurrences_of_var(V1, L, 1)
     ; occurrences_of_var(V2, L, 1)
     ).
+
+singleton_r(L, _=V2) :-
+    var(V2),
+    occurrences_of_var(V2, L, 1).
 
 non_singleton(L, V1=V2) -->
     ( { var(V1),
@@ -1062,6 +1065,7 @@ print_expansion('$sb'(RefPos, _), _, Term, _, _, Text) :-
     !,
     print_subtext(RefPos, Text).
 print_expansion('$sb'(RefPos, _, _, Term1, Priority, Into), _, Term, _, OptionL, Text) :-
+    nonvar(RefPos),
     \+ ( nonvar(Term),
 	 Term = '$sb'(_, _, _, _, _, _),
 	 Into \= '$sb'(_, _, _, _, _, _)
