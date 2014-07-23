@@ -523,34 +523,42 @@ perform_substitution(Priority, Term, Term2, Pattern2, Into2, BindingL, TermPos) 
       unifier(Term2, Term, Var1, Var2),
       maplist(eq, Var1, Var2, UL0),
       % write(user_error, +UL0),nl(user_error),
-      partition(singleton(Var1-Var2), UL0, UL5, UL1),
+      % gtrace,
+      partition(singleton_l(Var1-Var2), UL0, UL5, UL1),
       maplist(unif_eq, UL5),
-      % partition(singleton(Var2), UL0, _, UL6),
+      % maplist(unif_if_var, UL1),
       % maplist(eq, _, Var5, UL5),
       % write(user_error, -UL5-Var5),nl(user_error),
       maplist_dcg(substitute_2, UL1, sub(Term2, UL3), sub(Term3, [])),
+      % maplist_dcg(substitute_eq, UL3, Var2, Var3),
+      % maplist(eq, Var1, Var3, UL4),
+      % partition(is_eq, UL4, _, UL41),
+      % write(user_error, -UL3-UL41-UL0),nl(user_error),
       UL1=UL2,
-      maplist(eq, Var3, Var4, UL1),
-      maplist_dcg(substitute_2, UL3, sub(Var4, UL4), sub(Var5, [])),
-      write(user_error, -UL4),nl(user_error),
-      maplist(eq, Var3, Var5, UL6),
-      write(user_error, -UL6),nl(user_error),
       with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term3),
 			[refactor_bind], [BindingL]),
       maplist(subst_unif(Term3, TermPos, GTerm), UL3),
       maplist(subst_unif(Term3, TermPos, GTerm), UL2)
-%      maplist(subst_fvar(Term2, TermPos, GTerm), UL4)
-%      maplist(subst_fvar(Term2, TermPos, GTerm), UL6)
+%      maplist(subst_fvar(Term2, TermPos, GTerm), UL1)
     },
     !,
     [subst(TermPos, Priority, Pattern2, GTerm, Into2)].
 
+unif_if_var(V=T) :-
+    ( var(T)
+    ->V=T
+    ; true
+    ).
+
 unif_eq(V=V).
+
+is_eq(A=B) :-
+    A==B.
 
 not_in(Term, V=_) :-
     occurrences_of_var(V, Term, 0 ).
 
-singleton(L, V1=V2) :-
+singleton_l(L, V1=V2) :-
     var(V1),
     var(V2),
     ( occurrences_of_var(V1, L, 1)
@@ -574,6 +582,7 @@ unifier(Term1, Term2, Var1, Var2) :-
 
 eq(A, B, A=B).
 
+
 get_position_gterm(Term, Pos, GTerm, T, GPos, G, GPriority) :-
     subterm_location_eq(L, T, Term),
     subpos_location(L, Pos, GPos),
@@ -584,6 +593,9 @@ get_position_gterm(Term, Pos, GTerm, T, GPos, G, GPriority) :-
     ; GPriority = 999,
       subterm_location(L, G, GTerm)
     ).
+
+substitute_eq(V0=T0, Term0, Term) :-
+    substitute_value(T0, V0, Term0, Term).
 
 substitute_2(V0=T0, sub(Term0, BL0), sub(Term, BL)) :-
     substitute_value(T0, V1, Term0, Term1),
