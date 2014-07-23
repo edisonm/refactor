@@ -522,16 +522,25 @@ perform_substitution(Priority, Term, Term2, Pattern2, Into2, BindingL, TermPos) 
     { copy_term(Term2, GTerm),
       unifier(Term2, Term, Var1, Var2),
       maplist(eq, Var1, Var2, UL0),
+      % write(user_error, +UL0),nl(user_error),
       partition(singleton(Var1-Var2), UL0, UL5, UL1),
       maplist(unif_eq, UL5),
-      partition(singleton(Var2), UL0, _, UL6),
+      % partition(singleton(Var2), UL0, _, UL6),
+      % maplist(eq, _, Var5, UL5),
+      % write(user_error, -UL5-Var5),nl(user_error),
       maplist_dcg(substitute_2, UL1, sub(Term2, UL3), sub(Term3, [])),
       UL1=UL2,
+      maplist(eq, Var3, Var4, UL1),
+      maplist_dcg(substitute_2, UL3, sub(Var4, UL4), sub(Var5, [])),
+      write(user_error, -UL4),nl(user_error),
+      maplist(eq, Var3, Var5, UL6),
+      write(user_error, -UL6),nl(user_error),
       with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term3),
 			[refactor_bind], [BindingL]),
       maplist(subst_unif(Term3, TermPos, GTerm), UL3),
-      maplist(subst_unif(Term3, TermPos, GTerm), UL2),
-      maplist(subst_fvar(Term2, TermPos, GTerm), UL6)
+      maplist(subst_unif(Term3, TermPos, GTerm), UL2)
+%      maplist(subst_fvar(Term2, TermPos, GTerm), UL4)
+%      maplist(subst_fvar(Term2, TermPos, GTerm), UL6)
     },
     !,
     [subst(TermPos, Priority, Pattern2, GTerm, Into2)].
