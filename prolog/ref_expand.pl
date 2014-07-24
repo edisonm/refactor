@@ -969,23 +969,12 @@ print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
 % if the term have been in parentheses, in a place where that was
 % required, include it!!!
 %
-fix_position_if_braced(term_position(From, To, FFrom, FTo, PosL),
-		       term_position(From, To, FFrom, FTo, PosL),
+fix_position_if_braced(term_position(From, _, FFrom, FTo, _),
 		       Term, GPriority, Into, Priority, Text, Display) :-
     \+ ( From==FFrom,
 	 sub_string(Text, FTo, 1, _, "(")
        ),
-    ( prolog_listing:term_needs_braces(Term, GPriority),
-      ( nonvar(Into),
-	prolog_listing:term_needs_braces(Into, Priority)
-      ; prolog_listing:term_needs_braces(Term, Priority)
-      )
-    ->Display=no
-    ; \+ ( prolog_listing:term_needs_braces(Term, GPriority),
-	   \+ ( From==FFrom,
-		sub_string(Text, FTo, 1, _, "(")
-	      )
-	 ),
+    ( \+ prolog_listing:term_needs_braces(Term, GPriority),
       ( nonvar(Into),
 	prolog_listing:term_needs_braces(Into, Priority)
       ; prolog_listing:term_needs_braces(Term, Priority)
@@ -993,7 +982,7 @@ fix_position_if_braced(term_position(From, To, FFrom, FTo, PosL),
     ->Display=yes
     ),
     !.
-fix_position_if_braced(Pos, Pos, _, _, _, _, _, no). % fail-safe
+fix_position_if_braced(_, _, _, _, _, _, no). % fail-safe
 
 comp_priority(GTerm, GPriority, Term, Priority) :-
     \+prolog_listing:term_needs_braces(GTerm, GPriority),
@@ -1004,9 +993,9 @@ cond_display(no,  _).
 
 %% print_expansion(?Term:term, N:integer, File:atom, Pos0:integer, SkipTo:integer).
 %
-print_expansion_sb(Into, Pattern, Term, RefPos, GPriority, OptionL, Text) :-
+print_expansion_sb(Into, Pattern, Term, TermPos, GPriority, OptionL, Text) :-
     select_option(priority(Priority), OptionL, _, Priority),
-    fix_position_if_braced(RefPos, TermPos, Term, GPriority, Into, Priority, Text, Display),
+    fix_position_if_braced(TermPos, Term, GPriority, Into, Priority, Text, Display),
     cond_display(Display, '('),
     arg(1, TermPos, From),
     with_from(print_expansion_ne(Into, Pattern, Term, TermPos, OptionL, Text), From),

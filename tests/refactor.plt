@@ -790,7 +790,7 @@ test(excomm_1) :-
 /* $excomm_2$
 --- excomm.pl (source)
 +++ excomm.pl (target)
-@@ -10,5 +10,5 @@
+@@ -10,8 +10,8 @@
  
  f(b->c;true/*1*/).
  
@@ -798,6 +798,9 @@ test(excomm_1) :-
 -p( /*1*/ a/*2*/ , /*3*/ _B /*4*/ ).
 +p(/*3*/b/*4*/,/*1*/_A/*2*/).
 +p( /*3*/ _B /*4*/ , /*1*/ a/*2*/ ).
+ 
+ f(a,(a,b,c)).
+ 
 */
 
 test(excomm_2) :-
@@ -823,7 +826,7 @@ test(excomm_3) :-
     rreset,
     with_output_to(string(Result),
 		   replace_sentence(f(a,(_,Body)),f(a,Body), [module(excomm)])),
-    comment_data(excomm_2, Pattern),
+    comment_data(excomm_3, Pattern),
     assertion(Pattern == Result).
 
 test(self_refactor_1) :-
