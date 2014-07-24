@@ -556,24 +556,12 @@ perform_substitution(Priority, Term, Term2, Pattern2, Into2, BindingL, TermPos) 
     !,
     [subst(TermPos, Priority, Pattern2, GTerm, Into2)].
 
-unif_if_var(V=T) :-
-    ( var(T)
-    ->V=T
-    ; true
-    ).
-
 choose1(UL3, V=_) :-
     member(V2=_, UL3),
     V2 == V,
     !.
 
 unif_eq(V=V).
-
-is_eq(A=B) :-
-    A==B.
-
-not_in(Term, V=_) :-
-    occurrences_of_var(V, Term, 0 ).
 
 singleton(L, V1=V2) :-
     var(V1),
@@ -586,23 +574,11 @@ singleton_r(L, _=V2) :-
     var(V2),
     occurrences_of_var(V2, L, 1).
 
-non_singleton(L, V1=V2) -->
-    ( { var(V1),
-	var(V2),
-	( occurrences_of_var(V2, L, 1)
-	; occurrences_of_var(V1, L, 1)
-	)
-      }
-    ->{V1=V2}
-    ; [V1=V2]
-    ).
-
 unifier(Term1, Term2, Var1, Var2) :-
     term_variables(Term1, Var1),
     copy_term(Term1-Var1, Term2-Var2).
 
 eq(A, B, A=B).
-
 
 get_position_gterm(Term, Pos, GTerm, T, GPos, G, GPriority) :-
     subterm_location_eq(L, T, Term),
@@ -614,9 +590,6 @@ get_position_gterm(Term, Pos, GTerm, T, GPos, G, GPriority) :-
     ; GPriority = 999,
       subterm_location(L, G, GTerm)
     ).
-
-substitute_eq(V0=T0, Term0, Term) :-
-    substitute_value(T0, V0, Term0, Term).
 
 substitute_2(V0=T0, sub(Term0, BL0), sub(Term, BL)) :-
     substitute_value(T0, V1, Term0, Term1),
