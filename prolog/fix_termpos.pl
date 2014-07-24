@@ -121,12 +121,6 @@ fix_subtermpos(key_value_position(From0, To0, SFrom, STo, Key, KPos0, VPos0),
     fix_subtermpos_rec(From0, To0, SFrom, STo, From, To,
 		       [KPos0, VPos0 ], [KPos, VPos]).
 
-match_comment(CharPos, Length) :-
-    b_getval(refactor_comments, CommentL),
-    member(Pos-Text, CommentL),
-    stream_position_data(char_count, Pos, CharPos),
-    string_length(Text, Length).
-
 comment_bound(CommentL, From, To) :-
     member(Pos-Text, CommentL),
     stream_position_data(char_count, Pos, From),
@@ -167,9 +161,11 @@ count_sub_string(Text, From0, To0, SubText, SubTextN, From, To, N) :-
 
 comment_bound(From, To, FromC, ToC) :-
     comment_bound(FromC, ToC),
-    From < FromC,
+    From =< FromC,
     ( FromC < To
     ->true
+    ; FromC = To
+    ->!
     ; !,
       fail
     ).
@@ -182,7 +178,7 @@ seek_sub_string(Text, SubText, SubTextN, F, T0, T) :-
     ),
     arg(1, S, T1),
     ( D1 is FC - T1,
-      D1 >= 0,
+      D1 > 0,
       sub_string(Text, T1, D1, _, Frame),
       sub_string(Frame, D, SubTextN, _, SubText),
       T is T1 + D
@@ -191,8 +187,7 @@ seek_sub_string(Text, SubText, SubTextN, F, T0, T) :-
     ).
 
 seek1_parenthesis_left(Text, F0, F) :-
-    match_comment(F1, D),
-    F0 =:= F1 + D,
+    comment_bound(F1, F0 ),
     !,
     seek1_parenthesis_left(Text, F1, F).
 seek1_parenthesis_left(Text, F0, F) :-
@@ -213,7 +208,7 @@ include_comments_left(Text, To, From) :-
     S = s(To),
     ( rcomment_bound(FromC, ToC),
       arg(1, S, From0 ),
-      From0 >= ToC,
+      ToC =< From0,
       ( L is From0 - ToC,
 	sub_string(Text, ToC, L, _, Text1),
 	\+ ( sub_string(Text1, _, 1, _, Char),
@@ -221,7 +216,11 @@ include_comments_left(Text, To, From) :-
 	   )
       ->nb_setarg(1, S, FromC),
 	fail
-      ; !,
+      ; ToC = From0
+      ->nb_setarg(1, S, FromC),
+	!,
+	fail
+      ;	!,
 	fail
       )
     ->true
@@ -241,7 +240,11 @@ include_comments_right(Text, From, To) :-
 	   )
       ->nb_setarg(1, S, ToC),
 	fail
-      ; !,
+      ; To0 = FromC
+      ->nb_setarg(1, S, ToC),
+	!,
+	fail
+      ;	!,
 	fail
       )
     ->true
@@ -265,7 +268,8 @@ seekn_parenthesis_right(N, Text, L, T0, T) :-
 fix_boundaries_from_right(Text, Pos, To0, From2, To2, From, To) :-
     arg(2, Pos, To1),
     ( To0 < To1
-    ->RL is To1 - To0,
+    ->gtrace,
+      RL is To1 - To0,
       sub_string(Text, To0, RL, _, TextL),
       print_message(warning, format("Misplaced text --> `~w'", [TextL]))
     ; true

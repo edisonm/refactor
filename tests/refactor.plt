@@ -779,6 +779,34 @@ test(ex27_2) :-
     comment_data(ex27_2, Pattern),
     assertion(Pattern == Result).
 
+:- [excomm].
+
+test(excomm_1) :-
+    rreset,
+    with_output_to(string(Result),
+		   replace_term(aaa, bbb, [module(excomm)])),
+    assertion(Result == "").
+
+/* $excomm_2$
+--- excomm.pl (source)
++++ excomm.pl (target)
+@@ -10,5 +10,5 @@
+ 
+ f(b->c;true/*1*/).
+ 
+-p(/*1*/_A/*2*/,/*3*/b/*4*/).
+-p( /*1*/ a/*2*/ , /*3*/ _B /*4*/ ).
++p(/*3*/b/*4*/,/*1*/_A/*2*/).
++p( /*3*/ _B /*4*/ , /*1*/ a/*2*/ ).
+*/
+
+test(excomm_2) :-
+    rreset,
+    with_output_to(string(Result),
+		   replace_term(p(A,B), p(B,A), [module(excomm)])),
+    comment_data(excomm_2, Pattern),
+    assertion(Pattern == Result).
+
 test(self_refactor_1) :-
     rreset,
     with_output_to(string(Result),
