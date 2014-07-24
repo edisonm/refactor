@@ -27,8 +27,8 @@
     the GNU General Public License.
 */
 
-:- module(fix_termpos, [fix_termpos/2,
-			fix_subtermpos/2,
+:- module(fix_termpos, [fix_termpos/1,
+			fix_subtermpos/1,
 			term_innerpos/4
 		       ]).
 
@@ -41,17 +41,21 @@
 %
 :- dynamic term_innerpos/4.
 
-%% fix_termpos(+TermPos, -FixedTermPos) is det
+%% fix_termpos(@TermPos) is det
 %
 %  Applies fix_subtermpos recursivelly and extends the boundaries of the first
 %  term position from the first comment up to just before the ending dot.
 %
-%  @see fix_subtermpos/2
+%  Due to performance concerns, this predicate makes a destructive assignment in
+%  the TermPos argument, but preserve the extra positions in the term_innerpos/4
+%  predicate.
 %
-fix_termpos(TermPos, FTermPos) :-
+%  @see fix_subtermpos/1
+%
+fix_termpos(TermPos) :-
     retractall(term_innerpos(_, _, _, _)),
-    fix_subtermpos(TermPos, FTermPos),
-    get_term_outerpos(FTermPos).
+    fix_subtermpos(TermPos),
+    get_term_outerpos(TermPos).
 
 %% fix_termpos(+TermPos, -FixedTermPos) is det
 %
@@ -74,7 +78,7 @@ get_term_outerpos(TermPos) :-
     nb_setarg(2, TermPos, OuterTo),
     assertz(term_innerpos(OuterFrom, OuterTo, From, To)).
 
-%% fix_subtermpos(+TermPos, -FixedTermPos) is det
+%% fix_subtermpos(@TermPos) is det
 %
 %  Takes a subterm position, as returned by the subterm_positons option of
 %  read_term/2 and increases its precision, avoiding some minor mistmatches with
@@ -86,40 +90,40 @@ get_term_outerpos(TermPos) :-
 %
 %  @tbd This implementation have performance issues, needs optimization.
 %
-fix_subtermpos(term_position(From0, To0, FFrom, FTo, PosL0 ),
-	       term_position(From,  To,  FFrom, FTo, PosL)) :-
-    fix_subtermpos_rec(From0, To0, FFrom, FTo, From, To, PosL0, PosL).
-fix_subtermpos(From-To, From-To).
-fix_subtermpos(string_position(From, To),
-	       string_position(From, To)).
-fix_subtermpos(brace_term_position(From, To, Arg0 ),
-	       brace_term_position(From, To, Arg)) :-
+
+fix_subtermpos(Pos) :-
+    Pos = term_position(From0, To0, FFrom, FTo, PosL),
+    !,
+    fix_subtermpos_rec(From0, To0, FFrom, FTo, From, To, PosL),
+    nb_setarg(1, Pos, From),
+    nb_setarg(2, Pos, To).
+fix_subtermpos(Pos) :-
+    Pos = key_value_position(From0, To0, SFrom, STo, _, KPos, VPos),
+    !,
+    fix_subtermpos_rec(From0, To0, SFrom, STo, From, To, [KPos, VPos]),
+    nb_setarg(1, Pos, From),
+    nb_setarg(2, Pos, To).
+fix_subtermpos(_-_).
+fix_subtermpos(string_position(_, _)).
+fix_subtermpos(brace_term_position(From, _, Arg)) :-
     b_getval(refactor_text, Text),
     succ(From, From1),
-    fix_termpos_from_left(Text, Arg0, Arg, From1, _).
-fix_subtermpos(list_position(From, To, Elms0, Tail0 ),
-	       list_position(From, To, Elms,  Tail)) :-
+    fix_termpos_from_left(Text, Arg, From1, _).
+fix_subtermpos(list_position(From, To, Elms, Tail)) :-
     b_getval(refactor_text, Text),
-    ( Tail0 = none ->
-      succ(From, From1),
-      maplist_dcg(fix_termpos_from_left(Text), Elms0, Elms, From1, _),
-      Tail = none
-    ; succ(From, From1),
-      maplist_dcg(fix_termpos_from_left(Text), Elms0, Elms, From1, To1),
-      succ(ToT, To),
+    succ(From, From1),
+    maplist_dcg(fix_termpos_from_left(Text), Elms, From1, To1),
+    ( Tail = none
+    ->true
+    ; succ(ToT, To),
       once(seek_sub_string(Text, "|", 1, ToT, To1, ToL)),
       succ(ToL, FromT),
-      fix_termpos_from_left(Text, Tail0, Tail, FromT, _)
+      fix_termpos_from_left(Text, Tail, FromT, _)
     ).
-fix_subtermpos(map_position(From, To, TypeFrom, TypeTo, KVPos0 ),
-	       map_position(From, To, TypeFrom, TypeTo, KVPos)) :-
+fix_subtermpos(map_position(_, _, _, TypeTo, KVPos)) :-
     b_getval(refactor_text, Text),
     succ(TypeTo, TypeTo1),
-    maplist_dcg(fix_termpos_from_left(Text), KVPos0, KVPos, TypeTo1, _).
-fix_subtermpos(key_value_position(From0, To0, SFrom, STo, Key, KPos0, VPos0),
-	       key_value_position(From,  To,  SFrom, STo, Key, KPos , VPos)) :-
-    fix_subtermpos_rec(From0, To0, SFrom, STo, From, To,
-		       [KPos0, VPos0 ], [KPos, VPos]).
+    maplist_dcg(fix_termpos_from_left(Text), KVPos, TypeTo1, _).
 
 comment_bound(CommentL, From, To) :-
     member(Pos-Text, CommentL),
@@ -280,15 +284,15 @@ fix_boundaries_from_right(Text, Pos, To0, From2, To2, From, To) :-
     seekn_parenthesis_left(N, Text, From1, From2),
     include_comments_left(Text, From2, From).
 
-fix_termpos_from_right(Text, FFrom, Pos0, Pos ) :-
-    fix_subtermpos(Pos0, Pos),
+fix_termpos_from_right(Text, FFrom, Pos ) :-
+    fix_subtermpos(Pos),
     fix_boundaries_from_right(Text, Pos, FFrom, From2, To2, From, To),
     nb_setarg(1, Pos, From),
     nb_setarg(2, Pos, To),
     assertz(term_innerpos(From, To, From2, To2)).
 
-fix_termpos_from_left(Text, Pos0, Pos, FTo, To) :-
-    fix_subtermpos(Pos0, Pos),
+fix_termpos_from_left(Text, Pos, FTo, To) :-
+    fix_subtermpos(Pos),
     fix_boundaries_from_left(Text, Pos, FTo, From2, To2, From, To),
     nb_setarg(1, Pos, From),  % if using From2 and To2, comments not included
     nb_setarg(2, Pos, To),    % TODO: make this parameterizable
@@ -309,27 +313,25 @@ fix_boundaries_from_left(Text, Pos, From0, From2, To2, From, To) :-
     seekn_parenthesis_right(N, Text, L, To1, To2),
     include_comments_right(Text, To2, To).
 
-fix_subtermpos_rec(From0, To0, FFrom, FTo, From, To, PosL0, PosL) :-
+fix_subtermpos_rec(From0, To0, FFrom, FTo, From, To, PosL) :-
     b_getval(refactor_text, Text),
     sub_string(Text, FTo, 1, _, Char),
-    ( PosL0 = [LPos0, RPos0 ],
-      arg(2, LPos0, ToL),
+    ( PosL = [LPos, RPos ],
+      arg(2, LPos, ToL),
       ToL =< FFrom
-    ->fix_termpos_from_right(Text, FFrom, LPos0, LPos),
-      fix_termpos_from_left(Text, RPos0, RPos, FTo, _),
-      PosL  = [LPos, RPos],
+    ->fix_termpos_from_right(Text, FFrom, LPos),
+      fix_termpos_from_left(Text, RPos, FTo, _),
       arg(1, LPos, From),
       arg(2, RPos, To)
-    ; PosL0 = [Pos0 ],
-      arg(1, Pos0, FromR),
+    ; PosL = [Pos],
+      arg(1, Pos, FromR),
       FTo =< FromR,
       Char \= "("
-    ->fix_termpos_from_left(Text, Pos0, Pos, FTo, _),
-      PosL = [Pos],
+    ->fix_termpos_from_left(Text, Pos, FTo, _),
       From = From0,
       arg(2, Pos, To)
     ; succ(FTo, FTo1),
-      maplist_dcg(fix_termpos_from_left(Text), PosL0, PosL, FTo1, _),
+      maplist_dcg(fix_termpos_from_left(Text), PosL, FTo1, _),
       From = From0,
       To = To0
     ).

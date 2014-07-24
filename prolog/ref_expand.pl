@@ -45,6 +45,7 @@
 :- use_module(library(ref_changes)).
 :- use_module(library(ref_context)).
 :- use_module(library(fix_termpos)).
+:- use_module(library(defer)).
 :- use_module(library(prolog_source)). % expand/4
 
 :- thread_local file_commands_db/2, command_db/1.
@@ -199,9 +200,13 @@ do_r_goal_expansion(Term, TermPos) :-
     refactor_context(sent_pattern, SentPattern),
     subsumes_term(SentPattern, Sent),
     refactor_context(goal_args, ga(Pattern, Into, Expander)),
-    fix_subtermpos(TermPos, FTermPos),
-    phrase(substitute_term_norec(sub, Term, 999, Pattern, Into, Expander, FTermPos),
-	   Commands, []),
+    fix_subtermpos(TermPos),
+    defer(HFixer, fix_subtermpos(TermPos)),
+    with_context_vars(phrase(substitute_term_norec(sub, Term, 999, Pattern,
+						   Into, Expander, TermPos),
+			     Commands, []),
+		      [refactor_hfixer],
+		      [HFixer]),
     forall(member(Command, Commands), assertz(command_db(Command))).
 
 :- meta_predicate level_hook(+,+,0 ).
@@ -239,7 +244,7 @@ collect_file_commands(CallerPattern, Pattern, Into, Expander, FileChk,
     Callee = M:Term,
     % trim_term(Term0, Term, TermPos0, TermPos),
     Pattern = M:Pattern2,
-    % TODO: fix_termpos(TermPos, FTermPos),
+    % TODO: fix_termpos(TermPos),
     with_context_vars(phrase(substitute_term_norec(sub, Term, 999, Pattern2,
 						   Into, Expander, TermPos),
 			     Commands, []),
@@ -310,16 +315,23 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
     mod_prop(Prop, M),
     with_context_vars(( get_term_info(M, SentPattern, Sent,
 				      AllChk, File, In, OptionL),
-			% stream_property(In, position(TPos)),
-			fix_termpos(TermPos, FTermPos),
+			/* Note: fix_termpos/1 is a very expensive predicate,
+			  due to that we delay the execution of fixtermpos/1
+			  until its result be really needed, but that is
+			  performed by means of the defer/2 and call_deferred/1
+			  predicates.  That also requires destructive assignment
+			  (as in imperative languages), so the TermPos term is
+			  modified once the deferred predicate is triggered:
+			*/
+			defer(HFixer, fix_termpos(TermPos)),
 			( Expand = no
 			->true
-			; prolog_source:( expand(Sent, FTermPos, In, Expanded),
+			; prolog_source:( expand(Sent, TermPos, In, Expanded),
 					  update_state(Sent, Expanded, M)
 					)
 			),
 		        phrase(substitute_term_level(Level, Sent, 1200, Term,
-						     Into, Expander, FTermPos),
+						     Into, Expander, TermPos),
 			       Commands, [])
 		      ),
 		      [refactor_sent_pattern,
@@ -327,12 +339,14 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
 		       refactor_expanded,
 		       refactor_options,
 		       refactor_comments,
+		       refactor_hfixer,
 		       refactor_goal_args],
 		      [SentPattern,
 		       Sent,
 		       Expanded,
 		       OptionL,
 		       Comments,
+		       HFixer,
 		       ga(Term, Into, Expander)]).
 
 substitute_term_level(goal, _, _, _, _, _, _) -->
@@ -477,10 +491,6 @@ map_compound(Pairs, T0, T1, T) :-
     T  =.. [F|Args],
     maplist(map_subterms(Pairs), Args0, Args1, Args).
 
-%%	substitute_term_norec(+Term, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
-%
-%	None-recursive version of substitute_term_rec//6.
-
 special_term(sub, Term, Term).
 special_term(top, Term0, Term) :- top_term(Term0, Term).
 
@@ -488,6 +498,10 @@ top_term(Var, Var) :- var(Var), !.
 top_term(List, '$LIST.NL'(List)) :- List = [_|_], !.
 top_term([], '$RM') :- !.
 top_term(Term, Term).
+
+%%	substitute_term_norec(+Sub, +Term, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
+%
+%	None-recursive version of substitute_term_rec//6.
 
 substitute_term_norec(Sub, Term, Priority, Pattern, Into, Expander, TermPos) -->
     { refactor_context(sentence,     Sent),
@@ -500,6 +514,7 @@ substitute_term_norec(Sub, Term, Priority, Pattern, Into, Expander, TermPos) -->
     },
     perform_substitution(Priority, Term, Term2, Pattern2, Into3, Unifier, TermPos).
 
+/*
 :- redefine_system_predicate(arg(_,_,_)).
 arg(A,B,C) :-
     catch(system:arg(A,B,C), E,
@@ -507,6 +522,7 @@ arg(A,B,C) :-
 	    gtrace
 	  )
 	 ).
+*/
 
 %%	perform_substitution(+Priority, +SrcTerm, +Pattern, +Into, +Unifier, +TermPos)
 %
@@ -529,6 +545,8 @@ perform_substitution(Priority, Term, Term2, Pattern2, Into2, BindingL, TermPos) 
       partition(choose1(UL3), UL6, _, UL7),
       maplist(eq, _, Var7, UL7),
       partition(singleton_r(Var7), UL7, _, UL1),
+      b_getval(refactor_hfixer, HFixer),
+      call_deferred(HFixer),
       with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term3),
 			[refactor_bind], [BindingL]),
       maplist(subst_unif(Term3, TermPos, GTerm), UL3),
@@ -937,30 +955,6 @@ print_expansion_rm_dot(TermPos, Text, From, To) :-
 
 /*
 % Hacks that can only work at 1st level:
-% BUG: assuming no spaces between Term, full stop and new line.
-% The following predicate would give a hint about how to implement
-% the correct dot position:
-
-:- use_module(library(prolog_source)).
-clause_line_interval(Clause, LineI) :-
-    clause_property(Clause, line_count(Line1)),
-    ( clause_property(Clause, file(File)),
-      module_property(Module, file(File)),
-      catch(open(File, read, In), _, fail),
-      set_stream(In, newline(detect)),
-      call_cleanup(( read_source_term_at_location(In, _Term,
-						  [ line(Line1),
-						    module(Module)
-						  ]),
-		     stream_property(In, position(Pos))
-		   ),
-		   close(In)),
-      stream_position_data(line_count, Pos, Line20 ),
-      succ(Line2, Line20 ),	% one line back
-      Line1 \= Line2
-    ->LineI = Line1-Line2
-    ; LineI = Line1
-    ).
 */
 print_expansion_1('$RM', _, _, TermPos, _, Text, From, To) :- !,
     print_expansion_rm_dot(TermPos, Text, From, To).

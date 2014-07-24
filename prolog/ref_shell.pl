@@ -72,11 +72,10 @@ rdiff(Action, Index0, Index) :-
 	     ( pending_change(Idx1, File, Content0 ),
 	       Idx1 =< Index0
 	     ->setup_call_cleanup(tmp_file_stream(text, File0, Stream),
-				  ( format(Stream, '~s', [Content0 ]),
-				    close(Stream),
-				    do_file_change(Action, File0, File, Content)
-				  ),
-				  delete_file(File0))
+				  format(Stream, '~s', [Content0 ]),
+				  close(Stream)),
+	       call_cleanup(do_file_change(Action, File0, File, Content),
+			    delete_file(File0))
 	     ; do_file_change(Action, File, File, Content)
 	     )
 	   )).
