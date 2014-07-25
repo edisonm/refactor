@@ -316,14 +316,14 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
     with_context_vars(( get_term_info(M, SentPattern, Sent,
 				      AllChk, File, In, OptionL),
 			/* Note: fix_termpos/1 is a very expensive predicate,
-			  due to that we delay the execution of fixtermpos/1
+			  due to that we delay the execution of fix_termpos/1
 			  until its result be really needed, but that is
 			  performed by means of the defer/2 and call_deferred/1
 			  predicates.  That also requires destructive assignment
 			  (as in imperative languages), so the TermPos term is
 			  modified once the deferred predicate is triggered:
 			*/
-			defer(HFixer, fix_termpos(TermPos)),
+			defer(HFixer, fix_subtermpos(TermPos)),
 			( Expand = no
 			->true
 			; prolog_source:( expand(Sent, TermPos, In, Expanded),
