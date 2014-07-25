@@ -80,3 +80,23 @@ get_term_info_fd(In, Pattern, Term, Options) :-
       fail
     ; subsumes_term(Pattern, Term)
     ).
+
+:- public read_terms/3.
+
+read_terms(In, TermOptsL, Options) :-
+    read_terms_opts(TermOptsL, In, Options, TermOptsL0, TermOptsT),
+    read_terms_opts_rec(In, Options, TermOptsL0, TermOptsT, TermOptsL).
+
+read_terms_opts([],    _,  _,         TermOptsT,           TermOptsT).
+read_terms_opts([_|T], In, Options0, [TermOpts|TermOptsL], TermOptsT) :-
+    read_term_opts(In, Options0, TermOpts),
+    read_terms_opts(T, In, Options0, TermOptsL, TermOptsT).
+
+read_term_opts(In, Options0, Term-Options) :-
+    copy_term(Options0, Options),
+    read_term(In, Term, Options).
+
+read_terms_opts_rec(_,  _,        TermOptsL,       [],                   TermOptsL).
+read_terms_opts_rec(In, Options0, [_|TermOptsL0 ], [TermOpts|TermOptsT], TermOptsL) :-
+    read_term_opts(In, Options0, TermOpts),
+    read_terms_opts_rec(In, Options0, TermOptsL0, TermOptsT, TermOptsL).
