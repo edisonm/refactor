@@ -53,7 +53,8 @@
 %  @see fix_subtermpos/1
 %
 fix_termpos(TermPos) :-
-    fix_subtermpos(TermPos),
+    retractall(term_innerpos(_, _, _, _)),
+    fix_subtermpos_rec(TermPos),
     fix_termouterpos(TermPos).
 
 %% fix_termouterpos(@TermPos) is det
@@ -92,7 +93,10 @@ fix_termouterpos(TermPos) :-
 
 fix_subtermpos(Pos) :-
     retractall(term_innerpos(_, _, _, _)),
-    fix_subtermpos_rec(Pos).
+    fix_subtermpos_rec(Pos),
+    arg(1, Pos, From),
+    arg(2, Pos, To),
+    assertz(term_innerpos(From, To, From, To)).
 
 fix_subtermpos_rec(Pos) :-
     Pos = term_position(From0, To0, FFrom, FTo, PosL),
