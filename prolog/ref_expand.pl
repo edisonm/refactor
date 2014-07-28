@@ -45,7 +45,6 @@
 :- use_module(library(ref_changes)).
 :- use_module(library(ref_context)).
 :- use_module(library(fix_termpos)).
-:- use_module(library(defer)).
 :- use_module(library(prolog_source)). % expand/4
 
 :- thread_local file_commands_db/2, command_db/1.
@@ -200,13 +199,9 @@ do_r_goal_expansion(Term, TermPos) :-
     refactor_context(sent_pattern, SentPattern),
     subsumes_term(SentPattern, Sent),
     refactor_context(goal_args, ga(Pattern, Into, Expander)),
-    fix_subtermpos(TermPos),
-    defer(HFixer, fix_subtermpos(TermPos)),
-    with_context_vars(phrase(substitute_term_norec(sub, Term, 999, Pattern,
+    phrase(substitute_term_norec(sub, Term, 999, Pattern,
 						   Into, Expander, TermPos),
 			     Commands, []),
-		      [refactor_hfixer],
-		      [HFixer]),
     forall(member(Command, Commands), assertz(command_db(Command))).
 
 :- meta_predicate level_hook(+,+,0 ).
@@ -315,15 +310,6 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
     mod_prop(Prop, M),
     with_context_vars(( get_term_info(M, SentPattern, Sent,
 				      AllChk, File, In, OptionL),
-			/* Note: fix_subtermpos/1 is a very expensive predicate,
-			  due to that we delay its execution until its result be
-			  really needed, but that is performed by means of the
-			  defer/2 and call_deferred/1 predicates.  That also
-			  requires destructive assignment (as in imperative
-			  languages), so the TermPos term is modified once the
-			  deferred predicate is triggered:
-			*/
-			defer(HFixer, fix_subtermpos(TermPos)),
 			( Expand = no
 			->true
 			; prolog_source:( expand(Sent, TermPos, In, Expanded),
@@ -339,14 +325,12 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
 		       refactor_expanded,
 		       refactor_options,
 		       refactor_comments,
-		       refactor_hfixer,
 		       refactor_goal_args],
 		      [SentPattern,
 		       Sent,
 		       Expanded,
 		       OptionL,
 		       Comments,
-		       HFixer,
 		       ga(Term, Into, Expander)]).
 
 substitute_term_level(goal, _, _, _, _, _, _) -->
@@ -533,7 +517,7 @@ arg(A,B,C) :-
 %	@param TermPos is the term layout of SrcTerm
 %	@param Priority is the environment operator priority
 %	@param Unifier contains bindings between Pattern and Into
-
+%
 perform_substitution(Priority, Term, Term2, Pattern2, Into2, BindingL, TermPos) -->
     { copy_term(Term2, GTerm),
       unifier(Term2, Term, Var1, Var2),
@@ -545,8 +529,12 @@ perform_substitution(Priority, Term, Term2, Pattern2, Into2, BindingL, TermPos) 
       partition(choose1(UL3), UL6, _, UL7),
       maplist(eq, _, Var7, UL7),
       partition(singleton_r(Var7), UL7, _, UL1),
-      b_getval(refactor_hfixer, HFixer),
-      call_deferred(HFixer),
+      /* Note: fix_subtermpos/1 is a very expensive predicate, due to that we
+	 delay its execution until its result be really needed, and we only
+	 apply it to the subterm positions being affected by the refactoring.
+	 The predicate performs destructive assignment (as in imperative
+	 languages), modifying term position once the predicate is called */
+      fix_subtermpos(TermPos),
       with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term3),
 			[refactor_bind], [BindingL]),
       maplist(subst_unif(Term3, TermPos, GTerm), UL3),

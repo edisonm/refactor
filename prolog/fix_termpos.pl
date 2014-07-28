@@ -90,7 +90,6 @@ fix_termouterpos(TermPos) :-
 %
 %  @tbd This implementation have performance issues, needs optimization.
 %
-
 fix_subtermpos(Pos) :-
     retractall(term_innerpos(_, _, _, _)),
     fix_subtermpos_rec(Pos),
