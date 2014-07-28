@@ -13,20 +13,15 @@
 :- use_module(library(ref_shell)).
 :- use_module(library(ref_changes),
 	      [reset_changes/0,
+	       pending_change/1,
 	       undo_changes/1]).
 :- use_module(library(ref_command)).
 
 :- meta_predicate apply_command_q(0).
 apply_command_q(Call) :-
     apply_command(Call),
-    rdiff_q.
-
-rdiff_q :-
-    ( current_prolog_flag(verbose, silent)
-    ->true
-    ; once(rdiff(Index)),
-      print_message(informational, format('Saved changes in index ~w', [Index]))
-    ).
+    once(pending_change(Index)),
+    print_message(informational, format('Saved changes in index ~w', [Index])).
 
 rcommit :-
     ref_commit,
@@ -53,7 +48,6 @@ rrewind(Index) :-
 	    CommandR),
     reverse(CommandR, CommandL),
     maplist(apply_command, CommandL).
-
 
 rundo :-
     rundo(_).

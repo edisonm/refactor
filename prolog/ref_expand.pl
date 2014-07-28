@@ -152,8 +152,22 @@ prolog:xref_open_source(File, Fd) :-
 % like '$TEXT'(T, 0)
 %
 expand(Level, Term, Into, Expander, Options) :-
+    option(fixpoint(FixPoint), Options, none),
+    ( FixPoint \= none
+    ->repeat
+    ; true
+    ),
     meta_expansion(Level, Term, Into, Expander, Options, FileContent),
-    save_changes(FileContent).
+    save_changes(FileContent),
+    ( FixPoint \= none
+    ->( FileContent == []
+      ->!
+      ; print_message(informational,
+      		      format("Restarting expansion to reach a fixpoint", [])),
+      	fail
+      )
+    ; true
+    ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -179,8 +193,8 @@ with_styles(Goal, StyleL) :-
 
 %%	meta_expansion(+Level, +Term, +Into, :Expander, -FileChanges) is det
 %
-%	Expand  terms  that  subsume  Term  in  sentences  that  subsume
-%	Sentence into Into if Expander is true.
+%	Expand terms that subsume Term in sentences that subsume Sentence into
+%	Into if Expander is true.
 
 meta_expansion(Level, Term, Into, Expander, Options, FileContent) :-
     with_styles(collect_expansion_commands(Level, Term, Into, Expander,
@@ -287,8 +301,12 @@ collect_ec_term_level(Level, Term, Into, Expander, OptionL, FileCommands) :-
 mod_prop([],   Module) :- !, current_module(Module).
 mod_prop(Prop, Module) :- module_property(Module, Prop).
 
+collect_changed_files(FileL) :-
+    once(pending_change(Index)),
+    findall(File, pending_change(Index, File, _), FileL).
+
 ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
-    option_allchk(OptionL0, OptionL1, AllChk),
+    option_allchk(OptionL0, OptionL1, AllChk0),
     (Level = goal -> DExpand=yes ; DExpand = no),
     (Level = sent -> SentPattern = Term ; true), % speed up
     maplist_dcg(select_option, [module_property(Prop)-[],
@@ -299,14 +317,21 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
 				sentence(SentPattern)-SentPattern,
 				comments(Comments)-Comments,
 				expand(Expand)-DExpand,
-				expanded(Expanded)-Expanded
+				expanded(Expanded)-Expanded,
+				fixpoint(FixPoint)-none
 			       ],
 		OptionL1, OptionL2),
+    ( FixPoint = files,
+      collect_changed_files(FileL)
+    ->compound_chks([AllChk0, in_set(FileL)], AllChk)
+    ; AllChk = AllChk0
+    ),
     OptionL = [syntax_errors(SE),
 	       subterm_positions(TermPos),
 	       term_position(FPos),
 	       comments(Comments),
 	       module(M)|OptionL2],
+    
     mod_prop(Prop, M),
     with_context_vars(( get_term_info(M, SentPattern, Sent,
 				      AllChk, File, In, OptionL),

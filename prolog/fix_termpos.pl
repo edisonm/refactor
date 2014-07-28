@@ -80,7 +80,7 @@ fix_termouterpos(TermPos) :-
 
 %% fix_subtermpos(@TermPos) is det
 %
-%  Takes a subterm position, as returned by the subterm_positons option of
+%  Takes a subterm position, as returned by the subterm_positions option of
 %  read_term/2 and increases its precision, avoiding some minor mistmatches with
 %  the text, that for a refactoring tool is instrumental.  This method also
 %  ensures that the minimal required parenthesis enclosing a term are contained
