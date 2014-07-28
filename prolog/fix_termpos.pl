@@ -97,15 +97,6 @@ fix_subtermpos(Pos) :-
     arg(2, Pos, To),
     assertz(term_innerpos(From, To, From, To)).
 
-fix_subtermpos_comments(Pos) :-
-    b_getval(refactor_text, Text),
-    arg(1, Pos, From0),
-    include_comments_left(Text, From0, From),
-    arg(2, Pos, To0),
-    include_comments_right(Text, To0, To),
-    nb_setarg(1, Pos, From),
-    nb_setarg(2, Pos, To).
-
 fix_subtermpos_rec(Pos) :-
     Pos = term_position(From0, To0, FFrom, FTo, PosL),
     !,
