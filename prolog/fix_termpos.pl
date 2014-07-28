@@ -97,6 +97,15 @@ fix_subtermpos(Pos) :-
     arg(2, Pos, To),
     assertz(term_innerpos(From, To, From, To)).
 
+fix_subtermpos_comments(Pos) :-
+    b_getval(refactor_text, Text),
+    arg(1, Pos, From0),
+    include_comments_left(Text, From0, From),
+    arg(2, Pos, To0),
+    include_comments_right(Text, To0, To),
+    nb_setarg(1, Pos, From),
+    nb_setarg(2, Pos, To).
+
 fix_subtermpos_rec(Pos) :-
     Pos = term_position(From0, To0, FFrom, FTo, PosL),
     !,
@@ -118,7 +127,7 @@ fix_subtermpos_rec(brace_term_position(From, _, Arg)) :-
 fix_subtermpos_rec(list_position(From, To, Elms, Tail)) :-
     b_getval(refactor_text, Text),
     succ(From, From1),
-    maplist_dcg(fix_termpos_from_left(Text), Elms, From1, To1),
+    maplist_dcg(fix_termpos_from_left_comm(Text), Elms, From1, To1),
     ( Tail = none
     ->true
     ; succ(ToT, To),
@@ -129,7 +138,7 @@ fix_subtermpos_rec(list_position(From, To, Elms, Tail)) :-
 fix_subtermpos_rec(map_position(_, _, _, TypeTo, KVPos)) :-
     b_getval(refactor_text, Text),
     succ(TypeTo, TypeTo1),
-    maplist_dcg(fix_termpos_from_left(Text), KVPos, TypeTo1, _).
+    maplist_dcg(fix_termpos_from_left_comm(Text), KVPos, TypeTo1, _).
 
 comment_bound(CommentL, From, To) :-
     member(Pos-Text, CommentL),
@@ -288,23 +297,33 @@ fix_boundaries_from_right(Text, Pos, To0, From2, To2, From, To) :-
     include_comments_right(Text, To2, To),
     arg(1, Pos, From1),
     seekn_parenthesis_left(N, Text, From1, From2),
-    include_comments_left(Text, From2, From).
+    From = From2.
+    % include_comments_left(Text, From2, From).
 
-fix_termpos_from_right(Text, FFrom, Pos ) :-
+fix_termpos_from_right(Text, To0, Pos ) :-
     fix_subtermpos_rec(Pos),
-    fix_boundaries_from_right(Text, Pos, FFrom, From2, To2, From, To),
+    fix_boundaries_from_right(Text, Pos, To0, From2, To2, From, To),
     nb_setarg(1, Pos, From),
     nb_setarg(2, Pos, To),
+    % retractall(term_innerpos(From2, To2, _, _)),
     assertz(term_innerpos(From, To, From2, To2)).
 
-fix_termpos_from_left(Text, Pos, FTo, To) :-
+fix_termpos_from_left(Text, Pos, From0, To) :-
     fix_subtermpos_rec(Pos),
-    fix_boundaries_from_left(Text, Pos, FTo, From2, To2, From, To),
+    fix_boundaries_from_left(Text, Pos, From0, From2, From, To),
+    nb_setarg(1, Pos, From),	% if using From2 and To2, comments not included
+    nb_setarg(2, Pos, To),	% TODO: make this parameterizable
+    assertz(term_innerpos(From, To, From2, To)).
+
+fix_termpos_from_left_comm(Text, Pos, From0, To) :-
+    fix_subtermpos_rec(Pos),
+    fix_boundaries_from_left(Text, Pos, From0, From2, From, To2),
+    include_comments_right(Text, To2, To),
     nb_setarg(1, Pos, From),  % if using From2 and To2, comments not included
     nb_setarg(2, Pos, To),    % TODO: make this parameterizable
     assertz(term_innerpos(From, To, From2, To2)).
 
-fix_boundaries_from_left(Text, Pos, From0, From2, To2, From, To) :-
+fix_boundaries_from_left(Text, Pos, From0, From2, From, To) :-
     arg(1, Pos, From1),
     ( From1 < From0 ->
       RL is From0 - From1,
@@ -316,8 +335,7 @@ fix_boundaries_from_left(Text, Pos, From0, From2, To2, From, To) :-
     include_comments_left(Text, From2, From),
     arg(2, Pos, To1),
     string_length(Text, L),
-    seekn_parenthesis_right(N, Text, L, To1, To2),
-    include_comments_right(Text, To2, To).
+    seekn_parenthesis_right(N, Text, L, To1, To).
 
 fix_subtermpos_from_to(From0, To0, FFrom, FTo, From, To, PosL) :-
     b_getval(refactor_text, Text),
@@ -337,7 +355,7 @@ fix_subtermpos_from_to(From0, To0, FFrom, FTo, From, To, PosL) :-
       From = From0,
       arg(2, Pos, To)
     ; succ(FTo, FTo1),
-      maplist_dcg(fix_termpos_from_left(Text), PosL, FTo1, _),
+      maplist_dcg(fix_termpos_from_left_comm(Text), PosL, FTo1, _),
       From = From0,
       To = To0
     ).

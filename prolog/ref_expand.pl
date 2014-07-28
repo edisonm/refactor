@@ -451,8 +451,7 @@ string_concat_to(RText, t(From, To, PasteText), Pos-Text0, To-Text) :-
     string_concat(Text0, Text1, Text2),
     string_concat(Text2, PasteText, Text).
 
-apply_change(Text,
-	     M:subst(TermPos, Priority, Pattern, Term, Into),
+apply_change(Text, M:subst(TermPos, Priority, Pattern, Term, Into),
 	     t(From, To, PasteText)) :-
     wr_options(OptionL0),
     OptionL = [module(M), priority(Priority)|OptionL0 ],
@@ -955,23 +954,25 @@ print_expansion_1('$TEXT'(Term, Delta), _, _, TermPos, OptionL, _, From, To) :- 
     % quoted(false)
     write_t(Term, OptionL),
     To is To0 + Delta.
-print_expansion_1('$LIST.NL'(TermL), _, _, TermPos, OptionL0, Text, From, To) :- !,
+print_expansion_1('$LIST.NL'([Into|IntoL]), Pattern, Term, TermPos, OptionL0,
+		  Text, From, To) :- !,
     merge_options([priority(1200)], OptionL0, OptionL),
-    maplist(term_write_stop_nl(OptionL), TermL),
-    print_expansion_rm_dot(TermPos, Text, From, To).
+    print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To),
+    maplist(term_write_stop_nl(Pattern, Term, TermPos, OptionL, Text), IntoL).
 print_expansion_1(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
     print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To).
 
-term_write_stop_nl(Opt, Term) :-
-    term_write_stop_nl__(Term, Opt).
+term_write_stop_nl(Pattern, Term, TermPos, OptionL, Text, Into) :-
+    term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL, Text).
 
-term_write_stop_nl__('$NL', _) :- !, nl.
-term_write_stop_nl__('$NOOP'(Term), Opt) :-
+term_write_stop_nl__('$NOOP'(Into), Pattern, Term, TermPos, OptionL, Text) :-
     with_output_to(string(_),	%Ignore, but process
-		   term_write_stop_nl__(Term, Opt)).
-term_write_stop_nl__(Term, Opt) :-
-    write_term(Term, Opt),
-    write('.'),nl.
+		   term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL,
+					Text)).
+term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL, Text) :-
+    write('.'), nl,
+    arg(1, TermPos, From),
+    with_from(print_expansion(Into, Pattern, Term, TermPos, OptionL, Text), From).
 
 print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
     arg(1, TermPos, From),
@@ -1055,6 +1056,13 @@ print_expansion_ne('$G'(Into, Goal), Pattern, Term, RefPos, OptionL, Text) :-
     !,
     with_str_hook(print_expansion(Into, Pattern, Term, RefPos, OptionL, Text),
 		  Goal).
+print_expansion_ne('$C'(Goal, Into), Pattern, Term, RefPos, OptionL, Text) :-
+    \+ ( nonvar(Term),
+	 Term = '$C'(_, _)
+       ),
+    !,
+    call(Goal),
+    print_expansion(Into, Pattern, Term, RefPos, OptionL, Text).
 print_expansion_ne('$,NL', Pattern, Term, RefPos, OptionL, Text) :-
     Term \=='$,NL',
     !,
