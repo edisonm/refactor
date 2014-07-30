@@ -546,8 +546,10 @@ perform_substitution(Sub, Priority, Term, Term2, Pattern2, Into2, BindingL, Term
       maplist(eq, Var1, Var2, UL0),
       %partition(singleton(Var1-Var2), UL0, UL1, UL2),
       %maplist(unif_eq, UL1),
-      %maplist_dcg(substitute_2, UL2, sub(Term2, UL3), sub(Term3, [])),
-      gtrace,
+      % maplist_dcg(substitute_2, UL0, sub(Term2, UL2), sub(Term3, [])),
+      maplist(special_substitution(UL0), Var2, Var3),
+      % gtrace,
+      maplist(eq, Var1, Var3, UL1),
       /* Note: fix_subtermpos/1 is a very expensive predicate, due to that we
 	 delay its execution until its result be really needed, and we only
 	 apply it to the subterm positions being affected by the refactoring.
@@ -558,13 +560,28 @@ perform_substitution(Sub, Priority, Term, Term2, Pattern2, Into2, BindingL, Term
       fix_subtermpos(TermPos),
       with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term2),
 			[refactor_bind], [BindingL]),
-      maplist(subst_unif(Term2, TermPos, GTerm), UL0),
-      % maplist(subst_unif(Term3, TermPos, GTerm), UL2),
+      maplist(subst_unif_r(Term2, TermPos, GTerm), UL1),
+      % maplist(subst_unif_r(Term3, TermPos, GTerm), UL1),
       % maplist(subst_fvar(Term3, TermPos, GTerm), UL1),
       special_term(Sub, Into2, Into3)
     },
     !,
     [subst(TermPos, Priority, Pattern2, GTerm, Into3)].
+
+special_substitution(UL, T0, T) :-
+    ( nonvar(T0)
+    ->term_variables(T0, VL),
+      maplist(special_substitution_var(UL), VL, VS),
+      copy_term(T0-VL, T-VS)
+    ; T = T0
+    ).
+
+special_substitution_var(UL, V, S) :-
+    ( member(V1=V2, UL),
+      V2==V
+    ->S=V1
+    ; true
+    ).
 
 choose1(UL3, V=_) :-
     member(V2=_, UL3),
