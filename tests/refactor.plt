@@ -196,8 +196,7 @@ test(ex7_2) :-
 
 test(ex8) :-
     rreset,
-    expand_sentence(ex8([[a,b],[c,d]|T]), ex8([[a,b]|T]),
-				   true, [module(ex8)]),
+    expand_sentence(ex8([[a,b],[c,d]|T]), ex8([[a,b]|T]), true, [module(ex8)]),
     with_output_to(string(Result), rshow),
     comment_data(ex8, Pattern),
     assertion(Pattern == Result).
