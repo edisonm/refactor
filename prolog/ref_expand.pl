@@ -541,14 +541,13 @@ arg(A,B,C) :-
 %	@param Unifier contains bindings between Pattern and Into
 %
 perform_substitution(Sub, Priority, Term, Term2, Pattern2, Into2, BindingL, TermPos) -->
-    { gtrace,
-      copy_term(Term2, GTerm),
+    { copy_term(Term2, GTerm),
       unifier(Term2, Term, Var1, Var2),
-      maplist(eq, Var1, Var2, UL2),
-      % partition(singleton(Var2), UL0, UL1, UL2),
-      % maplist(unif_eq, UL1),
-      maplist_dcg(substitute_2, UL2, sub(Term2, UL3R), sub(Term3, [])),
-      reverse(UL3R, UL3), % TODO: topological order
+      maplist(eq, Var1, Var2, UL0),
+      %partition(singleton(Var1-Var2), UL0, UL1, UL2),
+      %maplist(unif_eq, UL1),
+      %maplist_dcg(substitute_2, UL2, sub(Term2, UL3), sub(Term3, [])),
+      gtrace,
       /* Note: fix_subtermpos/1 is a very expensive predicate, due to that we
 	 delay its execution until its result be really needed, and we only
 	 apply it to the subterm positions being affected by the refactoring.
@@ -557,18 +556,15 @@ perform_substitution(Sub, Priority, Term, Term2, Pattern2, Into2, BindingL, Term
 	 the predicate is called.
       */
       fix_subtermpos(TermPos),
-      with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term3),
+      with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term2),
 			[refactor_bind], [BindingL]),
-      maplist(subst_unif_r(Term3, TermPos, GTerm), UL3),
-      reverse(UL2, ULR2),
-      maplist(subst_unif_r(Term3, TermPos, GTerm), ULR2),
+      maplist(subst_unif(Term2, TermPos, GTerm), UL0),
+      % maplist(subst_unif(Term3, TermPos, GTerm), UL2),
+      % maplist(subst_fvar(Term3, TermPos, GTerm), UL1),
       special_term(Sub, Into2, Into3)
     },
     !,
     [subst(TermPos, Priority, Pattern2, GTerm, Into3)].
-
-subst_into_arg(_, TermPos, Into0, Into, Pattern) :-
-    subst_into(TermPos, Into0, Into, Pattern).
 
 choose1(UL3, V=_) :-
     member(V2=_, UL3),
@@ -902,7 +898,7 @@ rportray('$NOOP'(Term), Opt) :- !,
 rportray('$LIST'(L), Opt) :- !,
     maplist(term_write(Opt), L).
 rportray('$LIST,'(L), Opt) :- !,
-    term_write_comma_list(L, Opt).
+    term_write_sep_list(L, ', ', Opt).
 rportray('$LIST,_'(L), Opt) :- !,
     maplist(term_write_comma_2(Opt), L).
 rportray('$TEXT'(T), Opt) :- !,
@@ -944,6 +940,8 @@ rportray([E|T0], Opt) :- !,
 	write_term(T, Opt)
       )
     ).
+
+term_write(Opt, Term) :- write_term(Term, Opt).
 
 rportray_list_nl(L, Offs, Opt) :-
     (L = [] ; L = [_|_]), !,
