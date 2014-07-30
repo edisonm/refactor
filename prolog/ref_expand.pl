@@ -541,25 +541,27 @@ arg(A,B,C) :-
 %	@param Unifier contains bindings between Pattern and Into
 %
 perform_substitution(Sub, Priority, Term, Term2, Pattern2, Into2, BindingL, TermPos) -->
-    { copy_term(Term2, GTerm),
+    { gtrace,
+      copy_term(Term2, GTerm),
       unifier(Term2, Term, Var1, Var2),
-      maplist(eq, Var1, Var2, UL0),
-      partition(singleton(Var1-Var2), UL0, UL1, UL2),
-      maplist(unif_eq, UL1),
+      maplist(eq, Var1, Var2, UL2),
+      % partition(singleton(Var2), UL0, UL1, UL2),
+      % maplist(unif_eq, UL1),
       maplist_dcg(substitute_2, UL2, sub(Term2, UL3R), sub(Term3, [])),
       reverse(UL3R, UL3), % TODO: topological order
       /* Note: fix_subtermpos/1 is a very expensive predicate, due to that we
 	 delay its execution until its result be really needed, and we only
 	 apply it to the subterm positions being affected by the refactoring.
-	 The predicate performs destructive assignment (as in imperative
-	 languages), modifying term position once the predicate is called,
-         to ensure retroactive effects.
+	 To ensure retroactive effects, the predicate performs destructive
+	 assignment (as in imperative languages), modifying term position once
+	 the predicate is called.
       */
       fix_subtermpos(TermPos),
       with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term3),
 			[refactor_bind], [BindingL]),
-      maplist(subst_unif(Term3, TermPos, GTerm), UL3),
-      maplist(subst_unif(Term3, TermPos, GTerm), UL2),
+      maplist(subst_unif_r(Term3, TermPos, GTerm), UL3),
+      reverse(UL2, ULR2),
+      maplist(subst_unif_r(Term3, TermPos, GTerm), ULR2),
       special_term(Sub, Into2, Into3)
     },
     !,
@@ -615,19 +617,49 @@ substitute_2(V0=T0, sub(Term0, BL0), sub(Term, BL)) :-
       BL0 = [V0=V1|BL]
     ).
 
+get_innerpos(From, To, IFrom, ITo) :-
+    term_innerpos(From, To, IFrom, ITo),
+    !.
+get_innerpos(From, To, From, To).
+
+subst_unif_r(Term, Pos, GTerm, V=T) :-
+    ( ( get_position_gterm(Term, Pos, GTerm, V, GPos, G, P),
+	GPos \= none
+      ->arg(1, Pos, From),
+	arg(2, Pos, To),
+	get_innerpos(From, To, IFrom, ITo),
+	% term_variables(T, VL),
+	% gtrace,
+	ignore(V='$sb'(GPos, IFrom, ITo, G, P, T))
+	% maplist(substitution(Term, Pos, GTerm), VL, VS),
+	% copy_term(T-VL, T1-VS)	
+      )
+    ; true
+    ).
+
+substitution(Term, Pos, GTerm, V, S) :-
+    ( get_position_gterm(Term, Pos, GTerm, V, GPos, G, P),
+      GPos \= none
+    ->arg(1, Pos, From),
+      arg(2, Pos, To),
+      get_innerpos(From, To, IFrom, ITo),
+      S = '$sb'(GPos, IFrom, ITo, G, P, V)
+    ; S = V
+    ).
+
 subst_unif(Term, Pos, GTerm, V=T) :-
     ( ( (var(T) ; nonvar(T), T \= '$sb'(_, _, _, _, _, _)),
 	get_position_gterm(Term, Pos, GTerm, T, GPos, G, P),
 	GPos \= none
       ->arg(1, Pos, From),
 	arg(2, Pos, To),
-	term_innerpos(From, To, IFrom, ITo),
+	get_innerpos(From, To, IFrom, ITo),
 	ignore(V='$sb'(GPos, IFrom, ITo, G, P, T))
       ; get_position_gterm(Term, Pos, GTerm, V, GPos, G, P),
 	GPos \= none
       ->arg(1, Pos, From),
 	arg(2, Pos, To),
-	term_innerpos(From, To, IFrom, ITo),
+	get_innerpos(From, To, IFrom, ITo),
 	ignore(V='$sb'(GPos, IFrom, ITo, G, P, T))
       )
     ; V=T
@@ -669,7 +701,7 @@ subst_var(Pos, Var, GTerm, GPriority, CTerm) :-
     ),
     arg(1, Pos, From),
     arg(2, Pos, To),
-    term_innerpos(From, To, IFrom, ITo),
+    get_innerpos(From, To, IFrom, ITo),
     Var = '$sb'(Pos, IFrom, ITo, GTerm, GPriority, CTerm).
 
 %%	subst_term(+Position, +Pattern, +Vars, +Term)
