@@ -522,6 +522,7 @@ substitute_term_norec(Sub, Term, Priority, Pattern, Into, Expander, TermPos) -->
     },
     perform_substitution(Sub, Priority, Term, Term2, Pattern2, Into2, Unifier, TermPos).
 
+/*
 :- redefine_system_predicate(arg(_,_,_)).
 arg(A,B,C) :-
     catch(system:arg(A,B,C), E,
@@ -529,6 +530,7 @@ arg(A,B,C) :-
 	    gtrace
 	  )
 	 ).
+*/
 
 %%	perform_substitution(+Priority, +SrcTerm, +Pattern, +Into, +Unifier, +TermPos)
 %
@@ -544,52 +546,28 @@ perform_substitution(Sub, Priority, Term, Term2, Pattern2, Into2, BindingL, Term
     { copy_term(Term2, GTerm),
       unifier(Term2, Term, Var1, Var2),
       maplist(eq, Var1, Var2, UL0),
-      partition(singleton(UL0), UL0, ULS, UL1),
-      maplist(unif_eq, ULS), % this will cause that the next literal catch
-				% intentional assignments with subterms that
-				% already appear in the readed term
-      maplist_dcg(substitute_2, UL1, sub(Term2, UL20), sub(Term3, [])),
-      partition(singleton(UL20), UL20, UL2S, UL2),
-      maplist(unif_eq, UL2S),
-      
-      % maplist(special_substitution(UL0), Var2, Var3),
-      % gtrace,
-      % maplist(eq, Var1, Var3, UL1),
-      
+      partition(singleton(Var1-Var2), UL0, UL5, UL2),
+      partition(singleton_r(Var2), UL0, _, UL6),
+      maplist(unif_eq, UL5),
+      maplist_dcg(substitute_2, UL2, sub(Term2, UL3), sub(Term3, [])),
+      partition(choose1(UL3), UL6, _, UL7),
+      maplist(eq, _, Var7, UL7),
+      partition(singleton_r(Var7), UL7, _, UL1),
       /* Note: fix_subtermpos/1 is a very expensive predicate, due to that we
 	 delay its execution until its result be really needed, and we only
 	 apply it to the subterm positions being affected by the refactoring.
-	 To ensure retroactive effects, the predicate performs destructive
-	 assignment (as in imperative languages), modifying term position once
-	 the predicate is called.
-      */
+	 The predicate performs destructive assignment (as in imperative
+	 languages), modifying term position once the predicate is called */
       fix_subtermpos(TermPos),
       with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term3),
 			[refactor_bind], [BindingL]),
-      maplist(subst_unif_r(Term3, TermPos, GTerm), UL2),
-      maplist(subst_unif_r(Term2, TermPos, GTerm), UL1),
-      % maplist(subst_unif_r(Term3, TermPos, GTerm), UL1),
-      % maplist(subst_fvar(Term2, TermPos, GTerm), UL2S),
-      % maplist(subst_fvar(Term2, TermPos, GTerm), ULS),
+      maplist(subst_unif(Term3, TermPos, GTerm), UL3),
+      maplist(subst_unif(Term3, TermPos, GTerm), UL2),
+      maplist(subst_fvar(Term2, TermPos, GTerm), UL1),
       special_term(Sub, Into2, Into3)
     },
     !,
     [subst(TermPos, Priority, Pattern2, GTerm, Into3)].
-
-special_substitution(UL, T0, T) :-
-    ( nonvar(T0)
-    ->term_variables(T0, VL),
-      maplist(special_substitution_var(UL), VL, VS),
-      copy_term(T0-VL, T-VS)
-    ; T = T0
-    ).
-
-special_substitution_var(UL, V, S) :-
-    ( member(V1=V2, UL),
-      V2==V
-    ->S=V1
-    ; true
-    ).
 
 choose1(UL3, V=_) :-
     member(V2=_, UL3),
@@ -599,11 +577,10 @@ choose1(UL3, V=_) :-
 unif_eq(V=V).
 
 singleton(L, V1=V2) :-
-    var(V1), % always var
+    var(V1),
     var(V2),
     ( occurrences_of_var(V1, L, 1)
-    ;
-      occurrences_of_var(V2, L, 1)
+    ; occurrences_of_var(V2, L, 1)
     ).
 
 singleton_r(L, _=V2) :-
@@ -643,31 +620,6 @@ get_innerpos(From, To, IFrom, ITo) :-
     term_innerpos(From, To, IFrom, ITo),
     !.
 get_innerpos(From, To, From, To).
-
-subst_unif_r(Term, Pos, GTerm, V=T) :-
-    ( ( get_position_gterm(Term, Pos, GTerm, V, GPos, G, P),
-	GPos \= none
-      ->arg(1, Pos, From),
-	arg(2, Pos, To),
-	get_innerpos(From, To, IFrom, ITo),
-	% term_variables(T, VL),
-	% gtrace,
-	ignore(V='$sb'(GPos, IFrom, ITo, G, P, T))
-	% maplist(substitution(Term, Pos, GTerm), VL, VS),
-	% copy_term(T-VL, T1-VS)	
-      )
-    ; true
-    ).
-
-substitution(Term, Pos, GTerm, V, S) :-
-    ( get_position_gterm(Term, Pos, GTerm, V, GPos, G, P),
-      GPos \= none
-    ->arg(1, Pos, From),
-      arg(2, Pos, To),
-      get_innerpos(From, To, IFrom, ITo),
-      S = '$sb'(GPos, IFrom, ITo, G, P, V)
-    ; S = V
-    ).
 
 subst_unif(Term, Pos, GTerm, V=T) :-
     ( ( (var(T) ; nonvar(T), T \= '$sb'(_, _, _, _, _, _)),
