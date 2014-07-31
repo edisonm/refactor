@@ -922,7 +922,7 @@ rportray([E|T0], Opt) :- !,
 rportray_list_nl(L, Offs, Opt) :-
     (L = [] ; L = [_|_]), !,
     get_output_position(Pos),
-    LinePos is Offs + Pos + 1,
+    LinePos is Offs + Pos + 2,
     with_output_to(atom(Sep), nl_indent(and, ',', LinePos)),
     term_write_sep_list_2(L, Sep, Opt).
 
