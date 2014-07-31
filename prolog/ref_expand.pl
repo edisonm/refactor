@@ -891,9 +891,9 @@ rportray('$BODY'(B, Offs), Opt) :- !,
     rportray_body(B, Offs, Opt).
 rportray('$BODY'(B), Opt) :- !,
     rportray_body(B, 0, Opt).
-rportray('$LIST,NL'(L), Opt) :-
+rportray('$LIST,NL'(L), Opt) :- !,
     rportray_list_nl(L, 0, Opt).
-rportray('$LIST,NL'(L, Offs), Opt) :-
+rportray('$LIST,NL'(L, Offs), Opt) :- !,
     rportray_list_nl(L, Offs, Opt).
 rportray([E|T0], Opt) :- !,
     append(H, T1, [E|T0]),
@@ -921,33 +921,51 @@ rportray([E|T0], Opt) :- !,
 
 rportray_list_nl(L, Offs, Opt) :-
     (L = [] ; L = [_|_]), !,
-    get_output_position(Pos),
-    LinePos is Offs + Pos + 2,
-    with_output_to(atom(Sep), nl_indent(and, ',', LinePos)),
-    term_write_sep_list_2(L, Sep, Opt).
+    term_write_sep_list_2(L, Offs, Opt).
 
-term_write_sep_list_2([E|T], Sep, Opt) :- !,
+term_write_sep_list_2([E|T], Offs, Opt) :- !,
     write('['),
+    get_output_position(Pos),
+    LinePos is Offs + Pos,
     write_term(E, Opt),
-    term_write_sep_list_inner(T, Sep, Opt),
+    term_write_sep_list_inner(T, LinePos, Opt),
     write(']').
 term_write_sep_list_2(E, _, Opt) :-
     write_term(E, Opt).
 
-term_write_sep_list_inner([E|T], Sep, Opt) :- !,
+term_write_sep_list_inner(T, LinePos, Opt) :-
+    with_output_to(atom(Sep), nl_indent(and, ',', LinePos)),
+    term_write_sep_list_inner_rec(T, Sep, Opt).
+
+term_write_sep_list_inner_rec([E|T], Sep, Opt) :- !,
     write(Sep),
     write_term(E, Opt),
-    term_write_sep_list_inner(T, Sep, Opt).
-term_write_sep_list_inner(T, Sep, Opt) :-
+    term_write_sep_list_inner_rec(T, Sep, Opt).
+term_write_sep_list_inner_rec(T, Sep, Opt) :-
     ( T == []
     ->true
     ; nonvar(T),
       T = '$sb'(_Pos, _IFrom, _ITo, _GTerm, _GPriority, Term)
-    ->term_write_sep_list_inner(Term, Sep, Opt)
-    ; write('|'),
-      write_term(T, Opt)
+    ->term_write_sep_list_inner_rec(Term, Sep, Opt)
+    ; write_tail(T, Opt)
     ; true
     ).
+
+write_tail(T, Opt) :-
+    var(T),
+    !,
+    write_term(T, Opt).
+write_tail([], _) :- !.
+write_tail('$LIST,NL'(L), Opt) :- !,
+    get_output_position(Pos),
+    term_write_sep_list_inner(L, Pos, Opt).
+write_tail('$LIST,NL'(L, Offs), Opt) :- !,
+    get_output_position(Pos),
+    LinePos is Offs + Pos,
+    term_write_sep_list_inner(L, LinePos, Opt).
+write_tail(T, Opt) :-
+    write('|'),
+    write_term(T, Opt).
 
 term_write_sep_list([],    _,   _).
 term_write_sep_list([T|L], Sep, Opt) :-
@@ -1244,7 +1262,7 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, O
       maplist(print_expansion_elem(OptionL1, Text), FromToL, PosL, ArgL, PatGTrL),
       term_priority(Into, 2, Priority2),
       OptionL2=[priority(Priority2)|OptionL],
-      term_write_sep_list_inner(ATail, ', ', OptionL2),
+      term_write_sep_list_inner_rec(ATail, ', ', OptionL2),
       display_subtext(Text, To2, To)
     ),
     (comp_priority(GTerm, Priority, Into, Priority) ->display(')') ; true).
