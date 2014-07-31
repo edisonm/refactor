@@ -919,6 +919,8 @@ rportray([E|T0], Opt) :- !,
       )
     ).
 
+term_write(Opt, Term) :- write_term(Term, Opt).
+
 rportray_list_nl(L, Offs, Opt) :-
     (L = [] ; L = [_|_]), !,
     term_write_sep_list_2(L, Offs, Opt).
