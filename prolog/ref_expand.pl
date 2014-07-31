@@ -491,6 +491,11 @@ map_compound(Pairs,		% Special case: preserve Goal
 	     '$G'(T1, _),
 	     '$G'(T,  G)) :- !,
     map_subterms(Pairs, T0, T1, T).
+map_compound(Pairs,		% Special case: preserve Goal
+	     '$C'(G, T0),
+	     '$C'(_, T1),
+	     '$C'(G, T )) :- !,
+    map_subterms(Pairs, T0, T1, T).
 map_compound(Pairs, T0, T1, T) :-
     functor(T0, F, N),
     functor(T1, F, N),
@@ -870,6 +875,11 @@ rportray('$@'(Term, '$sb'(ArgPos, _IFrom, _ITo, GTerm, GPriority, Pattern)), Opt
 rportray('$G'(Term, Goal), Opt) :-
     !,
     with_str_hook(write_term(Term, Opt), Goal).
+rportray('$C'(Goal, Term), Opt) :-
+    !,
+    call(Goal),
+    write(user_error, opt(Opt)),nl(user_error),
+    write_term(Term, Opt).
 rportray('$NOOP'(Term), Opt) :- !,
     with_output_to(string(_),	% Ignore, but process for the side effects
 		   write_term(Term, Opt)).
