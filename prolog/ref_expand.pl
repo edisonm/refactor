@@ -307,7 +307,6 @@ collect_changed_files(FileL) :-
     findall(File, pending_change(Index, File, _), FileL).
 
 ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
-    option_allchk(OptionL0, OptionL1, AllChk0),
     (Level = goal -> DExpand=yes ; DExpand = no),
     (Level = sent -> SentPattern = Term ; true), % speed up
     maplist_dcg(select_option, [module_property(Prop)-[],
@@ -319,9 +318,11 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
 				comments(Comments)-Comments,
 				expand(Expand)-DExpand,
 				expanded(Expanded)-Expanded,
-				fixpoint(FixPoint)-none
+				fixpoint(FixPoint)-none,
+				file(File)-File
 			       ],
-		OptionL1, OptionL2),
+		OptionL0, OptionL1),
+    option_allchk([file(File)|OptionL1], OptionL2, AllChk0 ),
     ( FixPoint = files,
       collect_changed_files(FileL)
     ->compound_chks([AllChk0, in_set(FileL)], AllChk)
@@ -332,7 +333,6 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
 	       term_position(FPos),
 	       comments(Comments),
 	       module(M)|OptionL2],
-
     mod_prop(Prop, M),
     with_context_vars(( get_term_info(M, SentPattern, Sent,
 				      AllChk, File, In, OptionL),
@@ -928,7 +928,7 @@ rportray_list_nl(L, Offs, Opt) :-
 term_write_sep_list_2([E|T], Offs, Opt) :- !,
     write('['),
     get_output_position(Pos),
-    LinePos is Offs + Pos,
+    LinePos is Offs + Pos + 1,
     write_term(E, Opt),
     term_write_sep_list_inner(T, LinePos, Opt),
     write(']').
