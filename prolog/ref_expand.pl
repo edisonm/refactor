@@ -544,12 +544,18 @@ perform_substitution(Sub, Priority, Term, Term2, Pattern2, Into2, BindingL, Term
     { copy_term(Term2, GTerm),
       unifier(Term2, Term, Var1, Var2),
       maplist(eq, Var1, Var2, UL0),
-      %partition(singleton(Var1-Var2), UL0, UL1, UL2),
-      %maplist(unif_eq, UL1),
-      % maplist_dcg(substitute_2, UL0, sub(Term2, UL2), sub(Term3, [])),
-      maplist(special_substitution(UL0), Var2, Var3),
+      partition(singleton(UL0), UL0, ULS, UL1),
+      maplist(unif_eq, ULS), % this will cause that the next literal catch
+				% intentional assignments with subterms that
+				% already appear in the readed term
+      maplist_dcg(substitute_2, UL1, sub(Term2, UL20), sub(Term3, [])),
+      partition(singleton(UL20), UL20, UL2S, UL2),
+      maplist(unif_eq, UL2S),
+      
+      % maplist(special_substitution(UL0), Var2, Var3),
       % gtrace,
-      maplist(eq, Var1, Var3, UL1),
+      % maplist(eq, Var1, Var3, UL1),
+      
       /* Note: fix_subtermpos/1 is a very expensive predicate, due to that we
 	 delay its execution until its result be really needed, and we only
 	 apply it to the subterm positions being affected by the refactoring.
@@ -558,11 +564,13 @@ perform_substitution(Sub, Priority, Term, Term2, Pattern2, Into2, BindingL, Term
 	 the predicate is called.
       */
       fix_subtermpos(TermPos),
-      with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term2),
+      with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term3),
 			[refactor_bind], [BindingL]),
+      maplist(subst_unif_r(Term3, TermPos, GTerm), UL2),
       maplist(subst_unif_r(Term2, TermPos, GTerm), UL1),
       % maplist(subst_unif_r(Term3, TermPos, GTerm), UL1),
-      % maplist(subst_fvar(Term3, TermPos, GTerm), UL1),
+      % maplist(subst_fvar(Term2, TermPos, GTerm), UL2S),
+      % maplist(subst_fvar(Term2, TermPos, GTerm), ULS),
       special_term(Sub, Into2, Into3)
     },
     !,
@@ -591,10 +599,11 @@ choose1(UL3, V=_) :-
 unif_eq(V=V).
 
 singleton(L, V1=V2) :-
-    var(V1),
+    var(V1), % always var
     var(V2),
     ( occurrences_of_var(V1, L, 1)
-    ; occurrences_of_var(V2, L, 1)
+    ;
+      occurrences_of_var(V2, L, 1)
     ).
 
 singleton_r(L, _=V2) :-
