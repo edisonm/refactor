@@ -90,6 +90,7 @@ fix_termouterpos(TermPos) :-
 %
 %  @tbd This implementation have performance issues, needs optimization.
 %
+fix_subtermpos(Pos) :- var(Pos), !.
 fix_subtermpos(Pos) :-
     retractall(term_innerpos(_, _, _, _)),
     fix_subtermpos_rec(Pos),
@@ -97,6 +98,7 @@ fix_subtermpos(Pos) :-
     arg(2, Pos, To),
     assertz(term_innerpos(From, To, From, To)).
 
+fix_subtermpos_rec(Pos) :- var(Pos), !. % Nothing to fix
 fix_subtermpos_rec(Pos) :-
     Pos = term_position(From0, To0, FFrom, FTo, PosL),
     !,
