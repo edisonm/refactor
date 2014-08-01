@@ -851,6 +851,8 @@ rportray('$sb'(ArgPos, _IFrom, _ITo, GTerm, GPriority, Term), OptionL) :-
     ignore((b_getval(refactor_text, Text),
 	    print_expansion_sb(Term, Term, GTerm, ArgPos, GPriority, OptionL, Text)
 	   )).
+rportray('$@'(Term), OptionL) :-
+    write_term(Term, OptionL).
 rportray(\\(Term), OptionL) :-
     \+ retract(rportray_skip),
     !,
@@ -938,7 +940,7 @@ rportray_list_nl(L, Offs, Opt) :-
 term_write_sep_list_2([E|T], Offs, Opt) :- !,
     write('['),
     get_output_position(Pos),
-    LinePos is Offs + Pos + 1,
+    LinePos is Offs + Pos,
     write_term(E, Opt),
     term_write_sep_list_inner(T, LinePos, Opt),
     write(']').
@@ -1380,10 +1382,9 @@ write_b_layout(Term, OptL0, Layout, Offs, Pos) :-
     merge_options([priority(Right)], OptL0, OptL2),
     write_b(B, OptL2, Offs, Pos).
 
-nl_indent(or, Op, LinePos0) :-
+nl_indent(or, Op, LinePos) :-
     nl,
-    LinePos is max(0, LinePos0 - 2),
-    line_pos(LinePos),
+    line_pos(LinePos - 2),
     write(Op),
     write(' ').
 nl_indent(and, Op, LinePos) :-
@@ -1391,7 +1392,6 @@ nl_indent(and, Op, LinePos) :-
     nl,
     line_pos(LinePos).
 
-line_pos(0) :- !.
 line_pos(LinePos) :-
     LinePos >= 8,
     !,
@@ -1399,10 +1399,12 @@ line_pos(LinePos) :-
     LinePos1 is LinePos - 8,
     line_pos(LinePos1).
 line_pos(LinePos) :-
-    LinePos >= 1,
+    LinePos > 0,
+    !,
     write(' '),
     LinePos1 is LinePos - 1,
     line_pos(LinePos1).
+line_pos(_).
 
 write_t(Term, OptionL0) :-
     merge_options([quoted(false), priority(1200)], OptionL0, OptionL),
