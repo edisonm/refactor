@@ -30,18 +30,19 @@
 :- module(term_info,
 	  [ get_term_info/7
 	  ]).
+:- use_module(library(remove_dups)).
 :- use_module(library(prolog_source)).
 :- use_module(library(included_files)).
 
-% NOTE: Files are not uniques, therefore I have to sort
+% NOTE: Files are not unique
 module_files(M, Files) :-
     module_file_list(M, UFilesL),
     append(UFilesL, UFiles),
-    sort(UFiles, Files).
+    remove_dups(UFiles, Files).
 
 module_file_list(M, Files) :-
     findall(F, module_file_1(M, F), UFiles),
-    sort(UFiles, Files0),
+    remove_dups(UFiles, Files0),
     included_files(Files0, Files, [Files0]).
 
 module_file_1(M, File) :-
@@ -65,7 +66,9 @@ get_term_info_file(Pattern, Term, File, In, Options) :-
     prolog_canonical_source(File, Path),
     print_message(informational, format("Reading ~w", Path)),
     catch(setup_call_cleanup(prolog_open_source(Path, In),
-			     get_term_info_fd(In, Pattern, Term, Options),
+			     ( get_term_info_fd(In, Pattern, Term, Options)
+			     ; fail % don't close In up to the next iteration
+			     ),
 			     prolog_close_source(In)),
 	  E0, ( fix_exception(E0, Path, E),
 		print_message(error, E),
