@@ -337,7 +337,7 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
     with_context_vars(( get_term_info(M, SentPattern, Sent,
 				      AllChk, File, In, OptionL),
 			( Expand = no
-			->true
+			->prolog_source:update_state(Sent, M) % operator update
 			; prolog_source:( expand(Sent, TermPos, In, Expanded),
 					  update_state(Sent, Expanded, M)
 					)
