@@ -280,8 +280,7 @@ seekn_parenthesis_right(N, Text, L, T0, T) :-
 fix_boundaries_from_right(Text, Pos, To0, From2, To2, From, To) :-
     arg(2, Pos, To1),
     ( To0 < To1
-    ->gtrace,
-      RL is To1 - To0,
+    ->RL is To1 - To0,
       sub_string(Text, To0, RL, _, TextL),
       print_message(warning, format("Misplaced text --> `~w'", [TextL]))
     ; true
