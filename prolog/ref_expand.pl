@@ -337,11 +337,17 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
     with_context_vars(( get_term_info(M, SentPattern, Sent,
 				      AllChk, File, In, OptionL),
 			( Expand = no
-			->prolog_source:update_state(Sent, M) % operator update
-			; prolog_source:( expand(Sent, TermPos, In, Expanded),
+			->true
+			  % prolog_source:update_state(Sent, M) % operator update
+			;
+			  b_getval(refactor_text, Text),
+			  prolog_source:( expand(Sent, TermPos, In, Expanded),
 					  update_state(Sent, Expanded, M)
-					)
+					),
+			  b_setval(refactor_text, Text)
 			),
+				% TBD: kludge: update_state/2 have the side
+				% effect of modify refactor_text
 		        phrase(substitute_term_level(Level, Sent, 1200, Term,
 						     Into, Expander, TermPos),
 			       Commands, [])
@@ -880,7 +886,6 @@ rportray('$G'(Term, Goal), Opt) :-
 rportray('$C'(Goal, Term), Opt) :-
     !,
     call(Goal),
-    write(user_error, opt(Opt)),nl(user_error),
     write_term(Term, Opt).
 rportray('$NOOP'(Term), Opt) :- !,
     with_output_to(string(_),	% Ignore, but process for the side effects
