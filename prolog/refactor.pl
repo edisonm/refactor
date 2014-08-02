@@ -31,8 +31,8 @@
 
 :- reexport(library(ref_shell)).
 :- reexport(library(ref_replay)).
-:- reexport(library(ref_expand), except([expand/5])).
-:- use_module(library(ref_expanders), []).
+:- reexport(library(ref_replace), except([replace/5])).
+:- use_module(library(ref_replacers), []).
 :- use_module(library(ref_scenarios), []).
 
 term_expansion((:- comm_commands(M)), ClauseL) :-
@@ -47,6 +47,6 @@ term_expansion((:- comm_commands(M)), ClauseL) :-
 	      )
 	    ), ClauseL).
 
-:- comm_commands(ref_expand).
-:- comm_commands(ref_expanders).
+:- comm_commands(ref_replace).
+:- comm_commands(ref_replacers).
 :- comm_commands(ref_scenarios).

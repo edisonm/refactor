@@ -62,10 +62,15 @@ fix_exception(error(Error, stream(_,  Line, Row, Pos)), File,
 	      error(Error, file(File, Line, Row, Pos))) :- !.
 fix_exception(E, _, E).
 
+ti_open_source(Path, In) :-
+    b_setval(ti_open_source, yes),
+    prolog_open_source(Path, In),
+    b_setval(ti_open_source, no).
+
 get_term_info_file(Pattern, Term, File, In, Options) :-
     prolog_canonical_source(File, Path),
     print_message(informational, format("Reading ~w", Path)),
-    catch(setup_call_cleanup(prolog_open_source(Path, In),
+    catch(setup_call_cleanup(ti_open_source(Path, In),
 			     ( get_term_info_fd(In, Pattern, Term, Options)
 			     ; fail % don't close In up to the next iteration
 			     ),
