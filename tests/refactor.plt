@@ -487,8 +487,8 @@ test(ex17) :-
  
 -ex18(C) :-
 -    C=M : H,
-+ex18(M : H) :-
-     p(M:H).
++ex18(M:H) :-
+     p(M : H).
  
  p(_C).
 */
@@ -541,7 +541,7 @@ test(ex19_1) :-
 
 test(ex19_2) :-
     rreset,
-    replace_sentence(ex19(A,B,C), ex19(A, B), B=C, [module(ex19)]),
+    replace_sentence(ex19(A,B,C), ex19(A, B), (B=C), [module(ex19)]),
     with_output_to(string(Result), rshow),
     comment_data(ex19_2, Pattern),
     assertion(Pattern == Result).
@@ -776,7 +776,7 @@ test(ex26) :-
 
 test(ex27) :-
     rreset,
-    replace_term((A=V,Body), A@@Body, A=V, [module(ex27)]),
+    replace_term((A=V,Body), A@@Body, (A=V), [module(ex27)]),
     with_output_to(string(Result), rshow),
     comment_data(ex27, Pattern),
     assertion(Pattern == Result).

@@ -28,9 +28,9 @@
 */
 
 :- module(ref_replace, [replace/5,
-		       op(100,xfy,($@)),
-		       op(100,xfy,(@@))
-		      ]).
+			op(100,xfy,($@)),
+			op(100,xfy,(@@))
+		       ]).
 
 :- use_module(library(prolog_codewalk)).
 :- use_module(library(readutil)).
@@ -303,6 +303,13 @@ collect_changed_files(FileL) :-
     once(pending_change(Index)),
     findall(File, pending_change(Index, File, _), FileL).
 
+:- public bind_vars/0.
+bind_vars :-
+    b_getval(refactor_bindings, Bindings),
+    maplist(ieq, Bindings).
+
+ieq(A=B) :- ignore(A=B).
+
 ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
     (Level = goal -> DExpand=yes ; DExpand = no),
     (Level = sent -> SentPattern = Term ; true), % speed up
@@ -545,11 +552,10 @@ substitute_term_norec(Sub, Term, Priority, Pattern, Into, Expander, TermPos) -->
     { refactor_context(sentence,     Sent),
       refactor_context(sent_pattern, SentPattern),
       subsumes_term(SentPattern-Pattern, Sent-Term),
-      copy_term(Term, Term2),
-      with_context(Term, Pattern, Into, Pattern1, Into1, Expander),
-      greatest_common_binding(Pattern1, Into1, Pattern2, Into2, [[]], Unifier, [])
+      copy_term(Term, Term1),
+      with_context(Term, Pattern, Into, Pattern1, Into1, Expander)
     },
-    perform_substitution(Sub, Priority, Term, Term2, Pattern2, Into2, Unifier, TermPos).
+    perform_substitution(Sub, Priority, Term, Term1, Pattern1, Into1, TermPos).
 
 /*
 :- redefine_system_predicate(arg(_,_,_)).
@@ -571,37 +577,50 @@ arg(A,B,C) :-
 %	@param Priority is the environment operator priority
 %	@param Unifier contains bindings between Pattern and Into
 %
-perform_substitution(Sub, Priority, Term, Term2, Pattern2, Into2, BindingL, TermPos) -->
+perform_substitution(Sub, Priority, Term, Term2, Pattern, Into, TermPos) -->
     { copy_term(Term2, GTerm),
       unifier(Term2, Term, Var1, Var2),
       maplist(eq, Var1, Var2, UL0),
-      partition(singleton(Var1-Var2), UL0, UL20, UL2),
-      partition(singleton_r(Var2), UL0, _, UL6),
-      maplist(unif_eq, UL20),
-      maplist_dcg(substitute_2, UL2, sub(Term2, UL3), sub(Term3, [])),
-      partition(choose1(UL3), UL6, _, UL7),
-      maplist(eq, _, Var7, UL7),
-      partition(singleton_r(Var7), UL7, _, UL1),
+      greatest_common_binding(Pattern, Into, Pattern2, Into2, [[]], BindingL, []),
+      partition(singleton_r(UL0), UL0, UL1, UL2), % Now UL2 contains the
+                                                  % intentional unifications
+      maplist(unif_eq, UL1),
+      maplist_dcg(substitute_2, UL2,
+		  sub(t(Term2), UL3),
+		  sub(t(CTerm), [])),
       /* Note: fix_subtermpos/1 is a very expensive predicate, due to that we
-	 delay its execution until its result be really needed, and we only
+	 delay the execution until its result be really needed, and we only
 	 apply it to the subterm positions being affected by the refactoring.
 	 The predicate performs destructive assignment (as in imperative
 	 languages), modifying term position once the predicate is called */
       fix_subtermpos(TermPos),
-      shared_variables(Term3, Into2, V5), % after subst_term, in case some
-      maplist(eq, V5, V5, UL5),           % variables from Term3 reappear in
-                                          % Into
-      maplist(subst_fvar(Term3, TermPos, GTerm), UL5),
-      with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term3),
-			[refactor_bind], [BindingL]),
-      % maplist(subst_fvar(Sent,  SentPos, GSent), UL4),
-      maplist(subst_unif(Term3, TermPos, GTerm), UL3),
-      maplist(subst_unif(Term3, TermPos, GTerm), UL2),
-      maplist(subst_fvar(Term2, TermPos, GTerm), UL1),
-      special_term(Sub, Into2, Into3)
+      with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, CTerm),
+			[refactor_bind,
+			 refactor_ul3,
+			 refactor_ul2], [BindingL, UL3, UL2]),
+      maplist(subst_unif(CTerm, TermPos, GTerm), UL3),
+      maplist(subst_unif(Term2, TermPos, GTerm), UL2),
+      shared_variables(Term2, Into2, Var3),
+      mklinear(Into2, Into3, Var3, UL5, []),
+      maplist(subst_fvar(Term, Into2, Into3, TermPos, GTerm), UL5),
+      special_term(Sub, Into3, Into4)
     },
     !,
-    [subst(TermPos, Priority, Pattern2, GTerm, Into3)].
+    [subst(TermPos, Priority, Pattern2, GTerm, Into4)].
+
+subst_fvar(Term, Into, LInto, Pos, GTerm, V=T) :-
+    ( once(subterm_location_eq(L, T, LInto)),
+      append(L0, _, L),
+      subterm_location(L0, Wrap, Into),
+      subterm_location_eq(L2, Wrap, Term),
+      subterm_location(L0, LWrap, LInto),
+      subpos_location(L2, Pos, WPos),
+      subterm_location(L2, GWrap, GTerm),
+      get_position_gterm(LWrap, WPos, GWrap, T, GPos, _, _)
+    ->true
+    ; get_position_gterm(Term, Pos, GTerm, V, GPos, _, _)
+    ),
+    T='$sb'(GPos).
 
 shared_variables(Term1, Term2, Var) :-
     term_variables(Term1, Var1),
@@ -683,12 +702,15 @@ subst_unif(Term, Pos, GTerm, V=T) :-
     ; V=T
     ).
 
-subst_fvar(Term, Pos, GTerm, V=T) :-
-    ( var(V),
-      V==T,
-      get_position_gterm(Term, Pos, GTerm, V, GPos, _G, _P)
-    ->V='$sb'(GPos)
-    ; true % already unified
+subst_unif_r(Term0, Term, Pos, GTerm, V=T) :-
+    ( ( get_position_gterm(Term0, Pos, GTerm, V, GPos, G, P),
+	GPos \= none
+      ->arg(1, Pos, From),
+	arg(2, Pos, To),
+	get_innerpos(From, To, IFrom, ITo),
+	substitute_value(V, '$sb'(GPos, IFrom, ITo, G, P, T), Term0, Term)
+      )
+    ; Term = Term0
     ).
 
 subst_args(N, Term, GTerm, CTerm, [ArgPos|SubPos]) :-
@@ -720,6 +742,10 @@ subst_var(Pos, Var, GTerm, GPriority, CTerm) :-
     arg(1, Pos, From),
     arg(2, Pos, To),
     get_innerpos(From, To, IFrom, ITo),
+    % gtrace,
+    % b_getval(refactor_ul3, UL3),
+    % ignore(maplist(subst_unif(CTerm, Pos, GTerm), UL3)),
+    % maplist(subst_unif_r(CTerm, Term, Pos, GTerm), UL3),
     Var = '$sb'(Pos, IFrom, ITo, GTerm, GPriority, CTerm).
 
 %%	subst_term(+Position, +Pattern, +Vars, +Term)
@@ -1254,6 +1280,7 @@ from_to_pairs([Pos|PosL], From0, To0, To) -->
 print_expansion_pos(term_position(From, To, _FFrom, FFTo, PosL), Into, Pattern,
 		    GTerm, OptionL, Text) :-
     compound(Into),
+    compound(Pattern),
     functor(Into,    FT, A),
     functor(Pattern, FP, A),
     from_to_pairs(PosL, FFTo, To1, To, FromToL, []),
