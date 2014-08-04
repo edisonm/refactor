@@ -588,12 +588,11 @@ perform_substitution(Sub, Priority, Term, Term2, Pattern2, Into2, BindingL, Term
 	 The predicate performs destructive assignment (as in imperative
 	 languages), modifying term position once the predicate is called */
       fix_subtermpos(TermPos),
-      shared_variables(Term3, Into2, V5), % after subst_term, in case some
-      maplist(eq, V5, V5, UL5),           % variables from Term3 reappear in
-                                          % Into
-      maplist(subst_fvar(Term3, TermPos, GTerm), UL5),
       with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term3),
 			[refactor_bind], [BindingL]),
+      shared_variables(Term3, Into2, V5), % after subst_term, in case some
+      maplist(eq, V5, V5, UL5),           % variables from Term3 reappear
+      maplist(subst_fvar(Term, TermPos, GTerm), UL5),
       % maplist(subst_fvar(Sent,  SentPos, GSent), UL4),
       maplist(subst_unif(Term3, TermPos, GTerm), UL3),
       maplist(subst_unif(Term3, TermPos, GTerm), UL2),
@@ -1001,13 +1000,9 @@ term_write_sep_list_inner_rec([E|T], Sep, Opt) :- !,
     write(Sep),
     write_term(E, Opt),
     term_write_sep_list_inner_rec(T, Sep, Opt).
-term_write_sep_list_inner_rec(T, Sep, Opt) :-
+term_write_sep_list_inner_rec(T, _, Opt) :-
     ( T == []
     ->true
-    ; nonvar(T),
-      T = '$sb'(_Pos, _IFrom, _ITo, _GTerm, _GPriority, Term),
-      is_list(Term)
-    ->term_write_sep_list_inner_rec(Term, Sep, Opt)
     ; write_tail(T, Opt)
     ).
 
@@ -1023,6 +1018,24 @@ write_tail('$LIST,NL'(L, Offs), Opt) :- !,
     get_output_position(Pos),
     LinePos is Offs + Pos,
     term_write_sep_list_inner(L, LinePos, Opt).
+write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), Opt) :-
+    is_list(Term),
+    nonvar(Pos0),
+    Pos0 = list_position(From0, To0, PosL, Tail),
+    !,
+    b_getval(refactor_text, Text),
+    display_subtext(Text, From0, IFrom),
+    write(', '),
+    PosL = [LPos|_],
+    arg(1, LPos, From),
+    append(_, [RPos], PosL),
+    ( Tail = none ->
+      arg(2, RPos, To)
+    ; arg(2, Tail, To)
+    ),
+    print_expansion_sb(Term, Term, GTerm, list_position(From, To, PosL, Tail),
+		       GPriority, Opt, Text),
+    display_subtext(Text, ITo, To0).
 write_tail(T, Opt) :-
     write('|'),
     write_term(T, Opt).
