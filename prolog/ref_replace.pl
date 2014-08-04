@@ -993,39 +993,39 @@ term_write_sep_list_2(E, _, Opt) :-
     write_term(E, Opt).
 
 term_write_sep_list_inner(T, LinePos, Opt) :-
-    with_output_to(atom(Sep), nl_indent(and, ',', LinePos)),
-    term_write_sep_list_inner_rec(T, Sep, Opt).
+    with_output_to(atom(In), line_pos(LinePos)),
+    term_write_sep_list_inner_rec(T, [',', '\n', In], Opt).
 
-term_write_sep_list_inner_rec([E|T], Sep, Opt) :- !,
-    write(Sep),
+term_write_sep_list_inner_rec([E|T], SepIn, Opt) :- !,
+    maplist(write, SepIn),
     write_term(E, Opt),
-    term_write_sep_list_inner_rec(T, Sep, Opt).
-term_write_sep_list_inner_rec(T, _, Opt) :-
+    term_write_sep_list_inner_rec(T, SepIn, Opt).
+term_write_sep_list_inner_rec(T, SepIn, Opt) :-
     ( T == []
     ->true
-    ; write_tail(T, Opt)
+    ; write_tail(T, SepIn, Opt)
     ).
 
-write_tail(T, Opt) :-
+write_tail(T, _, Opt) :-
     var(T),
     !,
     write_term(T, Opt).
-write_tail([], _) :- !.
-write_tail('$LIST,NL'(L), Opt) :- !,
+write_tail([], _, _) :- !.
+write_tail('$LIST,NL'(L), _, Opt) :- !,
     get_output_position(Pos),
     term_write_sep_list_inner(L, Pos, Opt).
-write_tail('$LIST,NL'(L, Offs), Opt) :- !,
+write_tail('$LIST,NL'(L, Offs), _, Opt) :- !,
     get_output_position(Pos),
     LinePos is Offs + Pos,
     term_write_sep_list_inner(L, LinePos, Opt).
-write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), Opt) :-
+write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), SepIn, Opt) :-
     is_list(Term),
     nonvar(Pos0),
     Pos0 = list_position(From0, To0, PosL, Tail),
     !,
     b_getval(refactor_text, Text),
     display_subtext(Text, From0, IFrom),
-    write(', '),
+    maplist(write, SepIn),
     PosL = [LPos|_],
     arg(1, LPos, From),
     append(_, [RPos], PosL),
@@ -1036,8 +1036,8 @@ write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), Opt) :-
     print_expansion_sb(Term, Term, GTerm, list_position(From, To, PosL, Tail),
 		       GPriority, Opt, Text),
     display_subtext(Text, ITo, To0).
-write_tail(T, Opt) :-
-    write('|'),
+write_tail(T, [_|In], Opt) :-
+    maplist(write, ['|'|In]),
     write_term(T, Opt).
 
 term_write_sep_list([],    _,   _).
@@ -1335,7 +1335,7 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, O
       maplist(print_expansion_elem(OptionL1, Text), FromToL, PosL, ArgL, PatGTrL),
       term_priority(Into, 2, Priority2),
       OptionL2=[priority(Priority2)|OptionL],
-      term_write_sep_list_inner_rec(ATail, ', ', OptionL2),
+      term_write_sep_list_inner_rec(ATail, [',', ' '], OptionL2),
       display_subtext(Text, To2, To)
     ),
     (comp_priority(GTerm, Priority, Into, Priority) ->display(')') ; true).
