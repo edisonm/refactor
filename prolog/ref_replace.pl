@@ -317,10 +317,11 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
 				expand(Expand)-DExpand,
 				expanded(Expanded)-Expanded,
 				fixpoint(FixPoint)-none,
-				file(File)-File
+				file(AFile)-AFile
 			       ],
 		OptionL0, OptionL1),
-    option_allchk([file(File)|OptionL1], OptionL2, AllChk0 ),
+    (var(AFile) -> AFile = File ; true),
+    option_allchk([file(AFile)|OptionL1], OptionL2, AllChk0 ),
     ( FixPoint = files,
       collect_changed_files(FileL)
     ->compound_chks([AllChk0, in_set(FileL)], AllChk)
