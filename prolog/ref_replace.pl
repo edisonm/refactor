@@ -373,7 +373,7 @@ make_linear_if_required(Sent, LinearTerm, Linear, Bindings) :-
       Bindings=[]
     ; mklinear(Sent, Linear, Bindings)
     ).
-				
+
 prolog:xref_open_source(File, Fd) :-
     b_getval(ti_open_source, yes),
     !,
@@ -472,7 +472,7 @@ apply_commands(File-Commands, File-NewText) :-
     string_concat(NewText0, TText, NewText).
 
 string_concat_to(RText, t(From, To, PasteText), Pos-Text0, To-Text) :-
-    Length is From - Pos,
+    Length is max(0, From - Pos),
     sub_string(RText, Pos, Length, _, Text1),
     string_concat(Text0, Text1, Text2),
     string_concat(Text2, PasteText, Text).
@@ -553,6 +553,14 @@ substitute_term_norec(Sub, Term, Priority, Pattern, Into, Expander, TermPos) -->
     perform_substitution(Sub, Priority, Term, Term2, Pattern2, Into2, Unifier, TermPos).
 
 /*
+:- redefine_system_predicate(sub_string(_,_,_,_,_)).
+sub_string(A,B,C,D,E) :-
+    catch(system:sub_string(A,B,C,D,E), Ex,
+	  ( print_message(error,Ex),
+	    gtrace
+	  )
+	 ).
+
 :- redefine_system_predicate(arg(_,_,_)).
 arg(A,B,C) :-
     catch(system:arg(A,B,C), E,
