@@ -208,11 +208,24 @@ r_goal_expansion(Goal, TermPos) :-
     once(do_r_goal_expansion(Goal, TermPos)),
     fail.
 
+:- dynamic ref_position/3.
+
+% Note: To avoid that this hook be applied more than once, we record the
+% positions already refactorized in ref_position/3.
+%
 do_r_goal_expansion(Term, TermPos) :-
     refactor_context(sentence, Sent),
     refactor_context(sent_pattern, SentPattern),
     subsumes_term(SentPattern, Sent),
     refactor_context(goal_args, ga(Pattern, Into, Expander)),
+    compound(TermPos),
+    arg(1, TermPos, From),
+    arg(2, TermPos, To),
+    nonvar(From),
+    nonvar(To),
+    prolog_load_context(file, File),
+    \+ ref_position(File, From, To),
+    assertz(ref_position(File, From, To)),
     phrase(substitute_term_norec(sub, Term, 999, Pattern,
 						   Into, Expander, TermPos),
 			     Commands, []),
@@ -220,13 +233,16 @@ do_r_goal_expansion(Term, TermPos) :-
 
 :- meta_predicate level_hook(+,+,0 ).
 level_hook(goal, Term, Call) :- !,
-    setup_call_cleanup(asserta((system:goal_expansion(Term, T, _, _) :-
-			       r_goal_expansion(Term, T)), Ref),
+    setup_call_cleanup(( asserta((system:goal_expansion(Term, T, _, _) :-
+				 r_goal_expansion(Term, T)), Ref),
+			 retractall(ref_position(_, _, _))
+		       ),
 		       Call,
-		       erase(Ref)).
+		       ( erase(Ref),
+			 retractall(ref_position(_, _, _))
+		       )).
 level_hook(_, _, Call) :-
     call(Call).
-
 
 :- public collect_file_commands/8.
 :- meta_predicate collect_file_commands(?,0,?,?,?,?,?,?).
@@ -1119,7 +1135,6 @@ print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
     arg(1, TermPos, From),
     arg(2, TermPos, To),
     with_from(print_expansion(Into, Pattern, Term, TermPos, OptionL, Text), From).
-
 
 % if the term have been in parentheses, in a place where that was
 % required, include it!!!
