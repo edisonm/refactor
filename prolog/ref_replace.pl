@@ -391,7 +391,7 @@ make_linear_if_required(Sent, LinearTerm, Linear, Bindings) :-
     ).
 
 prolog:xref_open_source(File, Fd) :-
-    b_getval(ti_open_source, yes),
+    nb_current(ti_open_source, yes),
     !,
     ( pending_change(_, File, Text)
     ->true
