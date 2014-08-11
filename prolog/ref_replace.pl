@@ -1119,9 +1119,17 @@ print_expansion_1('$LIST.NL'([Into|IntoL]), Pattern, Term, TermPos, OptionL0,
 		  Text, From, To) :- !,
     merge_options([priority(1200)], OptionL0, OptionL),
     print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To),
-    maplist(term_write_stop_nl(Pattern, Term, TermPos, OptionL, Text), IntoL).
+    term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, OptionL, Text).
 print_expansion_1(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
     print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To).
+
+term_write_stop_nl_list([Into|IntoL], Pattern, Term, TermPos, OptionL, Text) :-
+    term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL, Text),
+    term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, OptionL, Text).
+term_write_stop_nl_list('$sb'(_, _, _, _, _, IntoL), Pattern, Term, TermPos,
+			OptionL, Text) :-
+    term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, OptionL, Text).
+term_write_stop_nl_list([], _, _, _, _, _).
 
 term_write_stop_nl(Pattern, Term, TermPos, OptionL, Text, Into) :-
     term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL, Text).
