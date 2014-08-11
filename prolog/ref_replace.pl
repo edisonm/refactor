@@ -1046,20 +1046,24 @@ write_tail('$LIST,NL'(L, Offs), _, Opt) :- !,
 write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), SepIn, Opt) :-
     is_list(Term),
     nonvar(Pos0),
-    Pos0 = list_position(From0, To0, PosL, Tail),
+    arg(1, Pos0, From0),
+    arg(2, Pos0, To0),
     !,
     b_getval(refactor_text, Text),
     display_subtext(Text, From0, IFrom),
-    maplist(write, SepIn),
-    PosL = [LPos|_],
-    arg(1, LPos, From),
-    append(_, [RPos], PosL),
-    ( Tail = none ->
-      arg(2, RPos, To)
-    ; arg(2, Tail, To)
+    ( Pos0 = list_position(_, _, PosL, Tail)
+    ->maplist(write, SepIn),
+      PosL = [LPos|_],
+      arg(1, LPos, From),
+      append(_, [RPos], PosL),
+      ( Tail = none ->
+	arg(2, RPos, To)
+      ; arg(2, Tail, To)
+      ),
+      print_expansion_sb(Term, Term, GTerm, list_position(From, To, PosL, Tail),
+			 GPriority, Opt, Text)
+    ; term_write_sep_list_inner_rec(Term, SepIn, Opt)
     ),
-    print_expansion_sb(Term, Term, GTerm, list_position(From, To, PosL, Tail),
-		       GPriority, Opt, Text),
     display_subtext(Text, ITo, To0).
 write_tail(T, [_|In], Opt) :-
     maplist(write, ['|'|In]),
