@@ -1133,9 +1133,6 @@ term_write_stop_nl_list('$sb'(_, _, _, _, _, IntoL), Pattern, Term, TermPos,
     term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, OptionL, Text).
 term_write_stop_nl_list([], _, _, _, _, _).
 
-term_write_stop_nl(Pattern, Term, TermPos, OptionL, Text, Into) :-
-    term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL, Text).
-
 term_write_stop_nl__('$NOOP'(Into), Pattern, Term, TermPos, OptionL, Text) :-
     with_output_to(string(_),	%Ignore, but process
 		   term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL,
