@@ -223,7 +223,7 @@ do_r_goal_expansion(Term, TermPos) :-
     arg(2, TermPos, To),
     nonvar(From),
     nonvar(To),
-    prolog_load_context(file, File),
+    b_getval(refactor_file, File),
     \+ ref_position(File, From, To),
     assertz(ref_position(File, From, To)),
     phrase(substitute_term_norec(sub, Term, 999, Pattern,
@@ -364,6 +364,7 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
 		       refactor_comments,
 		       refactor_bindings,
 		       refactor_subpos,
+		       refactor_file,
 		       refactor_goal_args],
 		      [SentPattern,
 		       Linear,
@@ -372,6 +373,7 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
 		       Comments,
 		       Bindings,
 		       TermPos,
+		       File,
 		       ga(Term, Into, Expander)]).
 
 expand_if_required(Expand, M, Sent, TermPos, In, Expanded) :-
