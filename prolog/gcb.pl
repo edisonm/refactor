@@ -36,7 +36,10 @@ greatest_common_binding(Term0, Into0, Term, Into, Skip) -->
     greatest_common_binding(Term0, Term0, Into0, Term, Into, Skip).
 
 greatest_common_binding(SubTerm0, Term0, Into0, Term, Into, Skip) -->
-    ( { \+memberchk(SubTerm0, Skip),
+    ( { \+ ( nonvar(SubTerm0),
+	     member(S, Skip),
+	     SubTerm0 = S
+	   ),
 	substitute_value(SubTerm0, Var, Into0, Into1),
 	Into0\==Into1
       }
@@ -44,7 +47,12 @@ greatest_common_binding(SubTerm0, Term0, Into0, Term, Into, Skip) -->
       [Var=SubTerm]
     ; {Term1=Term0, Into1=Into0 }
     ),
-    ( {compound(SubTerm0)},
+    ( { \+ ( nonvar(SubTerm0),
+	     member(S, Skip),
+	     SubTerm0 = S
+	   ),
+	compound(SubTerm0)
+      },
       greatest_common_binding(1, SubTerm0, Term1, Into1, SubTerm, Term, Into, Skip),
       {Into1\==Into}
     ->[]

@@ -29,7 +29,8 @@
 
 :- module(fix_termpos, [fix_termpos/1,
 			fix_subtermpos/1,
-			term_innerpos/4
+			term_innerpos/4,
+			get_innerpos/4
 		       ]).
 
 :- use_module(library(maplist_dcg)).
@@ -40,6 +41,11 @@
 %  extra parenthesis.
 %
 :- dynamic term_innerpos/4.
+
+get_innerpos(From, To, IFrom, ITo) :-
+    term_innerpos(From, To, IFrom, ITo),
+    !.
+get_innerpos(From, To, From, To).
 
 %% fix_termpos(@TermPos) is det
 %
