@@ -621,10 +621,14 @@ perform_substitution(Sub, Priority, Term, Term2, Pattern, Into, TermPos) -->
 	 The predicate performs destructive assignment (as in imperative
 	 languages), modifying term position once the predicate is called */
       fix_subtermpos(TermPos),
-      with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term3),
-			[refactor_bind], [BindingL]),
-      shared_variables(Term2, Into2, V5),
-      mklinear(Into2, Into3, V5, UL5, []),
+      with_context_vars(subst_term(TermPos, Pattern2, GTerm, Term2, Priority, Term3),
+			[refactor_bind,
+			 refactor_ul3,
+			 refactor_ul2], [BindingL, UL3, UL2]),
+      % maplist(subst_unif(CTerm, TermPos, GTerm), UL3),
+      % maplist(subst_unif(Term2, TermPos, GTerm), UL2),
+      shared_variables(Term, Into2, Var3),
+      mklinear(Into2, Into3, Var3, UL5, []),
       maplist(subst_fvar(Term, Into2, Into3, TermPos, GTerm), UL5),
       % maplist(subst_fvar(Sent,  SentPos, GSent), UL4),      
       maplist(subst_unif(Term3, TermPos, GTerm), UL3),
@@ -729,7 +733,7 @@ subst_unif(Term, Pos, GTerm, V=T) :-
     ; V=T
     ).
 
-subst_unif_r(Term0, Term, Pos, GTerm, V=T) :-
+subst_unif_r(Pos, GTerm, V=T, Term0, Term) :-
     ( ( get_position_gterm(Term0, Pos, GTerm, V, GPos, G, P),
 	GPos \= none
       ->arg(1, Pos, From),
@@ -740,40 +744,44 @@ subst_unif_r(Term0, Term, Pos, GTerm, V=T) :-
     ; Term = Term0
     ).
 
-subst_args(N, Term, GTerm, CTerm, [ArgPos|SubPos]) :-
+subst_args(N, Term, GTerm, Term2, CTerm, [ArgPos|SubPos]) :-
     arg(N, Term,  Arg),
     !,
     arg(N, GTerm, GArg),
+    arg(N, Term2, Arg2),
     arg(N, CTerm, CArg),
     term_priority(GTerm, N, GPriority),
-    subst_term(ArgPos, Arg, GArg, GPriority, CArg),
+    subst_term(ArgPos, Arg, GArg, Arg2, GPriority, CArg),
     succ(N, N1),
-    subst_args(N1, Term, GTerm, CTerm, SubPos).
-subst_args(_, _, _, _, _).
+    subst_args(N1, Term, GTerm, Term2, CTerm, SubPos).
+subst_args(_, _, _, _, _, _).
 
-subst_list([], _, Tail, E, G, C) :-
+subst_list([], _, Tail, E, G, T, C) :-
     term_priority([_|_], 2, P),
-    subst_term(Tail, E, G, P, C).
-subst_list([Pos|Poss], To, Tail, [E|Es], [G|Gs], [C|Cs]) :-
+    subst_term(Tail, E, G, T, P, C).
+subst_list([Pos|Poss], To, Tail, [E|Es], [G|Gs], [T|Ts], [C|Cs]) :-
     term_priority([_|_], 1, P),
-    subst_term(Pos, E, G, P, C),
-    subst_list(Poss, To, Tail, Es, Gs, Cs).
+    subst_term(Pos, E, G, T, P, C),
+    subst_list(Poss, To, Tail, Es, Gs, Ts, Cs).
 
-subst_var(Pos, Var, GTerm, GPriority, CTerm) :-
+subst_var(Pos, Var, GTerm, Term2, GPriority, CTerm) :-
     ( b_getval(refactor_bind, BindingL),
       member(V=T, BindingL),
       V==Var
-    ->subst_term(Pos, T, GTerm, GPriority, CTerm)
+    ->subst_term(Pos, T, GTerm, Term2, GPriority, CTerm)
     ; true
     ),
     arg(1, Pos, From),
     arg(2, Pos, To),
     get_innerpos(From, To, IFrom, ITo),
     % gtrace,
-    % b_getval(refactor_ul3, UL3),
+    b_getval(refactor_ul3, UL3),
+    b_getval(refactor_ul2, UL2),
     % ignore(maplist(subst_unif(CTerm, Pos, GTerm), UL3)),
-    % maplist(subst_unif_r(CTerm, Term, Pos, GTerm), UL3),
-    Var = '$sb'(Pos, IFrom, ITo, GTerm, GPriority, CTerm).
+    maplist_dcg(subst_unif_r(Pos, GTerm), UL3, CTerm, Term1),
+    maplist_dcg(subst_unif_r(Pos, GTerm), UL2, Term1, Term),
+    % gtrace,
+    Var = '$sb'(Pos, IFrom, ITo, GTerm, GPriority, Term).
 
 %%	subst_term(+Position, +Pattern, +Vars, +Term)
 %
@@ -786,20 +794,20 @@ subst_var(Pos, Var, GTerm, GPriority, CTerm) :-
 %	@param Term is a source term
 %	@param Pattern is a substitution pattern
 
-subst_term(none, T, _, _, T) :- !.
-subst_term(Pos, Term, GTerm, GPriority, CTerm) :-
+subst_term(none, T, _, _, _, T) :- !.
+subst_term(Pos, Term, GTerm, Term2, GPriority, CTerm) :-
     var(Term),
     !,
-    subst_var(Pos, Term, GTerm, GPriority, CTerm).
-subst_term(term_position(_, _, _, _, CP), Term, GTerm, _, CTerm) :-
+    subst_var(Pos, Term, GTerm, Term2, GPriority, CTerm).
+subst_term(term_position(_, _, _, _, CP), Term, GTerm, Term2, _, CTerm) :-
     compound(CTerm), % Would have been substituted
     !,
-    subst_args(1, Term, GTerm, CTerm, CP).
-subst_term(brace_term_position(_, _, CP), {Term}, {GTerm}, _, {CTerm}) :- !,
-    subst_term(CP, Term, GTerm, 999, CTerm).
-subst_term(list_position(_, To, Elms, Tail), Term, GTerm, _, CTerm) :- !,
-    subst_list(Elms, To, Tail, Term, GTerm, CTerm).
-subst_term(_, _, _, _, _).
+    subst_args(1, Term, GTerm, Term2, CTerm, CP).
+subst_term(brace_term_position(_, _, CP), {Term}, {GTerm}, Term2, _, {CTerm}) :- !,
+    subst_term(CP, Term, GTerm, Term2, 999, CTerm).
+subst_term(list_position(_, To, Elms, Tail), Term, GTerm, Term2, _, CTerm) :- !,
+    subst_list(Elms, To, Tail, Term, GTerm, Term2, CTerm).
+subst_term(_, _, _, _, _, _).
 
 %%	substitute_term_rec(+SrcTerm, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
 %
