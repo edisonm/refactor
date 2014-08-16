@@ -208,11 +208,24 @@ r_goal_expansion(Goal, TermPos) :-
     once(do_r_goal_expansion(Goal, TermPos)),
     fail.
 
+:- dynamic ref_position/3.
+
+% Note: To avoid that this hook be applied more than once, we record the
+% positions already refactorized in ref_position/3.
+%
 do_r_goal_expansion(Term, TermPos) :-
     refactor_context(sentence, Sent),
     refactor_context(sent_pattern, SentPattern),
     subsumes_term(SentPattern, Sent),
     refactor_context(goal_args, ga(Pattern, Into, Expander)),
+    compound(TermPos),
+    arg(1, TermPos, From),
+    arg(2, TermPos, To),
+    nonvar(From),
+    nonvar(To),
+    b_getval(refactor_file, File),
+    \+ ref_position(File, From, To),
+    assertz(ref_position(File, From, To)),
     phrase(substitute_term_norec(sub, Term, 999, Pattern,
 						   Into, Expander, TermPos),
 			     Commands, []),
@@ -220,13 +233,16 @@ do_r_goal_expansion(Term, TermPos) :-
 
 :- meta_predicate level_hook(+,+,0 ).
 level_hook(goal, Term, Call) :- !,
-    setup_call_cleanup(asserta((system:goal_expansion(Term, T, _, _) :-
-			       r_goal_expansion(Term, T)), Ref),
+    setup_call_cleanup(( asserta((system:goal_expansion(Term, T, _, _) :-
+				 r_goal_expansion(Term, T)), Ref),
+			 retractall(ref_position(_, _, _))
+		       ),
 		       Call,
-		       erase(Ref)).
+		       ( erase(Ref),
+			 retractall(ref_position(_, _, _))
+		       )).
 level_hook(_, _, Call) :-
     call(Call).
-
 
 :- public collect_file_commands/8.
 :- meta_predicate collect_file_commands(?,0,?,?,?,?,?,?).
@@ -324,10 +340,11 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
 				expand(Expand)-DExpand,
 				expanded(Expanded)-Expanded,
 				fixpoint(FixPoint)-none,
-				file(File)-File
+				file(AFile)-AFile
 			       ],
 		OptionL0, OptionL1),
-    option_allchk([file(File)|OptionL1], OptionL2, AllChk0 ),
+    (var(AFile) -> AFile = File ; true),
+    option_allchk([file(AFile)|OptionL1], OptionL2, AllChk0 ),
     ( FixPoint = files,
       collect_changed_files(FileL)
     ->compound_chks([AllChk0, in_set(FileL)], AllChk)
@@ -354,6 +371,7 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
 		       refactor_comments,
 		       refactor_bindings,
 		       refactor_subpos,
+		       refactor_file,
 		       refactor_goal_args],
 		      [SentPattern,
 		       Linear,
@@ -362,6 +380,7 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
 		       Comments,
 		       Bindings,
 		       TermPos,
+		       File,
 		       ga(Term, Into, Expander)]).
 
 expand_if_required(Expand, M, Sent, TermPos, In, Expanded) :-
@@ -379,9 +398,9 @@ make_linear_if_required(Sent, LinearTerm, Linear, Bindings) :-
       Bindings=[]
     ; mklinear(Sent, Linear, Bindings)
     ).
-				
+
 prolog:xref_open_source(File, Fd) :-
-    b_setval(ti_open_source, yes),
+    nb_current(ti_open_source, yes),
     !,
     ( pending_change(_, File, Text)
     ->true
@@ -478,7 +497,7 @@ apply_commands(File-Commands, File-NewText) :-
     string_concat(NewText0, TText, NewText).
 
 string_concat_to(RText, t(From, To, PasteText), Pos-Text0, To-Text) :-
-    Length is From - Pos,
+    Length is max(0, From - Pos),
     sub_string(RText, Pos, Length, _, Text1),
     string_concat(Text0, Text1, Text2),
     string_concat(Text2, PasteText, Text).
@@ -558,6 +577,14 @@ substitute_term_norec(Sub, Term, Priority, Pattern, Into, Expander, TermPos) -->
     perform_substitution(Sub, Priority, Term, Term1, Pattern1, Into1, TermPos).
 
 /*
+:- redefine_system_predicate(sub_string(_,_,_,_,_)).
+sub_string(A,B,C,D,E) :-
+    catch(system:sub_string(A,B,C,D,E), Ex,
+	  ( print_message(error,Ex),
+	    gtrace
+	  )
+	 ).
+
 :- redefine_system_predicate(arg(_,_,_)).
 arg(A,B,C) :-
     catch(system:arg(A,B,C), E,
@@ -587,22 +614,22 @@ perform_substitution(Sub, Priority, Term, Term2, Pattern, Into, TermPos) -->
       maplist(unif_eq, UL1),
       maplist_dcg(substitute_2, UL2,
 		  sub(t(Term2), UL3),
-		  sub(t(CTerm), [])),
+		  sub(t(Term3), [])),
       /* Note: fix_subtermpos/1 is a very expensive predicate, due to that we
 	 delay the execution until its result be really needed, and we only
 	 apply it to the subterm positions being affected by the refactoring.
 	 The predicate performs destructive assignment (as in imperative
 	 languages), modifying term position once the predicate is called */
       fix_subtermpos(TermPos),
-      with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, CTerm),
-			[refactor_bind,
-			 refactor_ul3,
-			 refactor_ul2], [BindingL, UL3, UL2]),
-      maplist(subst_unif(CTerm, TermPos, GTerm), UL3),
-      maplist(subst_unif(Term2, TermPos, GTerm), UL2),
-      shared_variables(Term2, Into2, Var3),
-      mklinear(Into2, Into3, Var3, UL5, []),
+      with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term3),
+			[refactor_bind], [BindingL]),
+      shared_variables(Term2, Into2, V5),
+      mklinear(Into2, Into3, V5, UL5, []),
       maplist(subst_fvar(Term, Into2, Into3, TermPos, GTerm), UL5),
+      % maplist(subst_fvar(Sent,  SentPos, GSent), UL4),      
+      maplist(subst_unif(Term3, TermPos, GTerm), UL3),
+      maplist(subst_unif(Term3, TermPos, GTerm), UL2),
+      % maplist(subst_fvar(Term2, TermPos, GTerm), UL1),
       special_term(Sub, Into3, Into4)
     },
     !,
@@ -1020,37 +1047,55 @@ term_write_sep_list_2(E, _, Opt) :-
     write_term(E, Opt).
 
 term_write_sep_list_inner(T, LinePos, Opt) :-
-    with_output_to(atom(Sep), nl_indent(and, ',', LinePos)),
-    term_write_sep_list_inner_rec(T, Sep, Opt).
+    with_output_to(atom(In), line_pos(LinePos)),
+    term_write_sep_list_inner_rec(T, [',', '\n', In], Opt).
 
-term_write_sep_list_inner_rec([E|T], Sep, Opt) :- !,
-    write(Sep),
+term_write_sep_list_inner_rec([E|T], SepIn, Opt) :- !,
+    maplist(write, SepIn),
     write_term(E, Opt),
-    term_write_sep_list_inner_rec(T, Sep, Opt).
-term_write_sep_list_inner_rec(T, Sep, Opt) :-
+    term_write_sep_list_inner_rec(T, SepIn, Opt).
+term_write_sep_list_inner_rec(T, SepIn, Opt) :-
     ( T == []
     ->true
-    ; nonvar(T),
-      T = '$sb'(_Pos, _IFrom, _ITo, _GTerm, _GPriority, Term),
-      is_list(Term)
-    ->term_write_sep_list_inner_rec(Term, Sep, Opt)
-    ; write_tail(T, Opt)
+    ; write_tail(T, SepIn, Opt)
     ).
 
-write_tail(T, Opt) :-
+write_tail(T, _, Opt) :-
     var(T),
     !,
     write_term(T, Opt).
-write_tail([], _) :- !.
-write_tail('$LIST,NL'(L), Opt) :- !,
+write_tail([], _, _) :- !.
+write_tail('$LIST,NL'(L), _, Opt) :- !,
     get_output_position(Pos),
     term_write_sep_list_inner(L, Pos, Opt).
-write_tail('$LIST,NL'(L, Offs), Opt) :- !,
+write_tail('$LIST,NL'(L, Offs), _, Opt) :- !,
     get_output_position(Pos),
     LinePos is Offs + Pos,
     term_write_sep_list_inner(L, LinePos, Opt).
-write_tail(T, Opt) :-
-    write('|'),
+write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), SepIn, Opt) :-
+    is_list(Term),
+    nonvar(Pos0),
+    arg(1, Pos0, From0),
+    arg(2, Pos0, To0),
+    !,
+    b_getval(refactor_text, Text),
+    display_subtext(Text, From0, IFrom),
+    ( Pos0 = list_position(_, _, PosL, Tail)
+    ->maplist(write, SepIn),
+      PosL = [LPos|_],
+      arg(1, LPos, From),
+      append(_, [RPos], PosL),
+      ( Tail = none ->
+	arg(2, RPos, To)
+      ; arg(2, Tail, To)
+      ),
+      print_expansion_sb(Term, Term, GTerm, list_position(From, To, PosL, Tail),
+			 GPriority, Opt, Text)
+    ; term_write_sep_list_inner_rec(Term, SepIn, Opt)
+    ),
+    display_subtext(Text, ITo, To0).
+write_tail(T, [_|In], Opt) :-
+    maplist(write, ['|'|In]),
     write_term(T, Opt).
 
 term_write_sep_list([],    _,   _).
@@ -1103,12 +1148,17 @@ print_expansion_1('$LIST.NL'([Into|IntoL]), Pattern, Term, TermPos, OptionL0,
 		  Text, From, To) :- !,
     merge_options([priority(1200)], OptionL0, OptionL),
     print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To),
-    maplist(term_write_stop_nl(Pattern, Term, TermPos, OptionL, Text), IntoL).
+    term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, OptionL, Text).
 print_expansion_1(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
     print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To).
 
-term_write_stop_nl(Pattern, Term, TermPos, OptionL, Text, Into) :-
-    term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL, Text).
+term_write_stop_nl_list([Into|IntoL], Pattern, Term, TermPos, OptionL, Text) :-
+    term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL, Text),
+    term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, OptionL, Text).
+term_write_stop_nl_list('$sb'(_, _, _, _, _, IntoL), Pattern, Term, TermPos,
+			OptionL, Text) :-
+    term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, OptionL, Text).
+term_write_stop_nl_list([], _, _, _, _, _).
 
 term_write_stop_nl__('$NOOP'(Into), Pattern, Term, TermPos, OptionL, Text) :-
     with_output_to(string(_),	%Ignore, but process
@@ -1123,7 +1173,6 @@ print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
     arg(1, TermPos, From),
     arg(2, TermPos, To),
     with_from(print_expansion(Into, Pattern, Term, TermPos, OptionL, Text), From).
-
 
 % if the term have been in parentheses, in a place where that was
 % required, include it!!!
@@ -1349,7 +1398,7 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, O
       maplist(print_expansion_elem(OptionL1, Text), FromToL, PosL, ArgL, PatGTrL),
       term_priority(Into, 2, Priority2),
       OptionL2=[priority(Priority2)|OptionL],
-      term_write_sep_list_inner_rec(ATail, ', ', OptionL2),
+      term_write_sep_list_inner_rec(ATail, [',', ' '], OptionL2),
       display_subtext(Text, To2, To)
     ),
     (comp_priority(GTerm, Priority, Into, Priority) ->display(')') ; true).

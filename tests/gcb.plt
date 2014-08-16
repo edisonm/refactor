@@ -4,10 +4,10 @@
 
 test(example_1) :-
     greatest_common_binding(h(f(A)),g(A,f(A)),T,I,[],B,[]),
-    B = [X=Y],
-    assertion(Y == f(A)),
+    B = [X=Y,Z=A],
+    assertion(Y == f(Z)),
     assertion(T == h(X)),
-    assertion(I == g(A, X)).
+    assertion(I == g(Z, X)).
 
 test(example_2) :-
     greatest_common_binding(f(f(f(a))),g(a,f(f(f(a))),f(f(a))),T,I,[],B,[]),

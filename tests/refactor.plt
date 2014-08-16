@@ -857,13 +857,17 @@ test(excomm_3) :-
 /* $exapp_1$
 --- exapp.pl (source)
 +++ exapp.pl (target)
-@@ -1,5 +1,4 @@
+@@ -1,8 +1,6 @@
  :- module(exapp, [exapp/3]).
  
  exapp(A, T, C) :-
 -    append([ /*1*/A,
 -	     /*2*/A], T, C).
 +    C=[/*1*/A, /*2*/A|T].
+ exapp(A1-A2, T, C) :-
+-    append([ [ _, [ A1 ] ] ], [ [ _, [ A2 ] ], [ _, [ T ] ] ],
+-	   C).
++    C=[[_, [A1]], [[_, [A2]], [_, [T]]]].
 */
 
 test(exapp_1) :-
@@ -877,14 +881,18 @@ test(exapp_1) :-
 /* $exapp_2$
 --- exapp.pl (source)
 +++ exapp.pl (target)
-@@ -1,5 +1,5 @@
+@@ -1,8 +1,7 @@
  :- module(exapp, [exapp/3]).
  
  exapp(A, T, C) :-
 -    append([ /*1*/A,
 -	     /*2*/A], T, C).
 +    C=[ /*1*/A,
-+	     /*2*/A|T].
++	     /*2*/A| T].
+ exapp(A1-A2, T, C) :-
+-    append([ [ _, [ A1 ] ] ], [ [ _, [ A2 ] ], [ _, [ T ] ] ],
+-	   C).
++    C=[ [ _, [ A1 ] ], [ _, [ A2 ] ], [ _, [ T ] ] ].
 */
 
 test(exapp_2) :-

@@ -109,21 +109,33 @@ replace_term_id(Term, Expansion, Options) :-
 
 % BUG: This have to be applied only once --EMM
 :- meta_predicate rename_predicate(+,+,+).
-rename_predicate(M:Name0/Arity, Name, Options) :-
+rename_predicate(M:Name0/Arity, Name, OptionL0) :-
     functor(H0, Name0, Arity),
     H0 =.. [Name0|Args],
     H  =.. [Name|Args],
+    select_option(module(CM), OptionL0, OptionL1, CM),
+    OptionL = [module(CM)|OptionL1],
     replace_goal(H0, H,
-		( predicate_property(CM:H0, imported_from(M))
-		; M = CM
-		),
-		[module(CM)|Options]),	% Replace calls
+		 ( predicate_property(CM:H0, imported_from(M))
+		 ; M = CM
+		 ),
+		 OptionL),	% Replace calls
     % Replace heads:
-    replace_sentence((  H0 :- B),   (H :- B), true, Options),
-    replace_sentence((M:H0 :- B), (M:H :- B), true, Options),
-    replace_sentence(H0, H, true, Options),
-    replace_sentence((M:H0), (M:H), true, Options),
-    replace_term(Name0/Arity, Name/Arity, [module(M)|Options]). % Replace PIs
+    replace_head(H0, H, true, OptionL),
+    replace_head((M:H0), (M:H), true, OptionL),
+    replace_term(M:Name0/Arity, M:Name/Arity, OptionL),
+    replace_term(Name0/Arity, Name/Arity,
+		 ( catch(absolute_file_name(Alias, File, [file_type(prolog)]),
+			 _, fail),
+		   current_module(M, File)
+		 ),
+		 [sentence((:- use_module(Alias, _)))|OptionL0]),
+    ( CM = M
+    ->		 % Replace PIs, but only inside the module, although this part
+      		 % is `complete but not correct'
+      replace_term(Name0/Arity, Name/Arity, OptionL)
+    ; true
+    ).
 
 replace_term(Term, Into, Options) :-
     replace_term(Term, Into, true, Options).

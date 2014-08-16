@@ -137,7 +137,14 @@ comment_bound(CommentL, From, To) :-
     member(Pos-Text, CommentL),
     stream_position_data(char_count, Pos, From),
     string_length(Text, Length),
-    To is Length + From.
+    nl_mark_end(Text, Delta),
+    To is Length + Delta + From.
+
+nl_mark_end(Text, Delta) :-
+    ( string_code(1, Text, 0'%)
+    ->Delta = 1
+    ; Delta = 0
+    ).
 
 comment_bound(From, To) :-
     b_getval(refactor_comments, CommentL),
