@@ -60,8 +60,6 @@
 
 */
 
-:- include(catcher).
-
 :- meta_predicate replace(+,?,?,0,-).
 
 %% replace(+Level, +Term, -Into, :Expander, +Options) is det
