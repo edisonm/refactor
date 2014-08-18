@@ -153,13 +153,76 @@ replace_sentence(Sentence, Into, Options) :-
 replace_goal(Term, Into, Options) :-
     replace_goal(Term, Into, true, Options).
 
+:- dynamic add_import/4.
+
+rgbmm(Body0, Body, M, Module) :-
+    ( Module == M
+    ->Body = Body0
+    ; predicate_property(Module:Body0, imported_from(_))
+    ->( \+ ( predicate_property(Module:Body0, meta_predicate(Spec)),
+	     arg(_, Spec, ASpec),
+	     ( integer(ASpec)
+	     ; ASpec = (^)
+	     )
+	   )
+      ->Body = Body0
+      ; Body = M:Body0
+      )
+    ; predicate_property(M:Body0, imported_from(M2))
+    ->( M2 == Module
+      ->Body = Body0
+      ; ( \+ ( predicate_property(M:Body0, meta_predicate(Spec)),
+	       arg(_, Spec, ASpec),
+	       ( integer(ASpec)
+	       ; ASpec = (^)
+	       )
+	     )
+	->functor(Body0, F, A),
+	  assertz(add_import(Module, M2, F, A)),
+	  Body = Body0
+	; Body = M:Body0
+	)
+      )
+    ; Body = M:Body0
+    ).
+
+:- use_module(library(infer_alias)).
+
+rsum(Module, UML) :-
+    findall(Import-(F/A), retract(add_import(Module, Import, F, A)), Pairs),
+    Pairs \= [],
+    sort(Pairs, Sorted),
+    group_pairs_by_key(Sorted, Grouped),
+    findall(UM,
+	    ( member(Import-IL, Grouped),
+	      current_module(Import, IFile),
+	      smallest_alias(IFile, IA),
+	      UM = '$@'(:- use_module(IA, '$C'((nl,write('\t     ')),'$LIST,NL'(IL))))
+	    ), UML).
+
 % NOTE: Only works if exactly one clause match
-unfold_goal(MGoal, Options) :-
+unfold_goal(MGoal, OptionL0) :-
     findall(clause(MGoal, Body0), clause(MGoal, Body0), [clause(MGoal, Body0)]),
     MGoal = M:Goal,
+    select_option(module(Module), OptionL0, OptionL, Module),
+    retractall(add_import(_, _, _, _)),
     replace_goal(Goal, Body,
-		(Module == M -> Body = Body0 ; Body = M:Body0),
-		[module(Module)|Options]).
+		 rgbmm(Body0, Body, M, Module),
+		 [module(Module)|OptionL]),
+    replace_sentence((:- use_module(Alias, L0)), [(:- use_module(Alias, '$LIST,NL'(L)))],
+		     ( catch(absolute_file_name(Alias, IFile, [file_type(prolog)]),
+			     _,
+			     fail),
+		       current_module(Import, IFile),
+		       findall(F/A, retract(add_import(Module, Import, F, A)), UL),
+		       UL \= [],
+		       sort(UL, L1),
+		       append(L0, L1, L)
+		     ),
+		     [module(Module)|OptionL]),
+    replace_sentence((:- module(Module, L)), [(:- module(Module, L))|UML],
+		     rsum(Module, UML),
+		     [module(Module)|OptionL]).
 
 :- meta_predicate remove_call(+,0,+).
 remove_call(Call, Expander, Options) :-
