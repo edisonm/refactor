@@ -27,15 +27,16 @@
     the GNU General Public License.
 */
 
-:- module(refactor, []).
+:- module(ref_expand, [term_expansion/2]).
 
-:- reexport(library(ref_shell)).
-:- reexport(library(ref_replay)).
-:- reexport(library(ref_replace), except([replace/5])).
-:- use_module(library(ref_replacers), []).
-:- use_module(library(ref_scenarios), []).
-:- use_module(library(ref_expand), [term_expansion/2]).
-
-:- comm_commands(ref_replace).
-:- comm_commands(ref_replacers).
-:- comm_commands(ref_scenarios).
+term_expansion((:- comm_commands(M)), ClauseL) :-
+    module_property(M, exports(PIL)),
+    findall(Clause,
+	    ( member(F/A, PIL),
+	      functor(H, F, A),
+	      ( Clause = (:- export(F/A))
+	      ; predicate_property(M:H, meta_predicate Meta),
+		Clause = (:- meta_predicate Meta)
+	      ; Clause = (H :- apply_command_q(M:H))
+	      )
+	    ), ClauseL).
