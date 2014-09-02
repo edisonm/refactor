@@ -31,6 +31,7 @@
 
 :- reexport(library(ref_shell)).
 :- reexport(library(ref_replay)).
+:- reexport(library(ref_context)).
 :- reexport(library(ref_replace), except([replace/5])).
 :- use_module(library(ref_replacers), []).
 :- use_module(library(ref_scenarios), []).
