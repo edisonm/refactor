@@ -421,14 +421,14 @@ substitute_term_body(Rec, (_ :- Body), Term, Into, Expander,
     substitute_term(Rec, Body, Priority, Term, Into, Expander, BodyPos).
 
 substitute_term_head(Rec, Clause, Priority, Term, Into, Expander, TermPos) -->
-    { Clause = (Term :- _)
+    { Clause = (Head :- _)
     ->term_priority(Clause, 1, HPriority),
       term_position(_, _, _, _, [HeadPos, _]) = TermPos
-    ; Term = Clause,
+    ; Head = Clause,
       HPriority = Priority,
       HeadPos = TermPos
     },
-    substitute_term(Rec, Term, HPriority, Term, Into, Expander, HeadPos).
+    substitute_term(Rec, Head, HPriority, Term, Into, Expander, HeadPos).
 
 substitute_term(rec, Term, Priority, Pattern, Into, Expander, TermPos) -->
     substitute_term_rec(Term, Priority, Pattern, Into, Expander, TermPos).
