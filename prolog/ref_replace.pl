@@ -203,9 +203,9 @@ meta_expansion(Level, Term, Into, Expander, Options, FileContent) :-
 		[-atom, -singleton]), % At this point we are not interested in styles
     apply_file_commands(FileCommands, FileContent).
 
-:- public r_goal_expansion/2.
+:- public into_goal_expansion/2.
 
-r_goal_expansion(Goal, TermPos) :-
+into_goal_expansion(Goal, TermPos) :-
     nonvar(Goal),
     Goal \= _:_,
     nonvar(TermPos),
@@ -230,6 +230,7 @@ scan_meta_arg(0, G, M, P) :- !, rec_goal_expansion(G, M, P).
 scan_meta_arg(^, G, M, P) :- !, rec_goal_expansion(G, M, P).
 scan_meta_arg(N, G0, M, Pos0) :-
     integer(N),
+    compound(G0 ), % skip useless scans
     extend_args(N, G0, Pos0, G, Pos),
     rec_goal_expansion(G, M, Pos).
 
@@ -250,6 +251,8 @@ extend_args(N,
 	    M:Goal0, term_position(F, T, FF, FT, [MPos, Pos0 ]),
 	    M:Goal,  term_position(F, T, FF, FT, [MPos, Pos  ])) :- !,
     extend_args(N, Goal0, Pos0, Goal, Pos).
+extend_args(N, Goal0, F-T, Goal, Pos) :- !,
+    extend_args(N, Goal0, term_position(F, T, F, T, []), Goal, Pos).
 extend_args(N,
 	    Goal0, term_position(F, T, FF, FT, Pos0 ),
 	    Goal,  term_position(F, T, FF, FT, Pos  )) :-
@@ -260,14 +263,16 @@ extend_args(N,
     Goal =.. List,
     length(EPos, N),
     maplist(=(0-0 ), EPos),
-    append(Pos0, EPos, Pos).
+    once(append(Pos0, EPos, Pos)). % once/1 avoids loop if Pos0 is not ground
 
 :- dynamic ref_position/3.
 
 % Note: To avoid that this hook be applied more than once, we record the
 % positions already refactorized in ref_position/3.
 %
-do_r_goal_expansion(Term, TermPos) :-
+:- public do_goal_expansion/2.
+
+do_goal_expansion(Term, TermPos) :-
     refactor_context(sentence, Sent),
     refactor_context(sent_pattern, SentPattern),
     subsumes_term(SentPattern, Sent),
@@ -288,9 +293,9 @@ do_r_goal_expansion(Term, TermPos) :-
 :- meta_predicate level_hook(+,+,0 ).
 level_hook(goal, Term, Call) :- !,
     setup_call_cleanup(( asserta((system:goal_expansion(G, T, _, _) :-
-				 r_goal_expansion(G, T)), Ref1),
+				 into_goal_expansion(G, T)), Ref1),
 			 asserta((system:goal_expansion(Term, T, _, _) :-
-				 once(do_r_goal_expansion(Term, T)),fail), Ref2),
+				 once(do_goal_expansion(Term, T)),fail), Ref2),
 			 retractall(ref_position(_, _, _))
 		       ),
 		       Call,
@@ -655,14 +660,25 @@ arg(A,B,C) :-
 %	@param Priority is the environment operator priority
 %	@param Unifier contains bindings between Pattern and Into
 %
-perform_substitution(Sub, Priority, Term, Term2, Pattern2, Into2, BindingL, TermPos) -->
-    { copy_term(Term2, GTerm),
-      unifier(Term2, Term, Var1, Var2),
+perform_substitution(Sub, Priority, Term, Term0, Pattern0, Into0, BindingL, TermPos0 ) -->
+    { ( trim_fake_pos(TermPos0, TermPos, N)
+      ->trim_fake_args(N, Pattern0, Pattern),
+	trim_fake_args(N, Into0, Into1),
+	trim_fake_args(N, Term0, Term1),
+	trim_fake_args(N, Term,  Term2)
+      ; Pattern = Pattern0,
+	Into1 = Into0,
+	Term1 = Term0,
+	Term2 = Term,
+	TermPos = TermPos0
+      ),
+      copy_term(Term1, GTerm),
+      unifier(Term1, Term2, Var1, Var2),
       maplist(eq, Var1, Var2, UL0),
       partition(singleton(Var1-Var2), UL0, UL20, UL2),
       partition(singleton_r(Var2), UL0, _, UL6),
       maplist(unif_eq, UL20),
-      maplist_dcg(substitute_2, UL2, sub(Term2, UL3), sub(Term3, [])),
+      maplist_dcg(substitute_2, UL2, sub(Term1, UL3), sub(Term3, [])),
       partition(choose1(UL3), UL6, _, UL7),
       maplist(eq, _, Var7, UL7),
       partition(singleton_r(Var7), UL7, _, UL1),
@@ -672,19 +688,41 @@ perform_substitution(Sub, Priority, Term, Term2, Pattern2, Into2, BindingL, Term
 	 The predicate performs destructive assignment (as in imperative
 	 languages), modifying term position once the predicate is called */
       fix_subtermpos(TermPos),
-      with_context_vars(subst_term(TermPos, Pattern2, GTerm, Priority, Term3),
+      with_context_vars(subst_term(TermPos, Pattern, GTerm, Priority, Term3),
 			[refactor_bind], [BindingL]),
-      shared_variables(Term3, Into2, V5), % after subst_term, in case some
+      shared_variables(Term3, Into1, V5), % after subst_term, in case some
       maplist(eq, V5, V5, UL5),           % variables from Term3 reappear
-      maplist(subst_fvar(Term, TermPos, GTerm), UL5),
+      maplist(subst_fvar(Term2, TermPos, GTerm), UL5),
       % maplist(subst_fvar(Sent,  SentPos, GSent), UL4),
       maplist(subst_unif(Term3, TermPos, GTerm), UL3),
       maplist(subst_unif(Term3, TermPos, GTerm), UL2),
-      maplist(subst_fvar(Term2, TermPos, GTerm), UL1),
-      special_term(Sub, Into2, Into3)
+      maplist(subst_fvar(Term1, TermPos, GTerm), UL1),
+      special_term(Sub, Into1, Into)
     },
     !,
-    [subst(TermPos, Priority, Pattern2, GTerm, Into3)].
+    [subst(TermPos, Priority, Pattern, GTerm, Into)].
+
+% remove fake arguments that would be added by extend_args
+trim_fake_pos(term_position(F, T, FF, FT, PosL0 ), Pos, N) :-
+    nonvar(PosL0 ),
+    once(( append(PosL, [0-0|E], PosL0 ),
+	   maplist('='(0-0 ), E)
+	 )),
+    length([_|E], N),
+    Pos = term_position(F, T, FF, FT, PosL).
+    % ( PosL == []
+    % ->Pos = F-T
+    % ; 
+    % ).
+
+trim_fake_args(N, Term0, Term) :-
+    ( Term0 =.. ATerm0,
+      length(TE, N),
+      append(ATerm, TE, ATerm0 ),
+      Term =.. ATerm
+    ->true
+    ; Term = Term0
+    ).
 
 shared_variables(Term1, Term2, Var) :-
     term_variables(Term1, Var1),
