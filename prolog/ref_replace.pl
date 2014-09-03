@@ -434,10 +434,12 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
 expand_if_required(Expand, M, Sent, TermPos, In, Expanded) :-
     ( Expand = no
     ->prolog_source:update_state(Sent, M) % operator update
-    ;
-      prolog_source:( expand(Sent, TermPos, In, Expanded),
-		      update_state(Sent, Expanded, M)
-		    )
+    ; prolog_source:(
+	setup_call_cleanup(
+	    '$set_source_module'(Old, M),
+	    expand(Sent, TermPos, In, Expanded),
+	    '$set_source_module'(_, Old)),
+	update_state(Sent, Expanded, M))
     ).
 
 make_linear_if_required(Sent, LinearTerm, Linear, Bindings) :-
