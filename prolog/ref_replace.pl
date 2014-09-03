@@ -46,6 +46,7 @@
 :- use_module(library(ref_context)).
 :- use_module(library(fix_termpos)).
 :- use_module(library(mklinear)).
+:- use_module(library(codesio)).
 :- use_module(library(prolog_source)). % expand/4
 
 :- thread_local file_commands_db/2, command_db/1.
@@ -205,8 +206,61 @@ meta_expansion(Level, Term, Into, Expander, Options, FileContent) :-
 :- public r_goal_expansion/2.
 
 r_goal_expansion(Goal, TermPos) :-
-    once(do_r_goal_expansion(Goal, TermPos)),
+    nonvar(Goal),
+    Goal \= _:_,
+    nonvar(TermPos),
+    '$set_source_module'(M, M),
+    scan_meta(Goal, M, TermPos),
     fail.
+
+scan_meta(Goal, M, term_position(_, _, _, _, PosL)) :-
+    predicate_property(M:Goal, meta_predicate(Spec)),
+    nonvar(PosL),
+    PosS =.. [tp|PosL],
+    scan_meta_args(Spec, Goal, M, PosS).
+
+scan_meta_args(Spec, Goal, M, PosS) :-
+    arg(N, Goal, Arg),
+    arg(N, Spec, SA),
+    arg(N, PosS, Pos),
+    nonvar(Pos),
+    scan_meta_arg(SA, Arg, M, Pos).
+
+scan_meta_arg(0, G, M, P) :- !, rec_goal_expansion(G, M, P).
+scan_meta_arg(^, G, M, P) :- !, rec_goal_expansion(G, M, P).
+scan_meta_arg(N, G0, M, Pos0) :-
+    integer(N),
+    extend_args(N, G0, Pos0, G, Pos),
+    rec_goal_expansion(G, M, Pos).
+
+rec_goal_expansion(Term, _, TermPos) :-
+    nonvar(Term),
+    Term = M:Goal,
+    !,
+    TermPos = term_position(_, _, _, _, [_, Pos]),
+    rec_goal_expansion(Goal, M, Pos).
+rec_goal_expansion(Goal, _, Pos) :-
+    once(do_goal_expansion(Goal, Pos)),
+    fail.
+rec_goal_expansion(Goal, M, Pos) :-
+    scan_meta(Goal, M, Pos).
+
+extend_args(_, Goal, Pos, Goal, Pos) :- var(Goal), !, fail.
+extend_args(N,
+	    M:Goal0, term_position(F, T, FF, FT, [MPos, Pos0 ]),
+	    M:Goal,  term_position(F, T, FF, FT, [MPos, Pos  ])) :- !,
+    extend_args(N, Goal0, Pos0, Goal, Pos).
+extend_args(N,
+	    Goal0, term_position(F, T, FF, FT, Pos0 ),
+	    Goal,  term_position(F, T, FF, FT, Pos  )) :-
+    callable(Goal0 ), !,
+    Goal0 =.. List0,
+    length(EArgs, N),
+    append(List0, EArgs, List),
+    Goal =.. List,
+    length(EPos, N),
+    maplist(=(0-0 ), EPos),
+    append(Pos0, EPos, Pos).
 
 :- dynamic ref_position/3.
 
@@ -227,18 +281,21 @@ do_r_goal_expansion(Term, TermPos) :-
     \+ ref_position(File, From, To),
     assertz(ref_position(File, From, To)),
     phrase(substitute_term_norec(sub, Term, 999, Pattern,
-						   Into, Expander, TermPos),
-			     Commands, []),
+				 Into, Expander, TermPos),
+	   Commands, []),
     forall(member(Command, Commands), assertz(command_db(Command))).
 
 :- meta_predicate level_hook(+,+,0 ).
 level_hook(goal, Term, Call) :- !,
-    setup_call_cleanup(( asserta((system:goal_expansion(Term, T, _, _) :-
-				 r_goal_expansion(Term, T)), Ref),
+    setup_call_cleanup(( asserta((system:goal_expansion(G, T, _, _) :-
+				 r_goal_expansion(G, T)), Ref1),
+			 asserta((system:goal_expansion(Term, T, _, _) :-
+				 once(do_r_goal_expansion(Term, T)),fail), Ref2),
 			 retractall(ref_position(_, _, _))
 		       ),
 		       Call,
-		       ( erase(Ref),
+		       ( erase(Ref1),
+			 erase(Ref2),
 			 retractall(ref_position(_, _, _))
 		       )).
 level_hook(_, _, Call) :-
