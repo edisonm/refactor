@@ -270,13 +270,13 @@ extend_args(N,
 % Note: To avoid that this hook be applied more than once, we record the
 % positions already refactorized in ref_position/3.
 %
+
+remove_attribute(Attr, Var) :-
+    del_attr(Var, Attr).
+
 :- public do_goal_expansion/2.
 
 do_goal_expansion(Term, TermPos) :-
-    refactor_context(sentence, Sent),
-    refactor_context(sent_pattern, SentPattern),
-    subsumes_term(SentPattern, Sent),
-    refactor_context(goal_args, ga(Pattern, Into, Expander)),
     compound(TermPos),
     arg(1, TermPos, From),
     arg(2, TermPos, To),
@@ -285,6 +285,9 @@ do_goal_expansion(Term, TermPos) :-
     b_getval(refactor_file, File),
     \+ ref_position(File, From, To),
     assertz(ref_position(File, From, To)),
+    term_variables(Term, Vars),
+    maplist(remove_attribute('$var_info'), Vars),
+    refactor_context(goal_args, ga(Pattern, Into, Expander)),
     phrase(substitute_term_norec(sub, Term, 999, Pattern,
 				 Into, Expander, TermPos),
 	   Commands, []),
@@ -705,8 +708,9 @@ perform_substitution(Sub, Priority, Term, Term0, Pattern0, Into0, BindingL, Term
 % remove fake arguments that would be added by extend_args
 trim_fake_pos(term_position(F, T, FF, FT, PosL0 ), Pos, N) :-
     nonvar(PosL0 ),
-    once(( append(PosL, [0-0|E], PosL0 ),
-	   maplist('='(0-0 ), E)
+    once(( member(FE, [0-0, T-T]),
+	   append(PosL, [FE|E], PosL0 ),
+	   maplist('='(FE), E)
 	 )),
     length([_|E], N),
     Pos = term_position(F, T, FF, FT, PosL).
