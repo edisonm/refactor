@@ -923,6 +923,61 @@ test(save_changes) :-
     assertion(Result\==""),
     rcommit.
 
+:- use_module(exge).
+
+/* $exge$
+--- exge.pl (source)
++++ exge.pl (target)
+@@ -7,12 +7,12 @@
+     b~n".
+ 
+ a(X) :-
+-    exge:r,
+-    call(r),
+-    call(b(r), c, d(X)),
++    exge:r(1),
++    call(r(1)),
++    call(b(r(1)), c, d(X)),
+     call(c, d).
+ 
+-a --> b(r).
++a --> b(r(1)).
+ 
+ d([a,b], a, b).
+ 
+*/
+
+test(exge) :-
+    rreset,
+    replace_goal(r,r(1),[module(exge)]),
+    with_output_to(string(Result), rshow),
+    comment_data(exge, Pattern),
+    assertion(Pattern == Result).    
+
+/* $exdcg$
+--- exge.pl (source)
++++ exge.pl (target)
+@@ -9,10 +9,10 @@
+ a(X) :-
+     exge:r,
+     call(r),
+-    call(b(r), c, d(X)),
++    call(b(r, s), c, d(X)),
+     call(c, d).
+ 
+-a --> b(r).
++a --> b(r, s).
+ 
+ d([a,b], a, b).
+ 
+*/
+test(exdcg) :-
+    rreset,
+    replace_goal(b(r,A,B),b(r,s,A,B),[module(exge)]),
+    with_output_to(string(Result), rshow),
+    comment_data(exdcg, Pattern),
+    assertion(Pattern == Result).    
+
 :- comment_data:disable.
 
 :- end_tests(refactor).
