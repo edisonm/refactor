@@ -231,19 +231,6 @@ do_goal_expansion(Term, TermPos) :-
 	   Commands, []),
     forall(member(Command, Commands), assertz(command_db(Command))).
 
-:- meta_predicate level_hook(+,+,0 ).
-level_hook(goal, Term, Call) :- !,
-    setup_call_cleanup(( asserta((system:goal_expansion(Term, P, _, _) :-
-				 once(do_goal_expansion(Term, P)),fail), Ref),
-			 retractall(ref_position(_, _, _))
-		       ),
-		       Call,
-		       ( erase(Ref),
-			 retractall(ref_position(_, _, _))
-		       )).
-level_hook(_, _, Call) :-
-    call(Call).
-
 :- public collect_file_commands/8.
 :- meta_predicate collect_file_commands(?,0,?,?,?,?,?,?).
 
@@ -302,9 +289,20 @@ collect_expansion_commands(goal_cw, Term, Into, Expander, OptionL0,
 	]),
     findall(File-Commands, retract(file_commands_db(File, Commands)), FileCommands).
 collect_expansion_commands(Level, Term, Into, Expander, Options, FileCommands) :-
-    level_hook(Level, Term,
-	       collect_ec_term_level(Level, Term, Into, Expander,
-				     Options, FileCommands)).
+    setup_call_cleanup(prepare_level(Level, Ref),
+		       collect_ec_term_level(Level, Term, Into, Expander,
+					     Options, FileCommands),
+		       cleanup_level(Level, Ref)).
+
+prepare_level(goal, Ref) :- !,
+    asserta((system:goal_expansion(G, P, _, _) :-
+	    once(do_goal_expansion(G, P)),fail), Ref).
+prepare_level(_, _).
+
+cleanup_level(goal, Ref) :- !,
+    erase(Ref),
+    retractall(ref_position(_, _, _)).
+cleanup_level(_, _).
 
 collect_ec_term_level(Level, Term, Into, Expander, OptionL, FileCommands) :-
     findall(File-Commands,
