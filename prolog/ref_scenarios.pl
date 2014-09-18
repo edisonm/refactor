@@ -253,10 +253,10 @@ replace_conjunction(Conj, Repl, Expander, Options) :-
     replace_last_literal(Conj, Conj2, CLit, CBody),
     replace_last_literal(Repl, Repl2, RLit, RBody),
     copy_term(t(Conj2, CLit, CBody, Repl2, RLit, RBody), Term),
-    replace_term(Conj2, Repl2,
-		( bind_lit_body(Term, CLit, CBody, RLit, RBody),
-		  Expander
-		), Options).
+    replace(body_rec, Conj2, Repl2,
+	    ( bind_lit_body(Term, CLit, CBody, RLit, RBody),
+	      Expander
+	    ), Options).
 
 replace_conjunction(Conj, Replacement, Options) :-
     replace_conjunction(Conj, Replacement, true, Options).
