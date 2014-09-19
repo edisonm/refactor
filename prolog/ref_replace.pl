@@ -42,6 +42,7 @@
 :- use_module(library(maplist_dcg)).
 :- use_module(library(mapargs)).
 :- use_module(library(location_utils)).
+:- use_module(library(option_utils)).
 :- use_module(library(ref_changes)).
 :- use_module(library(ref_context)).
 :- use_module(library(fix_termpos)).
@@ -309,19 +310,10 @@ collect_ec_term_level(Level, Term, Into, Expander, OptionL, FileCommands) :-
 	    ec_term_level_each(Level, Term, Into, Expander, File, Commands, OptionL),
 	    FileCommands).
 
-:- public mod_prop/2.
-mod_prop([],   Module) :- !, current_module(Module).
-mod_prop(Prop, Module) :- module_property(Module, Prop).
-
-collect_changed_files(FileL) :-
-    once(pending_change(Index)),
-    findall(File, pending_change(Index, File, _), FileL).
-
 ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
     (Level = goal -> DExpand=yes ; DExpand = no),
     (Level = sent -> SentPattern = Term ; true), % speed up
-    maplist_dcg(select_option, [module_property(Prop)-[],
-				syntax_errors(SE)-error,
+    maplist_dcg(select_option, [syntax_errors(SE)-error,
 				subterm_positions(TermPos)-TermPos,
 				module(M)-M,
 				linear_term(LinearTerm)-no,
@@ -330,23 +322,21 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
 				expand(Expand)-DExpand,
 				expanded(Expanded)-Expanded,
 				fixpoint(FixPoint)-none,
-				file(AFile)-AFile
+				file(File)-File
 			       ],
 		OptionL0, OptionL1),
-    (var(AFile) -> AFile = File ; true),
-    option_allchk([file(AFile)|OptionL1], OptionL2, AllChk0 ),
+    option_allchk(M, File, FileMGen-OptionL1, FileMGen0-OptionL2),
     ( FixPoint = files,
-      collect_changed_files(FileL)
-    ->compound_chks([AllChk0, in_set(FileL)], AllChk)
-    ; AllChk = AllChk0
+      once(pending_change(Index))
+    ->FileMGen0 = pending_change(Index, File, _)
+    ; FileMGen0 = true
     ),
     OptionL = [syntax_errors(SE),
 	       subterm_positions(TermPos),
 	       comments(Comments),
 	       module(M)|OptionL2],
-    mod_prop(Prop, M),
-    with_context_vars(( get_term_info(M, SentPattern, Sent, AllChk, File, In,
-				      OptionL),
+    with_context_vars(( call(FileMGen),
+		        get_term_info_file(SentPattern, Sent, File, In, OptionL),
 			expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
 			make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
 		        phrase(substitute_term_level(Level, Linear, 1200, Term,
@@ -373,14 +363,15 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
 		       ga(Term, Into, Expander)]).
 
 expand_if_required(Expand, M, Sent, TermPos, In, Expanded) :-
-    ( Expand = no
-    ->prolog_source:update_state(Sent, M) % operator update
-    ; prolog_source:(
-	setup_call_cleanup(
-	    '$set_source_module'(Old, M),
-	    expand(Sent, TermPos, In, Expanded),
-	    '$set_source_module'(_, Old)),
-	update_state(Sent, Expanded, M))
+    ( var(M)
+    ->true
+    ; ( Expand = no
+      ->prolog_source:update_state(Sent, M) % operator update
+      ; setup_call_cleanup('$set_source_module'(Old, M),
+			   prolog_source:expand(Sent, TermPos, In, Expanded),
+			   '$set_source_module'(_, Old)),
+	prolog_source:update_state(Sent, Expanded, M)
+      )
     ).
 
 make_linear_if_required(Sent, LinearTerm, Linear, Bindings) :-
