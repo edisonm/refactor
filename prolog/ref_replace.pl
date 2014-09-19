@@ -507,7 +507,7 @@ with_context(Src, Pattern0, Into0, Pattern1, Into2, Goal) :-
     refactor_context(sentence, Sent),
     refactor_context(sent_pattern, Sent),
     Pattern0 = Src,
-    with_pattern_into(once(Goal), Pattern1, Into1), % Allow changes in Pattern/Into
+    with_pattern_into(once(Goal), Pattern1, Into1), % Allow changes in Pattern1/Into1
     term_variables(Pattern1, Vars), % Variable bindings in Pattern
     %% Apply changes to Pattern/Into and bind Vars:
     copy_term(t(Pattern1, Into1, Vars), t(Pattern0, Into0, Vars0)),
