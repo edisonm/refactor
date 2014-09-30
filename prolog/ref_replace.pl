@@ -201,7 +201,7 @@ with_styles(Goal, StyleL) :-
 meta_expansion(Level, Term, Into, Expander, Options, FileContent) :-
     with_styles(collect_expansion_commands(Level, Term, Into, Expander,
 					   Options, FileCommands),
-		[-atom, -singleton]), % At this point we are not interested in styles
+		[-singleton]),	% At this point we are not interested in styles
     apply_file_commands(FileCommands, FileContent).
 
 :- dynamic ref_position/3.
