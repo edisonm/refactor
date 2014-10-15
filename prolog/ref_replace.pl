@@ -315,7 +315,7 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
     (Level = sent -> SentPattern = Term ; true), % speed up
     maplist_dcg(select_option, [syntax_errors(SE)-error,
 				subterm_positions(TermPos)-TermPos,
-				module(M)-M,
+				module(M)-(-),
 				linear_term(LinearTerm)-no,
 				sentence(SentPattern)-SentPattern,
 				comments(Comments)-Comments,
@@ -331,10 +331,13 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
     ->FileMGen0 = pending_change(Index, File, _)
     ; FileMGen0 = true
     ),
+    ( M = (-)
+    ->OptionL3 = OptionL2
+    ; OptionL3 = [module(M)|OptionL2]
+    ),
     OptionL = [syntax_errors(SE),
 	       subterm_positions(TermPos),
-	       comments(Comments),
-	       module(M)|OptionL2],
+	       comments(Comments)|OptionL3],
     with_context_vars(( call(FileMGen),
 		        get_term_info_file(SentPattern, Sent, File, In, OptionL),
 			expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
@@ -365,19 +368,20 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
 expand_if_required(Expand, M, Sent, TermPos, In, Expanded) :-
     ( var(M)
     ->true
-    ; ( Expand = no
-      ->prolog_source:update_state(Sent, M) % operator update
-      ; setup_call_cleanup('$set_source_module'(Old, M),
-			   prolog_source:expand(Sent, TermPos, In, Expanded),
-			   '$set_source_module'(_, Old)),
-	prolog_source:update_state(Sent, Expanded, M)
+    ; Expand = no
+    ->( M = (-)
+      ->true
+      ; prolog_source:update_state(Sent, M) % operator update
       )
+    ; prolog_source:expand(Sent, TermPos, In, Expanded),
+      '$set_source_module'(NM, NM),
+      prolog_source:update_state(Sent, Expanded, NM)
     ).
 
 make_linear_if_required(Sent, LinearTerm, Linear, Bindings) :-
     ( LinearTerm = no
     ->Sent=Linear,
-      Bindings=[]
+      Bindings = []
     ; mklinear(Sent, Linear, Bindings)
     ).
 

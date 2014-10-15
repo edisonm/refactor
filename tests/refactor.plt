@@ -976,7 +976,28 @@ test(exdcg) :-
     replace_goal(b(r,A,B),b(r,s,A,B),[module(exge)]),
     with_output_to(string(Result), rshow),
     comment_data(exdcg, Pattern),
-    assertion(Pattern == Result).    
+    assertion(Pattern == Result).
+
+/* $exnoload$
+--- exnoload.pl (source)
++++ exnoload.pl (target)
+@@ -1,7 +1,7 @@
+ :- module(exnoload, [exnoload/1]).
+ 
+ exnoload(A) :-
+-    exnoload(A, 2),
+-    exnoload(A, 1).
++    'exnoload*'(A, 2),
++    'exnoload*'(A, 1).
+ 
+ exnoload(A, A).
+*/
+test(exnoload) :-
+    rreset,
+    replace_goal(exnoload(A,B),'exnoload*'(A,B), [alias(exnoload)]),
+    with_output_to(string(Result), rshow),
+    comment_data(exnoload, Pattern),
+    assertion(Pattern == Result).
 
 :- comment_data:disable.
 
