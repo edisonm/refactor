@@ -273,14 +273,17 @@ collect_file_commands(CallerPattern, Pattern, Into, Expander, FileChk,
 select_option(Holder-Default, OptionL0, OptionL) :-
     select_option(Holder, OptionL0, OptionL, Default).
 
+add_module_option(M) --> {M = []}, !.
+add_module_option(M) --> [module(M)].
+
 collect_expansion_commands(goal_cw, Term, Into, Expander, OptionL0,
 			   FileCommands) :-
     !,
     option_allchk(OptionL0, OptionL1, AllChk),
-    maplist_dcg(select_option, [module(M)     -M,
+    maplist_dcg(select_option, [module(M)-[],
 				caller(Caller)-Caller],
 		OptionL1, OptionL2),
-    (nonvar(M)-> OptionL3 = [module(M)|OptionL2] ; OptionL3 = OptionL2),
+    add_module_option(M, OptionL3, OptionL2),
     prolog_walk_code(
 	[ trace_reference(M:Term),
 	  infer_meta_predicates(false),
@@ -315,7 +318,7 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
     (Level = sent -> SentPattern = Term ; true), % speed up
     maplist_dcg(select_option, [syntax_errors(SE)-error,
 				subterm_positions(TermPos)-TermPos,
-				module(M)-(-),
+				module(M)-[],
 				linear_term(LinearTerm)-no,
 				sentence(SentPattern)-SentPattern,
 				comments(Comments)-Comments,
@@ -331,10 +334,7 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
     ->FileMGen0 = pending_change(Index, File, _)
     ; FileMGen0 = true
     ),
-    ( M = (-)
-    ->OptionL3 = OptionL2
-    ; OptionL3 = [module(M)|OptionL2]
-    ),
+    add_module_option(M, OptionL3, OptionL2),
     OptionL = [syntax_errors(SE),
 	       subterm_positions(TermPos),
 	       comments(Comments)|OptionL3],
@@ -369,7 +369,7 @@ expand_if_required(Expand, M, Sent, TermPos, In, Expanded) :-
     ( var(M)
     ->true
     ; Expand = no
-    ->( M = (-)
+    ->( M = []
       ->true
       ; prolog_source:update_state(Sent, M) % operator update
       )
@@ -491,7 +491,8 @@ string_concat_to(RText, t(From, To, PasteText), Pos-Text0, To-Text) :-
 apply_change(Text, M:subst(TermPos, Priority, Pattern, Term, Into),
 	     t(From, To, PasteText)) :-
     wr_options(OptionL0),
-    OptionL = [module(M), priority(Priority)|OptionL0 ],
+    add_module_option(M, OptionL1, OptionL0),
+    OptionL = [priority(Priority)|OptionL1],
     with_output_to(string(PasteText),
 		   print_expansion_0(Into, Pattern, Term, TermPos,
 				     OptionL, Text, From, To)).
@@ -1332,12 +1333,12 @@ print_expansion_pos(term_position(From, To, _FFrom, FFTo, PosL), Into, Pattern,
     PosT    =.. [FP|PosL],
     ( FT == FP
     ->display_subtext(Text, From, To1) %% Do nothing to preserve functor layout
-    % TBD: the commented out lines must be re-tested, because they have problems
-    % if the operator is not prefix, e.g., a+b ---> a/b
     % TBD: use '$exported_op'/3
-    ; select_option(module(M), OptionL, _, M),
-      \+ M:current_op(_, _, FT),
-      \+ M:current_op(_, _, FP)
+    ; \+ current_op(_, _, FT),
+      \+ current_op(_, _, FP)
+      % TBD: the commented out lines must be re-tested, because they have problems
+      % if the operator is not prefix, e.g., a+b ---> a/b
+      %
       % ( valid_op_type_arity(TypeOp, A),
       %		current_op(PrecedenceP, TypeOp, FT),
       %		current_op(PrecedenceE, TypeOp, FP)
