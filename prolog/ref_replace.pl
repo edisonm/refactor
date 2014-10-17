@@ -318,7 +318,7 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
     (Level = sent -> SentPattern = Term ; true), % speed up
     maplist_dcg(select_option, [syntax_errors(SE)-error,
 				subterm_positions(TermPos)-TermPos,
-				module(M)-[],
+				module(M)-M,
 				linear_term(LinearTerm)-no,
 				sentence(SentPattern)-SentPattern,
 				comments(Comments)-Comments,
@@ -334,11 +334,11 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
     ->FileMGen0 = pending_change(Index, File, _)
     ; FileMGen0 = true
     ),
-    add_module_option(M, OptionL3, OptionL2),
-    OptionL = [syntax_errors(SE),
-	       subterm_positions(TermPos),
-	       comments(Comments)|OptionL3],
+    OptionL3 = [syntax_errors(SE),
+		subterm_positions(TermPos),
+		comments(Comments)|OptionL2],
     with_context_vars(( call(FileMGen),
+			add_module_option(M, OptionL, OptionL3),
 		        get_term_info_file(SentPattern, Sent, File, In, OptionL),
 			expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
 			make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
