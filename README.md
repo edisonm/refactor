@@ -32,16 +32,18 @@ true.
 true.
 
 ?- run_tests.
-% All 24 tests passed
+% All 43 tests passed
 true.
 ?- rreset.
 true.
 
-?- replace_term(conjex:_,a(B),aa(B),[]).
-% 2 changes in /home/edison/apps/refactor/tests/conjex.pl
+?- replace_term(a(B),aa(B),[module(conjex)]), rshow.
+% Reading tests/conjex.pl
+% 3 changes in tests/conjex.pl
+% Saved changes in index 1
 --- conjex.pl (source)
 +++ conjex.pl (target)
-@@ -1,10 +1,10 @@
+@@ -1,15 +1,15 @@
  :- module(conjex, [conjex/0]).
  
  conjex :-
@@ -54,9 +56,13 @@ true.
 -    a(a),
 +    aa(a),
      b(b).
-% Saved changes in index 1
+ 
+-a(_).
++aa(_).
+ b(_).
+ c(_).
+ d(_).
 true.
-
 
 ```
 
