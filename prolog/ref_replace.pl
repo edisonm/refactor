@@ -1104,8 +1104,6 @@ term_write_sep_elem(Sep, Opt, Term) :- write(Sep), write_term(Term, Opt).
 
 term_write_comma_2(Opt, Term) :- write_term(Term, Opt), write(', ').
 
-:- use_module(library(listing), []).
-
 print_expansion_0(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
     ( nonvar(Into) ->
       print_expansion_1(Into, Pattern, Term, TermPos, OptionL, Text, From, To)
