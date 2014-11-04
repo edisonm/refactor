@@ -1123,9 +1123,9 @@ print_expansion_rm_dot(TermPos, Text, From, To) :-
     sub_string(Right, Next, _, _, "."),
     To is Before + Next + 2.
 
-/*
+
 % Hacks that can only work at 1st level:
-*/
+
 print_expansion_1('$RM', _, _, TermPos, _, Text, From, To) :- !,
     print_expansion_rm_dot(TermPos, Text, From, To).
 print_expansion_1('$TEXT'(Into), _, _, TermPos, OptionL, _, From, To) :- !,
