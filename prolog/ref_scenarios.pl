@@ -47,6 +47,7 @@
 	  ]).
 
 :- use_module(library(ref_context)).
+:- use_module(library(ref_replace)).
 :- use_module(library(ref_replacers)).
 :- use_module(library(list_sequence)).
 
