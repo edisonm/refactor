@@ -66,7 +66,8 @@ get_term_info_file(Pattern, Term, File, In, Options) :-
 
 get_term_info_fd(In, Pattern, Term, Options) :-
     repeat,
-    read_term(In, Term, Options),
+    '$set_source_module'(M, M),
+    read_term(In, Term, [module(M)|Options]),
     ( Term == end_of_file ->
       !,
       fail
