@@ -334,49 +334,55 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
     ->FileMGen0 = pending_change(Index, File, _)
     ; FileMGen0 = true
     ),
-    OptionL3 = [syntax_errors(SE),
-		subterm_positions(TermPos),
-		comments(Comments)|OptionL2],
-    with_context_vars(( call(FileMGen),
-			add_module_option(M, OptionL, OptionL3),
-		        get_term_info_file(SentPattern, Sent, File, In, OptionL),
-			expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
-			make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
-		        phrase(substitute_term_level(Level, Linear, 1200, Term,
-						     Into, Expander, TermPos),
-			       Commands, [])
-		      ),
-		      [refactor_sent_pattern,
-		       refactor_sentence,
-		       refactor_expanded,
-		       refactor_options,
-		       refactor_comments,
-		       refactor_bindings,
-		       refactor_subpos,
-		       refactor_file,
-		       refactor_goal_args],
-		      [SentPattern,
-		       Linear,
-		       Expanded,
-		       OptionL,
-		       Comments,
-		       Bindings,
-		       TermPos,
-		       File,
-		       ga(Term, Into, Expander)]).
+    OptionL = [syntax_errors(SE),
+	       subterm_positions(TermPos),
+	       comments(Comments)|OptionL2],
+    setup_call_cleanup(
+	( '$set_source_module'(OldM, OldM),
+	  freeze(M, '$set_source_module'(_, M))
+	),
+	with_context_vars(
+	    fetch_sentence_each(FileMGen, File, SentPattern, OptionL, Expand,
+				TermPos, Expanded, LinearTerm, Linear, Bindings,
+				Level, Term, Into, Expander, Commands),
+	    [refactor_sent_pattern,
+	     refactor_sentence,
+	     refactor_expanded,
+	     refactor_options,
+	     refactor_comments,
+	     refactor_bindings,
+	     refactor_subpos,
+	     refactor_file,
+	     refactor_goal_args],
+	    [SentPattern,
+	     Linear,
+	     Expanded,
+	     OptionL,
+	     Comments,
+	     Bindings,
+	     TermPos,
+	     File,
+	     ga(Term, Into, Expander)]),
+	'$set_source_module'(_, OldM)).
 
-expand_if_required(Expand, M, Sent, TermPos, In, Expanded) :-
-    ( var(M)
-    ->true
-    ; Expand = no
-    ->( M = []
-      ->true
-      ; prolog_source:update_state(Sent, M) % operator update
-      )
-    ; prolog_source:expand(Sent, TermPos, In, Expanded),
-      '$set_source_module'(NM, NM),
-      prolog_source:update_state(Sent, Expanded, NM)
-    ).
+fetch_sentence_each(FileMGen, File, SentPattern, OptionL, Expand, TermPos,
+		    Expanded, LinearTerm, Linear, Bindings, Level, Term, Into,
+		    Expander, Commands) :-
+    call(FileMGen),
+    get_term_info_file(SentPattern, Sent, File, In, OptionL),
+    expand_if_required(Expand, Sent, TermPos, In, Expanded),
+    make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
+    phrase(substitute_term_level(Level, Linear, 1200, Term,
+				 Into, Expander, TermPos),
+	   Commands, []).
+
+expand_if_required(Expand, Sent, TermPos, In, Expanded) :-
+    ( Expand = no
+    ->Expanded = Sent
+    ; prolog_source:expand(Sent, TermPos, In, Expanded)
+    ),
+    '$set_source_module'(M, M),
+    prolog_source:update_state(Sent, Expanded, M).
 
 make_linear_if_required(Sent, LinearTerm, Linear, Bindings) :-
     ( LinearTerm = no
