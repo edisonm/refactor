@@ -15,11 +15,13 @@
 	   arrange_po_files/1,
 	   subtract_po_file/2]).
 
+:- use_module(library(apply)).
+:- use_module(library(lists)).
+:- use_module(library(clambda)).
+:- use_module(library(term_info)).
+:- use_module(library(ref_changes)).
 :- use_module(library(i18n/i18n_support)).
 :- use_module(library(i18n/i18n_parser)).
-:- use_module(library(ref_changes)).
-:- use_module(library(term_info)).
-:- use_module(library(lambda)).
 
 current_po_file(M, Lang, PoFile) :-
     current_pot_file(M, PotFile),
