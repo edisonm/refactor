@@ -29,6 +29,8 @@
 
 :- module(ref_expand, [term_expansion/2]).
 
+:- use_module(library(lists)).
+
 term_expansion((:- comm_commands(M)), ClauseL) :-
     module_property(M, exports(PIL)),
     findall(Clause,
