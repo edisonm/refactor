@@ -64,16 +64,28 @@ fix_termpos(TermPos) :-
 %
 fix_termouterpos(TermPos) :-
     arg(1, TermPos, From),
-    ( b_getval(refactor_comments, [Pos-_|_]),
+    ( b_getval(refactor_comments, Comments)
+    ->true
+    ; Comments = []
+    ),
+    ( Comments = [Pos-_|_],
       stream_position_data(char_count, Pos, From1),
       From1 < From
     ->OuterFrom = From1
     ; OuterFrom = From
     ),
     arg(2, TermPos, To),
+    ( append(_, [Pos-Comment], Comments),
+      stream_position_data(char_count, Pos, To1),
+      string_length(Comment, CL),
+      To2 is To1 + CL,
+      To2 > To
+    ->To3 = To2
+    ; To3 = To
+    ),
     b_getval(refactor_text, Text),
     string_length(Text, L),
-    once(seek_sub_string(Text, ".", 1, L, To, OuterTo)),
+    once(seek_sub_string(Text, ".", 1, L, To3, OuterTo)),
     nb_setarg(1, TermPos, OuterFrom),
     nb_setarg(2, TermPos, OuterTo),
     assertz(term_innerpos(OuterFrom, OuterTo, From, To)).

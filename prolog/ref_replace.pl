@@ -588,6 +588,9 @@ arg(A,B,C) :-
 	 ).
 */
 
+fix_subtermpos(sub, TermPos) :- fix_subtermpos(TermPos).
+fix_subtermpos(top, TermPos) :- fix_termpos(TermPos).
+
 %%	perform_substitution(+Priority, +SrcTerm, +Pattern, +Into, +Unifier, +TermPos)
 %
 %	Substitute occurences of Pattern with Into after calling
@@ -625,7 +628,7 @@ perform_substitution(Sub, Priority, Term, Term0, Pattern0, Into0, BindingL, Term
 	 apply it to the subterm positions being affected by the refactoring.
 	 The predicate performs destructive assignment (as in imperative
 	 languages), modifying term position once the predicate is called */
-      fix_subtermpos(TermPos),
+      fix_subtermpos(Sub, TermPos),
       with_context_vars(subst_term(TermPos, Pattern, GTerm, Priority, Term3),
 			[refactor_bind], [BindingL]),
       shared_variables(Term3, Into1, V5), % after subst_term, in case some
