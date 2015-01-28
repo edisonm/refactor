@@ -32,6 +32,7 @@
 		       op(100,xfy,(@@))
 		      ]).
 
+:- use_module(library(lists)).
 :- use_module(library(prolog_codewalk)).
 :- use_module(library(readutil)).
 :- use_module(library(file_changes)).
