@@ -245,13 +245,8 @@ i18n_tmpl_entries_module(M, Entries) :-
     collect_i18n_entries_by_module,
     findall(Entry, retract(i18n_po_tmpl(Entry, M)), Entries).
 
-
-r_true(_).
-
-:- meta_predicate get_term_info(+, ?, +).
-
 get_term_info(M, Pattern, Options) :-
-    get_term_info(M, Pattern, Term, r_true, _, _, Options),
+    get_term_info(M, Pattern, Term, \_^true, _, _, Options),
     Term = Pattern.
 
 collect_i18n_entries_by_module :-
