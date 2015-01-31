@@ -56,10 +56,13 @@ diff_file_change(File, AName, Changes) :-
 		    '--label', FLabel, File,
 		    '--label', TLabel, '-'
 		   ],
-		   [stdin(pipe(SIn)), stdout(pipe(Out))]),
+		   [stdin(pipe(SIn)),
+		    stdout(pipe(Out)),
+		    process(PID)]),
     with_output_to(SIn, format('~s', [Changes])),
     close(SIn),
-    dump_output(Out).
+    dump_output(Out),
+    process_wait(PID, _Status).
 
 dump_output(Out) :-
     read_line_to_codes(Out, Line1),
