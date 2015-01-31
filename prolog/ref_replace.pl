@@ -28,11 +28,13 @@
 */
 
 :- module(ref_replace, [replace/5,
-		       op(100,xfy,($@)),
-		       op(100,xfy,(@@))
-		      ]).
+			op(100,xfy,($@)),
+			op(100,xfy,(@@))
+		       ]).
 
+:- use_module(library(apply)).
 :- use_module(library(lists)).
+:- use_module(library(option)).
 :- use_module(library(prolog_codewalk)).
 :- use_module(library(readutil)).
 :- use_module(library(file_changes)).
@@ -271,26 +273,23 @@ collect_file_commands(CallerPattern, Pattern, Into, Expander, FileChk,
 		      ga(Term, Into, Expander)]),
     assertz(file_commands_db(File, M:Commands)).
 
-select_option(Holder-Default, OptionL0, OptionL) :-
+select_option_default(Holder-Default, OptionL0, OptionL) :-
     select_option(Holder, OptionL0, OptionL, Default).
-
-add_module_option(M) --> {M = []}, !.
-add_module_option(M) --> [module(M)].
 
 collect_expansion_commands(goal_cw, Term, Into, Expander, OptionL0,
 			   FileCommands) :-
     !,
     option_allchk(OptionL0, OptionL1, AllChk),
-    maplist_dcg(select_option, [module(M)-[],
-				caller(Caller)-Caller],
+    maplist_dcg(select_option_default,
+		[caller(Caller)-Caller],
 		OptionL1, OptionL2),
-    add_module_option(M, OptionL3, OptionL2),
+    ignore(option(module(M), OptionL2)),
     prolog_walk_code(
 	[ trace_reference(M:Term),
 	  infer_meta_predicates(false),
 	  evaluate(false),
 	  on_trace(collect_file_commands(Caller, Term, Into, Expander, AllChk))
-	| OptionL3
+	| OptionL2
 	]),
     findall(File-Commands, retract(file_commands_db(File, Commands)), FileCommands).
 collect_expansion_commands(Level, Term, Into, Expander, Options, FileCommands) :-
@@ -317,17 +316,18 @@ collect_ec_term_level(Level, Term, Into, Expander, OptionL, FileCommands) :-
 ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
     (Level = goal -> DExpand=yes ; DExpand = no),
     (Level = sent -> SentPattern = Term ; true), % speed up
-    maplist_dcg(select_option, [syntax_errors(SE)-error,
-				subterm_positions(TermPos)-TermPos,
-				module(M)-M,
-				linear_term(LinearTerm)-no,
-				sentence(SentPattern)-SentPattern,
-				comments(Comments)-Comments,
-				expand(Expand)-DExpand,
-				expanded(Expanded)-Expanded,
-				fixpoint(FixPoint)-none,
-				file(File)-File
-			       ],
+    maplist_dcg(select_option_default,
+		[syntax_errors(SE)-error,
+		 subterm_positions(TermPos)-TermPos,
+		 module(M)-M,
+		 linear_term(LinearTerm)-no,
+		 sentence(SentPattern)-SentPattern,
+		 comments(Comments)-Comments,
+		 expand(Expand)-DExpand,
+		 expanded(Expanded)-Expanded,
+		 fixpoint(FixPoint)-none,
+		 file(File)-File
+		],
 		OptionL0, OptionL1),
     option_allchk(M, File, FileMGen-OptionL1, FileMGen0-OptionL2),
     ( FixPoint = files,
@@ -343,7 +343,7 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
 	  freeze(M, '$set_source_module'(_, M))
 	),
 	with_context_vars(
-	    fetch_sentence_each(FileMGen, File, SentPattern, OptionL, Expand,
+	    fetch_sentence_each(FileMGen, M, File, SentPattern, OptionL, Expand,
 				TermPos, Expanded, LinearTerm, Linear, Bindings,
 				Level, Term, Into, Expander, Commands),
 	    [refactor_sent_pattern,
@@ -366,18 +366,18 @@ ec_term_level_each(Level, Term, Into, Expander, File, M:Commands, OptionL0) :-
 	     ga(Term, Into, Expander)]),
 	'$set_source_module'(_, OldM)).
 
-fetch_sentence_each(FileMGen, File, SentPattern, OptionL, Expand, TermPos,
+fetch_sentence_each(FileMGen, M, File, SentPattern, OptionL, Expand, TermPos,
 		    Expanded, LinearTerm, Linear, Bindings, Level, Term, Into,
 		    Expander, Commands) :-
     call(FileMGen),
     get_term_info_file(SentPattern, Sent, File, In, OptionL),
-    expand_if_required(Expand, Sent, TermPos, In, Expanded),
+    expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
     make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
     phrase(substitute_term_level(Level, Linear, 1200, Term,
 				 Into, Expander, TermPos),
 	   Commands, []).
 
-expand_if_required(Expand, Sent, TermPos, In, Expanded) :-
+expand_if_required(Expand, M, Sent, TermPos, In, Expanded) :-
     ( Expand = no
     ->Expanded = Sent
     ; prolog_source:expand(Sent, TermPos, In, Expanded)
@@ -495,6 +495,8 @@ string_concat_to(RText, t(From, To, PasteText), Pos-Text0, To-Text) :-
     string_concat(Text0, Text1, Text2),
     string_concat(Text2, PasteText, Text).
 
+add_module_option(M) --> [module(M)].
+
 apply_change(Text, M:subst(TermPos, Priority, Pattern, Term, Into),
 	     t(From, To, PasteText)) :-
     wr_options(OptionL0),
@@ -583,6 +585,14 @@ sub_string(A,B,C,D,E) :-
 :- redefine_system_predicate(arg(_,_,_)).
 arg(A,B,C) :-
     catch(system:arg(A,B,C), E,
+	  ( print_message(error,E),
+	    gtrace
+	  )
+	 ).
+
+:- redefine_system_predicate(atom_concat(_,_,_)).
+atom_concat(A,B,C) :-
+    catch(system:atom_concat(A,B,C), E,
 	  ( print_message(error,E),
 	    gtrace
 	  )
