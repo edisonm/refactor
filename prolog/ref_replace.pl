@@ -37,21 +37,18 @@
 :- use_module(library(option)).
 :- use_module(library(prolog_codewalk)).
 :- use_module(library(readutil)).
-:- use_module(library(file_changes)).
 :- use_module(library(term_info)).
 :- use_module(library(gcb)).
 :- use_module(library(substitute)).
-:- use_module(library(list_sequence)).
 :- use_module(library(maplist_dcg)).
 :- use_module(library(mapargs)).
-:- use_module(library(location_utils)).
 :- use_module(library(option_utils)).
 :- use_module(library(ref_changes)).
 :- use_module(library(ref_context)).
 :- use_module(library(fix_termpos)).
 :- use_module(library(mklinear)).
 :- use_module(library(codesio)).
-:- use_module(library(prolog_source)). % expand/4
+:- use_module(library(prolog_source), []). % expand/4
 
 :- thread_local file_commands_db/2, command_db/1.
 
