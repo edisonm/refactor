@@ -205,7 +205,7 @@ arrange_po_files(Lang) :-
     subtract(FL, UF, EFL),
     maplist(\F^(F-[])^true, EFL, EFEntries),
     append(GFEntries, EFEntries, AFEntries),
-    maplist(\ (F-UE)^(PoFile-Codes)^
+    maplist([Lang] +\ (F-UE)^(PoFile-Codes)^
 	   ( sort(UE, E),
 	     get_lang_file(F, Lang, PoFile),
 	     parse_po_entries(E, Codes, [])
