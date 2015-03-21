@@ -931,6 +931,28 @@ test(opex2) :-
     execute_test(opex2, opex2,
 		 replace(goal_cw,_:myis(A, B), myis2(A, B), true), []).
 
+:- use_module(fpex).
+
+/* $fpex$
+--- fpex.pl (source)
++++ fpex.pl (target)
+@@ -1,9 +1,9 @@
+ :- module(fpex, [fpex/1]).
+ 
+ 'fpex'(A, B) :-
+-    once(( A=1,
++    once(( A=1->
+ 	   B=a
+-	 ; A=2,
++	 ; A=2->
+ 	   B=b
+ 	 ; A=3,
+ 	   B=c
+*/
+test(fpex) :-
+    execute_test(fpex, fpex,
+		 replace_term(((A,B);C), (A->B;C), true), [fixpoint(true)]).
+
 :- comment_data:disable.
 
 :- end_tests(refactor).

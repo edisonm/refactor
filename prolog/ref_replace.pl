@@ -1303,13 +1303,13 @@ print_expansion_ne(Into, SPattern, Term1, _, OptionL, Text) :-
     print_expansion_ne(Into, Pattern, Term, RefPos, OptionL, Text).
     % print_expansion_sb(RefPos, GTerm, GPriority, Term, Pattern, OptionL, Text).
 print_expansion_ne(Into, Pattern, Term, RefPos, OptionL, Text) :-
-    ( print_expansion_pos(RefPos, Into, Pattern, Term, OptionL, Text)
+    ( \+ escape_term(Into),
+      print_expansion_pos(RefPos, Into, Pattern, Term, OptionL, Text)
     ->true
     ; write_term(Into, OptionL)
     ).
 
-print_expansion_arg(MInto, OptionL0, Text, N, FromTo, RefPos, Into, Pattern, GTerm) :-
-    option(module(M), OptionL0),
+print_expansion_arg(M, MInto, OptionL0, Text, FromTo, v(N, RefPos, Into, Pattern, GTerm)) :-
     term_priority(MInto, M, N, Priority),
     merge_options([priority(Priority)], OptionL0, OptionL),
     print_expansion_elem(OptionL, Text, FromTo, RefPos, Into, Pattern-GTerm).
@@ -1317,6 +1317,27 @@ print_expansion_arg(MInto, OptionL0, Text, N, FromTo, RefPos, Into, Pattern, GTe
 print_expansion_elem(OptionL, Text, From-To, RefPos, Into, Pattern-GTerm) :-
     print_expansion(Into, Pattern, GTerm, RefPos, OptionL, Text),
     display_subtext(Text, From, To).
+
+escape_term($@(_)).
+escape_term(\\(_)).
+escape_term(_@@_).
+escape_term(_$@_).
+% escape_term('$G'(_, _)).
+% escape_term('$C'(_, _)).
+escape_term('$NOOP'(_)).
+escape_term('$LIST'(_)).
+escape_term('$LIST,'(_)).
+escape_term('$LIST,_'(_)).
+escape_term('$TEXT'(_)).
+escape_term('$TEXT'(_, _)).
+escape_term('$TEXTQ'(_)).
+escape_term('$TEXTQ'(_, _)).
+escape_term('$CLAUSE'(_)).
+escape_term('$CLAUSE'(_, _)).
+escape_term('$BODY'(_, _)).
+escape_term('$BODY'(_)).
+escape_term('$LIST,NL'(_)).
+escape_term('$LIST,NL'(_, _)).
 
 valid_op_type_arity(xf,  1).
 valid_op_type_arity(yf,  1).
@@ -1337,6 +1358,50 @@ from_to_pairs([To1-From1|PosL], From0, To0, To) -->
 normalize_pos(Pos, F-T) :-
     arg(1, Pos, F),
     arg(2, Pos, T).
+
+print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT),
+		    Into, Pattern, GTerm, OptionL, Text) :-
+    compound(Into),
+    functor(Into,    FT, A),
+    functor(Pattern, FP, A),
+    option(module(M), OptionL),
+    ( FT == FP
+    ->NT = FT % preserve layout
+    ; NT = '$TEXTQ'(FT),
+      ( option(priority(Priority), OptionL),
+	valid_op_type_arity(TypeOp, A),
+	current_op(PrP, TypeOp, M:FP),
+	current_op(PrT, TypeOp, M:FT),
+	PrT =< Priority,
+	( PrP =< PrT
+	; forall(arg(AP, GTerm, GArg),
+		 ( term_priority(GTerm, M, AP, PrA),
+		   \+ term_needs_braces(M:GArg, PrA)))
+	)
+      ; option(module(M), OptionL),
+	\+ current_op(_, _, M:FT),
+	\+ current_op(_, _, M:FP)
+      )
+    ), !,
+    findall(PosK-v(N, Pos, Arg, PAr, GAr),
+	    ( nth1(N, PosT, Pos),
+	      arg(N, Into, Arg),
+	      arg(N, Pattern, PAr),
+	      arg(N, GTerm, GAr),
+	      normalize_pos(Pos, PosK)
+	    ), KPosValTU),
+				% 0 is the functor, priority 1200
+    KPosValU = [(FFrom-FFTo)-v(0, FFrom-FFTo, NT, FP, FP)|KPosValTU],
+    keysort(KPosValU, KPosValL),
+    pairs_keys_values(KPosValL, PosKL, ValL),
+    from_to_pairs(PosKL, From, To1, To2, FromToL, []),
+    succ(A, N),
+    nth1(N, PosKL, E),
+    arg(2, E, To2),
+    display_subtext(Text, From, To1),
+    maplist(print_expansion_arg(M, Into, OptionL, Text), FromToL, ValL),
+    display_subtext(Text, To2, To).
+/*
 print_expansion_pos(term_position(From, To, _FFrom, FFTo, PosL), Into, Pattern,
 		    GTerm, OptionL, Text) :-
     compound(Into),
@@ -1373,6 +1438,7 @@ print_expansion_pos(term_position(From, To, _FFrom, FFTo, PosL), Into, Pattern,
     ),
     !,
     mapargs(print_expansion_arg(Into, OptionL, Text), FromToT, PosT, Into, Pattern, GTerm).
+*/
 print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, OptionL0, Text) :-
     maplist(normalize_pos, PosL, PosN),
     from_to_pairs(PosN, From, To1, To2, FromToL, []),
@@ -1421,7 +1487,8 @@ print_expansion_pos(brace_term_position(From, To, TermPos), {Into}, {Pattern},
     arg(1, TermPos, AFrom),
     arg(2, TermPos, ATo),
     display_subtext(Text, From, AFrom),
-    print_expansion_arg({Into}, OptionL, Text, 1, ATo-To, TermPos, Into, Pattern, GTerm).
+    option(module(M), OptionL),
+    print_expansion_arg(M, {Into}, OptionL, Text, ATo-To, v(1, TermPos, Into, Pattern, GTerm)).
 print_expansion_pos(TermPos, Into, _Pattern, GTerm, _, Text) :-
     Into==GTerm,
     arg(1, TermPos, From),
