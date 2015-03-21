@@ -1200,8 +1200,9 @@ comp_priority(M, GTerm, GPriority, Term, Priority) :-
 :- meta_predicate term_needs_braces(:, +).
 term_needs_braces(M:Term, Pri) :-
 	callable(Term),
-	functor(Term, Name, _Arity),
-	current_op(OpPri, _Type, M:Name),
+	functor(Term, Name, Arity),
+	valid_op_type_arity(Type, Arity),
+	current_op(OpPri, Type, M:Name),
 	OpPri > Pri, !.
 
 cond_display(yes, A) :- display(A).
@@ -1368,14 +1369,15 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT),
     ->NT = FT % preserve layout
     ; NT = '$TEXTQ'(FT),
       ( option(priority(Priority), OptionL),
-	valid_op_type_arity(TypeOp, A),
-	current_op(PrP, TypeOp, M:FP),
-	current_op(PrT, TypeOp, M:FT),
+	current_op(PrP, TypeOpP, M:FP),
+	valid_op_type_arity(TypeOpP, A),
+	current_op(PrT, TypeOpT, M:FT),
+	valid_op_type_arity(TypeOpT, A),
 	PrT =< Priority,
 	( PrP =< PrT
-	; forall(arg(AP, GTerm, GArg),
-		 ( term_priority(GTerm, M, AP, PrA),
-		   \+ term_needs_braces(M:GArg, PrA)))
+	; forall(arg(AP, Into, Arg),
+		 ( term_priority(Into, M, AP, PrA),
+		   \+ term_needs_braces(M:Arg, PrA)))
 	)
       ; option(module(M), OptionL),
 	\+ current_op(_, _, M:FT),

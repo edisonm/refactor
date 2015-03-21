@@ -953,6 +953,34 @@ test(fpex) :-
     execute_test(fpex, fpex,
 		 replace_term(((A,B);C), (A->B;C), true), [fixpoint(true)]).
 
+/* $eqname_1$
+--- eqname.pl (source)
++++ eqname.pl (target)
+@@ -1,4 +1,4 @@
+ :- module(eqname, [eqname/2]).
+ 
+ eqname(A, (B, c)) :-
+-    A + B  : (A -> B).
++    (A + B)  ^ (A -> B).
+*/
+
+test(eqname_1) :-
+    execute_test(eqname, eqname_1, replace_term(A:B,A^B),[alias(eqname)]).
+
+/* $eqname_2$
+--- eqname.pl (source)
++++ eqname.pl (target)
+@@ -1,4 +1,4 @@
+ :- module(eqname, [eqname/2]).
+ 
+ eqname(A, (B, c)) :-
+-    A + B  : (A -> B).
++    A + B  *-> (A -> B).
+*/
+
+test(eqname_2) :-
+    execute_test(eqname, eqname_2, replace_term(A:B,A*->B),[alias(eqname)]).
+
 :- comment_data:disable.
 
 :- end_tests(refactor).
