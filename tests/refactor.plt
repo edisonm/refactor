@@ -937,7 +937,7 @@ test(opex2) :-
 --- fpex.pl (source)
 +++ fpex.pl (target)
 @@ -1,9 +1,9 @@
- :- module(fpex, [fpex/1]).
+ :- module(fpex, [fpex/2]).
  
  'fpex'(A, B) :-
 -    once(( A=1,

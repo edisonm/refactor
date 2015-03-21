@@ -1,4 +1,4 @@
-:- module(fpex, [fpex/1]).
+:- module(fpex, [fpex/2]).
 
 'fpex'(A, B) :-
     once(( A=1,
