@@ -30,6 +30,10 @@ execute_test_(Test, Goal, OptionL) :-
     comment_data(Test, Pattern),
     assertion(Pattern == Result).
 
+:- redefine_system_predicate(current_op(_,_,_)).
+current_op(A,B,C) :-
+    catch(current_op(A,B,C),_E, backtrace(20)).
+
 /* $ex1$
 --- ex1.pl (source)
 +++ ex1.pl (target)
@@ -965,7 +969,7 @@ test(fpex) :-
 */
 
 test(eqname_1) :-
-    execute_test(eqname, eqname_1, replace_term(A:B,A^B),[alias(eqname)]).
+    execute_test_(eqname_1, replace_term(A:B,A^B), [alias(eqname)]).
 
 /* $eqname_2$
 --- eqname.pl (source)
@@ -979,7 +983,21 @@ test(eqname_1) :-
 */
 
 test(eqname_2) :-
-    execute_test(eqname, eqname_2, replace_term(A:B,A*->B),[alias(eqname)]).
+    execute_test_(eqname_2, replace_term((A:B),A*->B),[alias(eqname)]).
+
+/* $opfp$
+--- opfp.pl (source)
++++ opfp.pl (target)
+@@ -1,4 +1,4 @@
+ :- module(opfp, [opfp/1]).
+ 
+ opfp(X) :-
+-    X is 1 +  2 +   3 +    4.
++    X is ((1 ^  2) ^   3) ^    4.
+*/
+
+test(opfp) :-
+    execute_test_(opfp, replace_term(A+B, A^B),[alias(opfp),fixpoint(true)]).
 
 :- comment_data:disable.
 

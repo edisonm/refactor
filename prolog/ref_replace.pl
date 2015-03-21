@@ -835,23 +835,29 @@ substitute_term_pair(M, Term, Ref, Into, Expander,
 
 term_priority(Term, M, N, Priority) :-
     nonvar(Term),
-    term_priority_gnd(Term, M, N, Priority).
+    term_priority_gnd(Term, M, N, PrG),
+    ( arg(N, Term, Arg),
+      term_needs_braces(M:Arg, PrG)
+    ->Priority=999
+    ; Priority=PrG
+    ).
 
 % term_priority_gnd('$sb'(_, _, _, Term), N, Priority) :- !,
 %     term_priority(Term, N, Priority).
-term_priority_gnd(Term, M, N, Priority) :-
+term_priority_gnd(Term, M, N, PrG) :-
     functor(Term, F, A),
     ( ( A == 1 ->
-	( prolog_listing:prefix_op(M:F, Priority) -> true
-	; prolog_listing:postfix_op(M:F, Priority) -> true
+	( prolog_listing:prefix_op(M:F, PrG) -> true
+	; prolog_listing:postfix_op(M:F, PrG) -> true
 	)
       ; A == 2 ->
 	prolog_listing:infix_op(M:F, Left, Right),
-	( N==1 -> Priority = Left
-	; N==2 -> Priority = Right
+	( N==1 -> PrG = Left
+	; N==2 -> PrG = Right
 	)
-      ) -> true
-    ; Priority=999 % term_priority((_, _), 1, Priority)
+      )
+    ->true
+    ; PrG=999		% term_priority((_, _), 1, Priority)
     ).
 
 substitute_term_args([PA|PAs], N0, M, Term, Ref, Into, Expander) -->
@@ -1197,7 +1203,7 @@ comp_priority(M, GTerm, GPriority, Term, Priority) :-
     \+ term_needs_braces(M:GTerm, GPriority),
     term_needs_braces(M:Term, Priority).
 
-:- meta_predicate term_needs_braces(:, +).
+% :- meta_predicate term_needs_braces(:, +).
 term_needs_braces(M:Term, Pri) :-
 	callable(Term),
 	functor(Term, Name, Arity),
@@ -1376,7 +1382,7 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT),
 	PrT =< Priority,
 	( PrP =< PrT
 	; forall(arg(AP, Into, Arg),
-		 ( term_priority(Into, M, AP, PrA),
+		 ( term_priority_gnd(Into, M, AP, PrA),
 		   \+ term_needs_braces(M:Arg, PrA)))
 	)
       ; option(module(M), OptionL),
@@ -1402,44 +1408,6 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT),
     display_subtext(Text, From, To1),
     maplist(print_expansion_arg(M, Into, OptionL, Text), FromToL, ValL),
     display_subtext(Text, To2, To).
-/*
-print_expansion_pos(term_position(From, To, _FFrom, FFTo, PosL), Into, Pattern,
-		    GTerm, OptionL, Text) :-
-    compound(Into),
-    functor(Into,    FT, A),
-    functor(Pattern, FP, A),
-    maplist(normalize_pos, PosL, PosN),
-    from_to_pairs(PosN, FFTo, To1, To, FromToL, []),
-    FromToT =.. [FT|FromToL],
-    PosT    =.. [FP|PosL],
-    ( FT == FP
-    ->display_subtext(Text, From, To1) %% Do nothing to preserve functor layout
-    % TBD: use '$exported_op'/3
-    ; option(module(M), OptionL),
-      \+ current_op(_, _, M:FT),
-      \+ current_op(_, _, M:FP)
-      % TBD: the commented out lines must be re-tested, because they have problems
-      % if the operator is not prefix, e.g., a+b ---> a/b
-      %
-      % ( valid_op_type_arity(TypeOp, A),
-      %		current_op(PrecedenceP, TypeOp, FT),
-      %		current_op(PrecedenceE, TypeOp, FP)
-      % ->PrecedenceP >= PrecedenceE
-      % ; valid_op_type_arity(TypeOp, A),
-      %		\+ current_op(_, TypeOp, FT),
-      %		\+ current_op(_, TypeOp, FP)
-      % ->true
-      % ; \+ valid_op_type_arity(_, A)
-      % )
-    ->merge_options([priority(999)], OptionL, OptionL1),
-      write_term(FT, OptionL1),
-      ( FFTo > To1 -> true % TODO: try to understand why this happens --EMM
-      ; display_subtext(Text, FFTo, To1)
-      )
-    ),
-    !,
-    mapargs(print_expansion_arg(Into, OptionL, Text), FromToT, PosT, Into, Pattern, GTerm).
-*/
 print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, OptionL0, Text) :-
     maplist(normalize_pos, PosL, PosN),
     from_to_pairs(PosN, From, To1, To2, FromToL, []),
