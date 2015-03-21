@@ -884,6 +884,53 @@ test(exnoload) :-
     execute_test_(exnoload, replace_goal(exnoload(A,B), 'exnoload*'(A,B)),
 		 [alias(exnoload)]).
 
+/* $opex1_1$
+--- opex1.pl (source)
++++ opex1.pl (target)
+@@ -7,5 +7,5 @@
+ A myis B :- display(A myis B), nl.
+ 
+ opex1(A, B) :-
+-    A myis B.
++    p(A, B).
+ 
+*/
+
+test(opex1_1) :-
+    execute_test_(opex1_1, replace_goal(myis(A, B), p(A, B)), [alias(opex1)]).
+
+/* $opex1_2$
+--- opex1.pl (source)
++++ opex1.pl (target)
+@@ -7,5 +7,5 @@
+ A myis B :- display(A myis B), nl.
+ 
+ opex1(A, B) :-
+-    A myis B.
++    A myis2 B.
+ 
+*/
+
+test(opex1_2) :-
+    execute_test_(opex1_2, replace_goal(myis(A, B), myis2(A, B)), [alias(opex1)]).
+
+:- use_module(opex2).
+
+/* $opex2$
+--- opex2.pl (source)
++++ opex2.pl (target)
+@@ -7,5 +7,5 @@
+ A myis B :- display(A myis B), nl.
+ 
+ opex2(A, B) :-
+-    A myis B.
++    A myis2 B.
+ 
+*/
+test(opex2) :-
+    execute_test(opex2, opex2,
+		 replace(goal_cw,_:myis(A, B), myis2(A, B), true), []).
+
 :- comment_data:disable.
 
 :- end_tests(refactor).
