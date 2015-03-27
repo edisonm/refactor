@@ -1,4 +1,5 @@
-:- module(i18n_trans, [translate/5,
+:- module(i18n_trans, [translate/4,
+		       translate/5,
 		       translate_po/4,
 		       rename_id/4,
 		       replace_entry_po/4,
@@ -14,6 +15,15 @@
 translate(M, Lang, TermEngl, TermLang, OptionL) :-
     translate_po(M, Lang, TermEngl, TermLang),
     replace_term(TermLang, TermEngl, [module(M)|OptionL]).
+
+translate(M, Lang, EnglLangL, OptionL) :-
+    forall(member(Engl-Lang, EnglLangL),
+	   translate_po(M, Lang, Engl, Lang)),
+    replace_term(TermLang, TermEngl,
+		 ( member(TermEngl-Lang, EnglLangL),
+		   TermLang=@=Lang,
+		   TermLang=Lang
+		 ), [module(M)|OptionL]).
 
 translate_po(M, Lang, TermEngl, TermLang) :-
     i18n_refactor(update_po_entry(Lang), M, TermLang, TermEngl).
