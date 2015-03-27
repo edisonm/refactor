@@ -30,6 +30,10 @@ execute_test_(Test, Goal, OptionL) :-
     comment_data(Test, Pattern),
     assertion(Pattern == Result).
 
+:- redefine_system_predicate(current_op(_,_,_)).
+current_op(A,B,C) :-
+    catch(current_op(A,B,C),_E, backtrace(20)).
+
 /* $ex1$
 --- ex1.pl (source)
 +++ ex1.pl (target)
@@ -883,6 +887,117 @@ test(exdcg) :-
 test(exnoload) :-
     execute_test_(exnoload, replace_goal(exnoload(A,B), 'exnoload*'(A,B)),
 		 [alias(exnoload)]).
+
+/* $opex1_1$
+--- opex1.pl (source)
++++ opex1.pl (target)
+@@ -7,5 +7,5 @@
+ A myis B :- display(A myis B), nl.
+ 
+ opex1(A, B) :-
+-    A myis B.
++    p(A, B).
+ 
+*/
+
+test(opex1_1) :-
+    execute_test_(opex1_1, replace_goal(myis(A, B), p(A, B)), [alias(opex1)]).
+
+/* $opex1_2$
+--- opex1.pl (source)
++++ opex1.pl (target)
+@@ -7,5 +7,5 @@
+ A myis B :- display(A myis B), nl.
+ 
+ opex1(A, B) :-
+-    A myis B.
++    A myis2 B.
+ 
+*/
+
+test(opex1_2) :-
+    execute_test_(opex1_2, replace_goal(myis(A, B), myis2(A, B)), [alias(opex1)]).
+
+:- use_module(opex2).
+
+/* $opex2$
+--- opex2.pl (source)
++++ opex2.pl (target)
+@@ -7,5 +7,5 @@
+ A myis B :- display(A myis B), nl.
+ 
+ opex2(A, B) :-
+-    A myis B.
++    A myis2 B.
+ 
+*/
+test(opex2) :-
+    execute_test(opex2, opex2,
+		 replace(goal_cw,_:myis(A, B), myis2(A, B), true), []).
+
+:- use_module(fpex).
+
+/* $fpex$
+--- fpex.pl (source)
++++ fpex.pl (target)
+@@ -1,9 +1,9 @@
+ :- module(fpex, [fpex/2]).
+ 
+ 'fpex'(A, B) :-
+-    once(( A=1,
++    once(( A=1->
+ 	   B=a
+-	 ; A=2,
++	 ; A=2->
+ 	   B=b
+ 	 ; A=3,
+ 	   B=c
+*/
+test(fpex) :-
+    execute_test(fpex, fpex,
+		 replace_term(((A,B);C), (A->B;C), true), [fixpoint(true)]).
+
+/* $eqname_1$
+--- eqname.pl (source)
++++ eqname.pl (target)
+@@ -1,4 +1,4 @@
+ :- module(eqname, [eqname/2]).
+ 
+ eqname(A, (B, c)) :-
+-    A + B  : (A -> B).
++    (A + B)  ^ (A -> B).
+*/
+
+test(eqname_1) :-
+    execute_test_(eqname_1, replace_term(A:B,A^B), [alias(eqname)]).
+
+/* $eqname_2$
+--- eqname.pl (source)
++++ eqname.pl (target)
+@@ -1,4 +1,4 @@
+ :- module(eqname, [eqname/2]).
+ 
+ eqname(A, (B, c)) :-
+-    A + B  : (A -> B).
++    A + B  *-> (A -> B).
+*/
+
+test(eqname_2) :-
+    execute_test_(eqname_2, replace_term((A:B),A*->B),[alias(eqname)]).
+
+/* $opfp$
+--- opfp.pl (source)
++++ opfp.pl (target)
+@@ -1,4 +1,4 @@
+ :- module(opfp, [opfp/1]).
+ 
+ opfp(X) :-
+-    X is 1 +  2 +   3 +    4.
++    X is ((1 ^  2) ^   3) ^    4.
+*/
+
+test(opfp) :-
+    execute_test_(opfp, replace_term(A+B, A^B),[alias(opfp),fixpoint(true)]).
 
 :- comment_data:disable.
 

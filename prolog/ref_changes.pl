@@ -30,7 +30,9 @@
 :- module(ref_changes,
 	  [pending_change/1,
 	   pending_change/3,
+	   index_change/1,
 	   save_changes/1,
+	   save_change/2,
 	   undo_changes/1,
 	   reset_changes/0
 	  ]).
@@ -42,9 +44,12 @@
 save_change(Index, File-Content) :-
     asserta(pending_change(Index, File, Content)).
 
-save_changes(FileContentL) :-
+index_change(Index) :-
     (pending_change(Index0) -> succ(Index0, Index) ; Index = 1),
-    asserta(pending_change(Index)),
+    asserta(pending_change(Index)).
+
+save_changes(FileContentL) :-
+    index_change(Index),
     maplist(save_change(Index), FileContentL).
 
 undo_changes(Index) :-
