@@ -147,6 +147,9 @@
 % * '$LIST'(L)
 % Print each element of L
 %
+% * '$LISTC'(L)
+% Print each element of L as portray_clause
+%
 % * '$LIST,'(L)
 % Print each element of L placing a comma between them
 %
@@ -376,7 +379,7 @@ fetch_sentence_each(Index, FixPoint, M, File, SentPattern, OptionL, Expand,
 	      [SentPattern, File, OptionL, Expand, M, TermPos, Expanded,
 	       LinearTerm, Linear, Bindings, Level, Term, Into, Expander]
 	      +\ M^Commands^
-	      ( get_term_info_file(SentPattern, Sent, File, In, OptionL),
+	      ( ref_term_info_file(SentPattern, Sent, File, In, OptionL),
 		expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
 		make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
 		phrase(substitute_term_level(Level, M, Linear, 1200, Term,
@@ -384,6 +387,20 @@ fetch_sentence_each(Index, FixPoint, M, File, SentPattern, OptionL, Expand,
 		       Commands, [])
 	      )),
 	  Modified \= true)).
+
+ref_term_info_file(SentPattern, Sent, File, In, OptionL) :-
+    nonvar(SentPattern),
+    memberchk(SentPattern, [[], end_of_file]), !,
+    option(comments([]), OptionL),
+    ref_term_info_file_(SentPattern, Sent, File, In, OptionL).
+ref_term_info_file(SentPattern, Sent, File, In, OptionL) :-
+    get_term_info_file(SentPattern, Sent, File, In, OptionL).
+
+ref_term_info_file_(end_of_file, end_of_file, File, _, OptionL) :-
+    size_file(File, Size),
+    option(subterm_positions(Size-Size), OptionL).
+ref_term_info_file_([], [], _, _, OptionL) :-
+    option(subterm_positions(0-0), OptionL).
 
 expand_if_required(Expand, M, Sent, TermPos, In, Expanded) :-
     ( Expand = no
@@ -428,7 +445,7 @@ substitute_term_level(body_rec, M, Clause, _, Term, Into, Expander, TermPos) -->
 substitute_term_body(Rec, M, (_ :- Body), Term, Into, Expander,
 		     term_position(_, _, _, _, [_, BodyPos])) -->
     {term_priority((_ :- Body), M, 2, Priority)},
-    substitute_term(Rec, M, Body, Priority, Term, Into, Expander, BodyPos).
+    substitute_term(Rec, sub, M, Body, Priority, Term, Into, Expander, BodyPos).
 
 substitute_term_head(Rec, M, Clause, Priority, Term, Into, Expander, TermPos) -->
     { Clause = (Head :- _)
@@ -438,12 +455,12 @@ substitute_term_head(Rec, M, Clause, Priority, Term, Into, Expander, TermPos) --
       HPriority = Priority,
       HeadPos = TermPos
     },
-    substitute_term(Rec, M, Head, HPriority, Term, Into, Expander, HeadPos).
+    substitute_term(Rec, sub, M, Head, HPriority, Term, Into, Expander, HeadPos).
 
-substitute_term(rec, M, Term, Priority, Pattern, Into, Expander, TermPos) -->
+substitute_term(rec, _, M, Term, Priority, Pattern, Into, Expander, TermPos) -->
     substitute_term_rec(M, Term, Priority, Pattern, Into, Expander, TermPos).
-substitute_term(norec, M, Term, Priority, Pattern, Into, Expander, TermPos) -->
-    substitute_term_norec(top, M, Term, Priority, Pattern, Into, Expander, TermPos).
+substitute_term(norec, Level, M, Term, Priority, Pattern, Into, Expander, TermPos) -->
+    substitute_term_norec(Level, M, Term, Priority, Pattern, Into, Expander, TermPos).
 
 with_pattern_into(Goal, Pattern, Into) :-
     with_context_vars(Goal, [refactor_pattern, refactor_into], [Pattern, Into]).
@@ -548,9 +565,16 @@ map_compound(Pairs, T0, T1, T) :-
     T  =.. [F|Args],
     maplist(map_subterms(Pairs), Args0, Args1, Args).
 
-special_term(sub_cw, Term,  Term).
-special_term(sub,    Term,  Term).
-special_term(top,    Term0, Term) :- top_term(Term0, Term).
+special_term(top,    Pattern, Term, '$LISTC'(List)) :-
+    nonvar(Pattern),
+    memberchk(Pattern, [[], end_of_file]), !,
+    ( \+ is_list(Term)
+    ->List = [Term]
+    ; List = Term
+    ).
+special_term(sub_cw, _, Term,  Term).
+special_term(sub,    _, Term,  Term).
+special_term(top,    _, Term0, Term) :- top_term(Term0, Term).
 
 top_term(Var, Var) :- var(Var), !.
 top_term(List, '$LIST.NL'(List)) :- List = [_|_], !.
@@ -570,6 +594,12 @@ substitute_term_norec(Sub, M, Term, Priority, Pattern, Into, Expander, TermPos) 
       greatest_common_binding(Pattern1, Into1, Pattern2, Into2, [[]], Unifier, [])
     },
     perform_substitution(Sub, Priority, M, Term, Term2, Pattern2, Into2, Unifier, TermPos).
+
+fix_subtermpos(Pattern, _, _) :-
+    nonvar(Pattern),
+    memberchk(Pattern, [[], end_of_file]), !.
+fix_subtermpos(_, Sub, TermPos) :-
+    fix_subtermpos(Sub, TermPos).
 
 fix_subtermpos(sub_cw, _). % Do nothing
 fix_subtermpos(sub, TermPos) :- fix_subtermpos(TermPos).
@@ -612,7 +642,7 @@ perform_substitution(Sub, Priority, M, Term, Term0, Pattern0, Into0, BindingL, T
 	 apply it to the subterm positions being affected by the refactoring.
 	 The predicate performs destructive assignment (as in imperative
 	 languages), modifying term position once the predicate is called */
-      fix_subtermpos(Sub, TermPos),
+      fix_subtermpos(Pattern, Sub, TermPos),
       with_context_vars(subst_term(TermPos, M, Pattern, GTerm, Priority, Term3),
 			[refactor_bind], [BindingL]),
       shared_variables(Term3, Into1, V5), % after subst_term, in case some
@@ -622,7 +652,7 @@ perform_substitution(Sub, Priority, M, Term, Term0, Pattern0, Into0, BindingL, T
       maplist(subst_unif(M, Term3, TermPos, GTerm), UL3),
       maplist(subst_unif(M, Term3, TermPos, GTerm), UL2),
       maplist(subst_fvar(M, Term1, TermPos, GTerm), UL1),
-      special_term(Sub, Into1, Into)
+      special_term(Sub, Pattern, Into1, Into)
     },
     !,
     [subst(TermPos, Priority, Pattern, GTerm, Into)].
@@ -921,6 +951,9 @@ rportray_body(B, Offs, OptL) :-
     get_output_position(Pos),
     write_b(B, OptL, Offs, Pos).
 
+portray_clause_(OptL, Clause) :-
+    portray_clause(current_output, Clause, OptL).
+
 rportray_clause(C, Offs, OptL) :-
     ( nonvar(C),
       C = (H :- B)
@@ -994,6 +1027,8 @@ rportray('$TEXTQ'(T), Opt) :- !,
     write_q(T, Opt).
 rportray('$TEXTQ'(T,_), Opt) :- !,
     write_q(T, Opt).
+rportray('$LISTC'(CL), Opt) :- !,
+    maplist(portray_clause_(Opt), CL).
 rportray('$CLAUSE'(C), Opt) :- !,
     rportray_clause(C, 4, Opt).
 rportray('$CLAUSE'(C, Offs), Opt) :- !,
@@ -1332,6 +1367,7 @@ escape_term(_$@_).
 % escape_term('$C'(_, _)).
 escape_term('$NOOP'(_)).
 escape_term('$LIST'(_)).
+escape_term('$LISTC'(_)).
 escape_term('$LIST,'(_)).
 escape_term('$LIST,_'(_)).
 escape_term('$TEXT'(_)).
