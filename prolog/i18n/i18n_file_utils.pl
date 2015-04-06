@@ -219,8 +219,7 @@ determine_module(entry(_, _, Ref, _, _, _), M) :-
 
 :- dynamic i18n_po_tmpl/2.
 
-assert_entry_tmpl((~), M, MsgId, [""]) :-
-    !,
+assert_entry_tmpl((~), M, MsgId, [""]) :- !,
     reference(M, Ref),
     Entry = entry([], [], Ref, [], MsgId, [""]),
     ( i18n_po_tmpl(Entry, M) -> true
