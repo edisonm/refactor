@@ -1028,7 +1028,8 @@ rportray('$TEXTQ'(T), Opt) :- !,
 rportray('$TEXTQ'(T,_), Opt) :- !,
     write_q(T, Opt).
 rportray('$LISTC'(CL), Opt) :- !,
-    maplist(portray_clause_(Opt), CL).
+    '$set_source_module'(M, M),
+    maplist(portray_clause_(M:Opt), CL).
 rportray('$CLAUSE'(C), Opt) :- !,
     rportray_clause(C, 4, Opt).
 rportray('$CLAUSE'(C, Offs), Opt) :- !,
