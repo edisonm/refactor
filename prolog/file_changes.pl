@@ -62,7 +62,8 @@ diff_file_change(File, AName, Changes) :-
     with_output_to(SIn, format('~s', [Changes])),
     close(SIn),
     dump_output(Out),
-    process_wait(PID, _Status).
+    process_wait(PID, _Status),
+    close(Out).
 
 dump_output(Out) :-
     read_line_to_codes(Out, Line1),
