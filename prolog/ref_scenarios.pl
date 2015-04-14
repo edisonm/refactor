@@ -227,8 +227,8 @@ unfold_goal(MGoal, OptionL0) :-
 
 :- meta_predicate remove_call(+,0,+).
 remove_call(Call, Expander, Options) :-
-    replace_body(Term, _, (do_remove_call(Term, Call), Expander),
-		Options).
+    replace(body_rec, Term, _, (do_remove_call(Term, Call), Expander),
+	    Options).
 
 remove_call(Call, Options) :-
     remove_call(Call, true, Options).
