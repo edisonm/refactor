@@ -31,7 +31,8 @@
 
 do_file_change(save, File, _, Changes) :-
     ( \+ exists_file(File),
-      (Changes==[] ; Changes=="") -> true
+      (Changes==[] ; Changes=="")
+    ->true
     ; tell(File),
       format('~s', [Changes]),
       told
