@@ -1042,6 +1042,10 @@ rportray('$LIST,NL'(L), Opt) :- !,
     rportray_list_nl(L, 0, Opt).
 rportray('$LIST,NL'(L, Offs), Opt) :- !,
     rportray_list_nl(L, Offs, Opt).
+rportray('$LISTB,NL'(L), Opt) :- !,
+    rportray_list_nl_b(L, 0, Opt).
+rportray('$LISTB,NL'(L, Offs), Opt) :- !,
+    rportray_list_nl_b(L, Offs, Opt).
 rportray([E|T0], Opt) :- !,
     append(H, T1, [E|T0]),
     ( var(T1)
@@ -1068,17 +1072,21 @@ rportray([E|T0], Opt) :- !,
 
 term_write(Opt, Term) :- write_term(Term, Opt).
 
-rportray_list_nl(L, Offs, Opt) :-
-    (L = [] ; L = [_|_]), !,
-    term_write_sep_list_2(L, Offs, Opt).
+rportray_list_nl_b([], _, Opt) :- !, write_term([], Opt).
+rportray_list_nl_b(L, Offs, Opt) :-
+    write('['),
+    rportray_list_nl(L, Offs, Opt),
+    write(']').
+
+rportray_list_nl([], _, _).
+rportray_list_nl([E|L], Offs, Opt) :-
+    term_write_sep_list_2([E|L], Offs, Opt).
 
 term_write_sep_list_2([E|T], Offs, Opt) :- !,
-    write('['),
     get_output_position(Pos),
     LinePos is Offs + Pos,
     write_term(E, Opt),
-    term_write_sep_list_inner(T, LinePos, Opt),
-    write(']').
+    term_write_sep_list_inner(T, LinePos, Opt).
 term_write_sep_list_2(E, _, Opt) :-
     write_term(E, Opt).
 
@@ -1371,6 +1379,10 @@ escape_term('$LIST'(_)).
 escape_term('$LISTC'(_)).
 escape_term('$LIST,'(_)).
 escape_term('$LIST,_'(_)).
+escape_term('$LIST,NL'(_)).
+escape_term('$LIST,NL'(_, _)).
+escape_term('$LISTB,NL'(_)).
+escape_term('$LISTB,NL'(_, _)).
 escape_term('$TEXT'(_)).
 escape_term('$TEXT'(_, _)).
 escape_term('$TEXTQ'(_)).
@@ -1379,8 +1391,6 @@ escape_term('$CLAUSE'(_)).
 escape_term('$CLAUSE'(_, _)).
 escape_term('$BODY'(_, _)).
 escape_term('$BODY'(_)).
-escape_term('$LIST,NL'(_)).
-escape_term('$LIST,NL'(_, _)).
 
 valid_op_type_arity(xf,  1).
 valid_op_type_arity(yf,  1).
