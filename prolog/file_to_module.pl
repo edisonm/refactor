@@ -73,8 +73,10 @@ decl_to_use_module(Decl, M, PIL, Alias) :-
     ( ReexportL = []
     ->Into = (:- use_module(Alias))
     ; module_property(M, file(File)),
-      replace_sentence((:- module(M, MEL)), (:- module(M, '$LIST,NL'(NL))),
-			subtract(MEL, ReexportL, NL), [alias(File)]),
+      replace_sentence((:- module(M, MEL)), (:- module(M, '$LISTB,NL'(NL))),
+			( subtract(MEL, ReexportL, NL),
+			  NL \= MEL
+			), [alias(File)]),
       ( PIL = ReexportL
       ->Into = (:- reexport(Alias))
       ; subtract(PIL, ReexportL, ExportL),
@@ -181,6 +183,7 @@ file_to_module_(File, Ref, Base, PIL, PIM, MDL) :-
 			     from_to_file(PFrom, DFile)
 			     % DFile \= File
 			   ), DFileU),
+		   memberchk(File, DFileU),
 		   sort(DFileU, DFileL),
 		   DFileL = [_, _|_]
 		   % \+ predicate_property(M:H, multifile)
@@ -199,20 +202,21 @@ file_to_module_(File, Ref, Base, PIL, PIM, MDL) :-
 	      current_module(EM, EF),
 	      smallest_alias(EF, EA),
 	      \+ black_list_um(EA),
-	      add_export_declarations_to_file(REL, EM),
+	      add_export_declarations_to_file(REL, File, EM),
 	      Decl=use_module(EA)
 	    ), MDL, MDT).
 
 :- dynamic
     replaced/0.
 
-add_export_declarations_to_file(REL, M) :-
+add_export_declarations_to_file(REL, MFile, M) :-
     findall(File-PI,
 	    ( PI = F/A,
 	      member(PI, REL),
 	      functor(H, F, A),
 	      property_from(M:H, _, From),
-	      from_to_file(From, File)
+	      from_to_file(From, File),
+	      MFile \= File
 	    ), FilePIU),
     sort(FilePIU, FilePIL),
     group_pairs_by_key(FilePIL, FilePIG),
