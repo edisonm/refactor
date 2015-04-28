@@ -59,16 +59,23 @@ file_to_module(Alias) :-
 		     ), FileL),
 	     replace_head(H, Base:H, [module(Module), aliases(FileL)])
 	   )),
-    decl_to_use_module(consult, Module, PIL, Alias),
-    decl_to_use_module(include, Module, PIL, Alias).
+    decl_to_use_module(consult, Module, File, PIL, Alias),
+    decl_to_use_module(include, Module, File, PIL, Alias).
 
-decl_to_use_module(Decl, M, PIL, Alias) :-
+decl_to_use_module(Decl, M, File, PIL, Alias) :-
     findall(DFile, ( extra_location(Alias, M, Decl, DFrom),
 		     from_to_file(DFrom, DFile)
 		   ), DFileU),
     sort(DFileU, DFileL),
     Patt =.. [Decl, Alias],
-    module_property(M, exports(EL)),
+    module_property(M, exports(EL1)),
+    findall(PI, ( PI=F/A,
+		  member(PI, EL1),
+		  functor(H, F, A),
+		  loc_declaration(H, M, export, From),
+		  from_to_file(From, FileX),
+		  FileX \= File
+		), EL),
     intersection(PIL, EL, ReexportL),
     ( ReexportL = []
     ->Into = (:- use_module(Alias))
@@ -197,7 +204,13 @@ file_to_module_(File, Ref, Base, PIL, PIM, MDL) :-
 	    ( member(EM-PEL, GL),
 	      findall(FF/AA, ( member(FF/AA, PEL),
 			       functor(HH, FF, AA),
-			       \+ predicate_property(EM:HH, exported)
+			       \+ predicate_property(EM:HH, exported),
+			       ( predicate_property(EM:HH, dynamic)
+			       ->true
+			       ; property_from((EM:HH)/_, clause(_), PFrom),
+				 from_to_file(PFrom, File)
+			       ->true
+			       )
 			     ), REL),
 	      current_module(EM, EF),
 	      smallest_alias(EF, EA),
