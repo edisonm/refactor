@@ -36,7 +36,6 @@
 :- use_module(library(infer_alias)).
 :- use_module(library(implementation_module)).
 :- use_module(library(list_sequence)).
-:- use_module(library(sequence_list)).
 :- use_module(library(module_files)).
 
 :- dynamic
@@ -240,14 +239,14 @@ add_export_declarations_to_file(REL, MFile, M) :-
 				(:- module(M, L )),
 				append(L0, PIL, L),
 				[alias(File)])
-	     ; replace_sentence((:- export S ),
-				(:- export '$LIST,NL'([S|PIL])),
+	     ; replace_sentence((:- export(S)),
+				(:- export('$LIST,NL'([S|PIL]))),
 				( \+ replaced,
 				  assertz(replaced)
 				),
 				[alias(File)]),
 	       ( \+ replaced
-	       ->replace_sentence([], (:- export '$LIST,NL'(PIL)), [alias(File)])
+	       ->replace_sentence([], (:- export('$LIST,NL'(PIL))), [alias(File)])
 	       ; true
 	       )
 	     )
@@ -255,6 +254,10 @@ add_export_declarations_to_file(REL, MFile, M) :-
 
 black_list_um(swi(_)).		% Ignore internal SWI modules
 black_list_um(library(dialect/_)).
+
+:- public
+    collect_dynamic_locations/5,
+    collect_file_to_module/5.
 
 collect_dynamic_locations(M, File, MGoal, _, From) :-
     nonvar(MGoal),
