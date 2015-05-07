@@ -79,11 +79,11 @@ decl_to_use_module(Decl, M, File, PIL, Alias) :-
     intersection(PIL, EL, ReexportL),
     ( ReexportL = []
     ->Into = (:- use_module(Alias))
-    ; module_property(M, file(File)),
+    ; module_property(M, file(MFile)),
       replace_sentence((:- module(M, MEL)), (:- module(M, '$LISTB,NL'(NL))),
 			( subtract(MEL, ReexportL, NL),
 			  NL \= MEL
-			), [alias(File)]),
+			), [alias(MFile)]),
       ( PIL = ReexportL
       ->Into = (:- reexport(Alias))
       ; subtract(PIL, ReexportL, ExportL),
