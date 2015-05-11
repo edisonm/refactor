@@ -27,7 +27,7 @@
     the GNU General Public License.
 */
 
-:- module(file_to_module, [file_to_module/1]).
+:- module(file_to_module, [file_to_module/1, file_to_module/2]).
 
 :- use_module(library(normalize_head)).
 :- use_module(library(extra_location)).
@@ -44,6 +44,9 @@
     module_to_import_db/3.
 
 file_to_module(Alias) :-
+    file_to_module(Alias, _).
+
+file_to_module(Alias, Module) :-
     absolute_file_name(Alias, File, [file_type(prolog), access(read)]),
     file_modules(File, ModuleL),
     member(Module, ModuleL),
