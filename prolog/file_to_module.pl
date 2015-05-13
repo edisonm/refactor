@@ -38,6 +38,7 @@
 :- use_module(library(list_sequence)).
 :- use_module(library(sequence_list)).
 :- use_module(library(module_files)).
+:- use_module(library(audit/audit_codewalk)).
 
 :- dynamic
     module_to_export_db/3,
@@ -104,15 +105,11 @@ file_to_module_(File, Ref, Base, PIL, PIM, MDL) :-
     file_name_extension(Base, _, Name),
     normalize_head(Ref, M:H),
     OptionL = [source(false),
-	       infer_meta_predicates(false),
-	       autoload(false),
-	       evaluate(false),
-	       trace_reference(_:H),
-	       module_class([user, system, library])],
+	       trace_reference(_:H)],
     retractall(module_to_export_db(_, _, _)),
     retractall(module_to_import_db(_, _, _)),
-    prolog_walk_code([on_trace(collect_dynamic_locations(M, File))|OptionL]),
-    prolog_walk_code([on_trace(collect_file_to_module(M, File))|OptionL]),
+    audit_walk_code(OptionL, collect_dynamic_locations(M, File), _, _),
+    audit_walk_code(OptionL, collect_file_to_module(M, File), _, _),
     findall(F/A, retract(module_to_export_db(F, A, M)), PIU, PIUED),
     findall(F/A, ( ( loc_dynamic(H, M, dynamic(_, _, _), FromD),
 		     from_to_file(FromD, FileD),
@@ -205,16 +202,18 @@ file_to_module_(File, Ref, Base, PIL, PIM, MDL) :-
     ),
     findall((:- Decl),
 	    ( member(EM-PEL, GL),
-	      findall(FF/AA, ( member(FF/AA, PEL),
-			       functor(HH, FF, AA),
-			       \+ predicate_property(EM:HH, exported),
-			       ( predicate_property(EM:HH, dynamic)
-			       ->true
-			       ; property_from((EM:HH)/_, clause(_), PFrom),
-				 from_to_file(PFrom, File)
-			       ->true
-			       )
-			     ), REL),
+	      findall(PPI,
+		      ( PPI=FF/AA,
+			member(FF/AA, PEL),
+			functor(HH, FF, AA),
+			\+ predicate_property(EM:HH, exported),
+			( predicate_property(EM:HH, dynamic)
+			->true
+			; property_from((EM:HH)/_, clause(_), PFrom),
+			  from_to_file(PFrom, _PFile)
+			->true
+			)
+		      ), REL),
 	      current_module(EM, EF),
 	      smallest_alias(EF, EA),
 	      \+ black_list_um(EA),
