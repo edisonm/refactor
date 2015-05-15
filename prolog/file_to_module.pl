@@ -47,6 +47,12 @@
 file_to_module(Alias) :-
     file_to_module(Alias, _).
 
+implementation_decl(dynamic).
+implementation_decl(discontiguous).
+implementation_decl(volatile).
+implementation_decl(thread_local).
+implementation_decl(clause(_)).
+
 file_to_module(Alias, Module) :-
     absolute_file_name(Alias, File, [file_type(prolog), access(read)]),
     file_modules(File, ModuleL),
@@ -100,6 +106,32 @@ decl_to_use_module(Decl, M, File, PIL, Alias) :-
     ),
     replace_sentence((:- Patt), Into, [aliases(DFileL)]).
 
+dynamics_to_export(File, F, A, M) :-
+    ( loc_dynamic(H, M, dynamic(_, _, _), FromD),
+      from_to_file(FromD, FileD),
+      FileD \= File,
+      ( loc_declaration(H, M, D, From),
+	implementation_decl(D),
+	from_to_file(From, File)
+      ->true
+      ; loc_declaration(H, M, D, From),
+	implementation_decl(D),
+	from_to_file(From, FileE),
+	FileE \= File
+      ->fail
+      ; loc_dynamic(H, M, dynamic(_, M, _), From),
+	from_to_file(From, File)
+      ->true
+      )
+    ; loc_declaration(H, M, export, From),
+      from_to_file(From, FileX),
+      FileX \= File,
+      once(( property_from((M:H)/_, clause(_), PFrom),
+	     from_to_file(PFrom, File)
+	   ))
+    ),
+    functor(H, F, A).
+
 file_to_module_(File, Ref, Base, PIL, PIM, MDL) :-
     directory_file_path(_, Name, File),
     file_name_extension(Base, _, Name),
@@ -111,33 +143,14 @@ file_to_module_(File, Ref, Base, PIL, PIM, MDL) :-
     audit_walk_code(OptionL, collect_dynamic_locations(M, File), _, _),
     audit_walk_code(OptionL, collect_file_to_module(M, File), _, _),
     findall(F/A, retract(module_to_export_db(F, A, M)), PIU, PIUED),
-    findall(F/A, ( ( loc_dynamic(H, M, dynamic(_, _, _), FromD),
-		     from_to_file(FromD, FileD),
-		     FileD \= File,
-		     ( loc_declaration(H, M, dynamic, From),
-		       from_to_file(From, File)
-		     ->true
-		     ; loc_declaration(H, M, dynamic, From),
-		       from_to_file(From, FileE),
-		       FileE \= File
-		     ->fail
-		     ; loc_dynamic(H, M, dynamic(_, M, _), From),
-		       from_to_file(From, File)
-		     ->true
-		     )
-		   ; loc_declaration(H, M, export, From),
-		     from_to_file(From, FileX),
-		     FileX \= File,
-		     once(( property_from(M:H, _, PFrom),
-			    from_to_file(PFrom, File)
-			  ))
-		   ),
-		   functor(H, F, A)
-		 ), PIUED),
+    findall(F/A, dynamics_to_export(File, F, A, M), PIUED),
     sort(PIU, PIL),
     findall(F/A, ( member(F/A, PIL),
 		   functor(H, F, A),
 		   loc_declaration(H, M, assertion(_, _), FromD),
+		   once(( property_from((M:H)/_, clause(_), PFrom),
+			  from_to_file(PFrom, File)
+			)),
 		   from_to_file(FromD, FileD),
 		   FileD \= File
 		 ), PIUA),
@@ -151,10 +164,12 @@ file_to_module_(File, Ref, Base, PIL, PIM, MDL) :-
 			\+ memberchk(F/A, PIL)), MU, MD),
     findall(EM-(F/A), ( loc_dynamic(H, EM, dynamic(_, M, _), From),
 			from_to_file(From, File),
-			( loc_declaration(H, EM, dynamic, FromD),
+			( loc_declaration(H, EM, D, FromD),
+			  implementation_decl(D),
 			  from_to_file(FromD, File)
 			->fail
-			; ( loc_declaration(H, EM, dynamic, FromD)
+			; ( loc_declaration(H, EM, D, FromD),
+			    implementation_decl(D)
 			  ; loc_dynamic(H, EM, dynamic(Type, _, _), FromD),
 			    memberchk(Type, [retract, def])
 			  ),
@@ -169,7 +184,8 @@ file_to_module_(File, Ref, Base, PIL, PIM, MDL) :-
     findall(F/A, ( loc_dynamic(H, M, dynamic(_, _, _), FromD),
 		   from_to_file(FromD, FileD),
 		   FileD \= File,
-		   ( loc_declaration(H, M, dynamic, _)
+		   ( loc_declaration(H, M, D, _),
+		     implementation_decl(D)
 		   ->fail
 		   ; loc_dynamic(H, M, dynamic(_, M, _), From),
 		     from_to_file(From, File)
@@ -207,7 +223,8 @@ file_to_module_(File, Ref, Base, PIL, PIM, MDL) :-
 			member(FF/AA, PEL),
 			functor(HH, FF, AA),
 			\+ predicate_property(EM:HH, exported),
-			( predicate_property(EM:HH, dynamic)
+			( predicate_property(EM:HH, D),
+			  implementation_decl(D)
 			->true
 			; property_from((EM:HH)/_, clause(_), PFrom),
 			  from_to_file(PFrom, _PFile)
@@ -271,8 +288,8 @@ collect_file_to_module(M, File, MGoal, _Caller, From) :-
     implementation_module(MGoal, IM),
     ( FromFile \= File,
       IM = M
-    ->once(( property_from(IM:Goal, _Decl, PFrom),
-	     % Decl \= (export),
+    ->once(( property_from((IM:Goal)/_, Decl, PFrom),
+	     implementation_decl(Decl),
 	     from_to_file(PFrom, File)
 	   )),
 	   %  predicate_property(MGoal, file(File))
