@@ -204,7 +204,6 @@ file_to_module_(File, Ref, Base, PIL, PIM, MDL) :-
 		    format('Assertions for ~w needs to be relocated', [PIA]))
     ; true
     ),
-    
     findall(EM-(F/A), ( retract(module_to_import_db(F, A, EM)),
 			\+ memberchk(F/A, PIL)), MU, MD),
     findall(EM-(F/A), ( loc_dynamic(H, EM, dynamic(_, M, _), From),
@@ -265,7 +264,7 @@ file_to_module_(File, Ref, Base, PIL, PIM, MDL) :-
 	    ( member(EM-PEL, GL),
 	      findall(PPI,
 		      ( PPI=FF/AA,
-			member(FF/AA, PEL),
+			member(PPI, PEL),
 			functor(HH, FF, AA),
 			\+ predicate_property(EM:HH, exported),
 			( predicate_property(EM:HH, D),
@@ -307,14 +306,14 @@ add_export_declarations_to_file(REL, MFile, M) :-
 				(:- module(M, L )),
 				append(L0, PIL, L),
 				[alias(File)])
-	     ; replace_sentence((:- export S ),
-				(:- export '$LIST,NL'([S|PIL])),
+	     ; replace_sentence((:- export(S)),
+				(:- export('$LIST,NL'([S|PIL]))),
 				( \+ replaced,
 				  assertz(replaced)
 				),
 				[alias(File)]),
 	       ( \+ replaced
-	       ->replace_sentence([], (:- export '$LIST,NL'(PIL)), [alias(File)])
+	       ->replace_sentence([], (:- export('$LIST,NL'(PIL))), [alias(File)])
 	       ; true
 	       )
 	     )
@@ -330,7 +329,6 @@ collect_dynamic_locations(M, File, MGoal, _, From) :-
 
 collect_file_to_module(M, File, MGoal, _Caller, From) :-
     MGoal = CM:Goal,
-    % ( MGoal \= _:counter(_) -> true ; gtrace ),
     % \+ predicate_property(MGoal, built_in),
     from_to_file(From, FromFile),
     implementation_module(MGoal, IM),

@@ -653,14 +653,14 @@ perform_substitution(Sub, Priority, M, Term, Term0, Pattern0, Into0, BindingL, T
       maplist(subst_unif(M, Term3, TermPos, GTerm), UL2),
       maplist(subst_fvar(M, Term1, TermPos, GTerm), UL1),
       special_term(Sub, Pattern, Into1, Into),
-      set_singletons(Into)
+      set_singletons(Pattern-Into)
     },
     !,
     [subst(TermPos, Priority, Pattern, GTerm, Into)].
 
-set_singletons(Into) :-
-    term_variables(Into, Vars),
-    partition([Into] +\ Var^occurrences_of_var(Var, Into, 1), Vars, Sing, _Mult),
+set_singletons(Term) :-
+    term_variables(Term, Vars),
+    partition([Term] +\ Var^occurrences_of_var(Var, Term, 1), Vars, Sing, _Mult),
     maplist(=('$VAR'('_')), Sing).
 
 % remove fake arguments that would be added by dcg
