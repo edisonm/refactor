@@ -58,8 +58,9 @@ collect_not_exported(M, File, PIL, PIEx) :-
 	    ( PI=F/A,
 	      member(PI, PIL),
 	      functor(H, F, A),
-	      loc_declaration(H, M, export, From),
-	      from_to_file(From, File)
+	      \+ ( loc_declaration(H, M, export, From),
+		   from_to_file(From, File)
+		 )
 	    ), PIEx).
 
 file_to_module(Alias, Module) :-
@@ -67,7 +68,7 @@ file_to_module(Alias, Module) :-
     file_modules(File, ModuleL),
     member(Module, ModuleL),
     format('% from context ~a~n', [Module]),
-    file_to_module_(File, Module:_, Base, PIL, PIM, MDL),
+    file_to_module(File, Module, Base, PIL, PIM, MDL),
     collect_not_exported(Module, File, PIL, PIEx),
     replace_sentence([], [(:- module(Base, PIEx))|MDL], [file(File)]),
     forall(member(F/A, PIM),
@@ -175,20 +176,15 @@ implem_to_export(File, F, A, M, CM) :-
     ),
     functor(H, F, A).
 
-file_to_module_(File, Ref, Base, PIL, PIM, MDL) :-
-    directory_file_path(_, Name, File),
-    file_name_extension(Base, _, Name),
-    normalize_head(Ref, M:H),
-    OptionL = [source(false),
-	       trace_reference(_:H)],
-    retractall(module_to_export_db(_, _, _, _)),
-    retractall(module_to_import_db(_, _, _)),
-    audit_walk_code(OptionL, collect_dynamic_locations(M, File), _, _),
-    audit_walk_code(OptionL, collect_file_to_module(M, File), _, _),
-    findall(F/A, ( module_to_export_db(F, A, M, _)
-		 ; implem_to_export(File, F, A, M,_)
-		 ), PIU),
-    sort(PIU, PIL),
+report_dispersed_assertions(PIL, File, M) :-
+    collect_dispersed_assertions(PIL, File, M, PIA),
+    ( PIA \= []
+    ->print_message(warning,
+		    format('Assertions for ~w needs to be relocated', [PIA]))
+    ; true
+    ).
+
+collect_dispersed_assertions(PIL, File, M, PIA) :-
     findall(F/A, ( member(F/A, PIL),
 		   functor(H, F, A),
 		   loc_declaration(H, M, assertion(_, _), FromD),
@@ -198,12 +194,22 @@ file_to_module_(File, Ref, Base, PIL, PIM, MDL) :-
 		   from_to_file(FromD, FileD),
 		   FileD \= File
 		 ), PIUA),
-    sort(PIUA, PIA),
-    ( PIA \= []
-    ->print_message(warning,
-		    format('Assertions for ~w needs to be relocated', [PIA]))
-    ; true
-    ),
+    sort(PIUA, PIA).
+
+file_to_module(File, M, Base, PIL, PIM, MDL) :-
+    directory_file_path(_, Name, File),
+    file_name_extension(Base, _, Name),
+    OptionL = [source(false),
+	       trace_reference(_)],
+    retractall(module_to_export_db(_, _, _, _)),
+    retractall(module_to_import_db(_, _, _)),
+    audit_walk_code(OptionL, collect_dynamic_locations(M, File), _, _),
+    audit_walk_code(OptionL, collect_file_to_module(M, File), _, _),
+    findall(F/A, ( module_to_export_db(F, A, M, _)
+		 ; implem_to_export(File, F, A, M,_)
+		 ), PIU),
+    sort(PIU, PIL),
+    report_dispersed_assertions(PIL, File, M),
     findall(EM-(F/A), ( retract(module_to_import_db(F, A, EM)),
 			\+ memberchk(F/A, PIL)), MU, MD),
     findall(EM-(F/A), ( loc_dynamic(H, EM, dynamic(_, M, _), From),
@@ -279,10 +285,19 @@ file_to_module_(File, Ref, Base, PIL, PIM, MDL) :-
 	      smallest_alias(EF, EA),
 	      \+ black_list_um(EA),
 	      add_export_declarations_to_file(REL, File, EM),
+	      ( EM=M
+	      ->print_message(warning,
+			      format("Back imports is a bad sign: ~w",
+				     [(:- use_module(EA, REL))]))
+	      ; true
+	      ),
 	      \+ ( loc_declaration(EA, _, use_module, UMFrom),
 		   from_to_file(UMFrom, File)
 		 ),
-	      Decl=use_module(EA)
+	      ( EF=M
+	      ->Decl=use_module(EA, REL) % Explicit imports (bad smell) --EMM
+	      ; Decl=use_module(EA)
+	      )
 	    ), MDL, MDT).
 
 :- dynamic
