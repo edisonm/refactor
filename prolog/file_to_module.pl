@@ -101,7 +101,7 @@ add_use_module_cm(M, Alias, CM, PIL) :-
     module_property(CM, file(MFile)),
     replace_sentence((:- module(CM, MEL)),
 		     [(:- module(CM, MEL)),
-		      (:- use_module(Alias))],
+		      '$CLAUSE'((:- use_module(Alias)))],
 		     [alias(MFile)]),
     module_property(M, file(MainF)),
     replace_sentence((:- use_module(MainA, ExL)),
@@ -294,9 +294,10 @@ file_to_module(File, M, Base, PIL, PIM, MDL) :-
 	      \+ ( loc_declaration(EA, _, use_module, UMFrom),
 		   from_to_file(UMFrom, File)
 		 ),
-	      ( EF=M
-	      ->Decl=use_module(EA, REL) % Explicit imports (bad smell) --EMM
-	      ; Decl=use_module(EA)
+	      ( Decl = use_module(EA)
+	      ; ( EM = M, PEL \= REL, REL \= []
+		->Decl=use_module(EA, REL) % Explicit imports (bad smell) --EMM
+		)
 	      )
 	    ), MDL, MDT).
 
