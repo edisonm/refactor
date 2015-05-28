@@ -45,7 +45,7 @@
     module_to_import_db/3.
 
 file_to_module(Alias) :-
-    file_to_module(Alias, _).
+    file_to_module(Alias, []).
 
 implementation_decl(dynamic).
 implementation_decl(discontiguous).
@@ -63,32 +63,71 @@ collect_not_exported(M, File, PIL, PIEx) :-
 		 )
 	    ), PIEx).
 
-file_to_module(Alias, Module) :-
+file_to_module(Alias, OptionL0 ) :-
+    select_option(module(M), OptionL0, OptionL1, M),
+    select_option(exclude(ExcludeL), OptionL1, _, []),
     absolute_file_name(Alias, File, [file_type(prolog), access(read)]),
-    file_modules(File, ModuleL),
-    member(Module, ModuleL),
-    format('% from context ~a~n', [Module]),
-    file_to_module(File, Module, Base, PIL, PIM, MDL),
-    collect_not_exported(Module, File, PIL, PIEx),
+    module_file(M, File),
+    format('% from context ~a~n', [M]),
+    collect_predicates_to_move(File, M, ExcludeL, PIL),
+    report_dispersed_assertions(PIL, File, M),
+    collect_multifile(M, File, PIL, PIM),
+    declare_multifile(PIM, File),
+    file_to_module(File, M, PIL, PIM, MDL),
+    collect_not_exported(M, File, PIL, PIEx),
+    directory_file_path(_, Name, File),
+    file_name_extension(Base, _, Name),
     replace_sentence([], [(:- module(Base, PIEx))|MDL], [file(File)]),
     forall(member(F/A, PIM),
 	   ( functor(H, F, A),
 	     findall(DFile,
-		     ( property_from(Module:H, _, PFrom),
+		     ( property_from(M:H, _, PFrom),
 		       from_to_file(PFrom, DFile),
 		       DFile \= File
 		     ), FileL),
-	     replace_head(H, Base:H, [module(Module), aliases(FileL)])
+	     replace_head(H, Base:H, [module(M), aliases(FileL)])
 	   )),
-    decl_to_use_module(consult, Module, File, PIL, Alias),
-    decl_to_use_module(include, Module, File, PIL, Alias),
-    add_use_module(Module, File, Alias).
+    decl_to_use_module(consult, M, File, PIL, Alias),
+    decl_to_use_module(include, M, File, PIL, Alias),
+    add_use_module(M, File, ExcludeL, Alias).
 
-add_use_module(M, File, Alias) :-
+collect_multifile(M, File, PIL, PIM) :-
+    findall(F/A, ( member(F/A, PIL),
+		   functor(H, F, A),
+		   findall(DFile,
+			   ( property_from((M:H)/_, clause(_), PFrom),
+			     from_to_file(PFrom, DFile)
+				% DFile \= File
+			   ), DFileU),
+		   memberchk(File, DFileU),
+		   sort(DFileU, DFileL),
+		   DFileL = [_, _|_],
+		   \+ ( loc_declaration(H, M, multifile, From),
+			from_to_file(From, File)
+		      )
+				% \+ predicate_property(M:H, multifile)
+		 ), PIM).
+
+declare_multifile(PIM, FIL) :-
+    ( PIM \= []
+    ->replace_sentence((:- multifile PIL),
+		       (:- multifile('$LIST,NL'(PIM))),
+		       [max_changes(1), changes(C), file(File)]),
+      ( C = 0
+      ->replace_sentence([],
+			 (:- multifile('$LIST,NL'(PIM))),
+			 [max_changes(1), file(File)])
+      ; true
+      )
+    ; true
+    ).
+
+add_use_module(M, File, ExcludeL, Alias) :-
     findall(CM-(F/A),
 	    ( ( module_to_export_db(F, A, M, CM)
 	      ; implem_to_export(File, F, A, M, CM)
 	      ),
+	      \+ memberchk(F/A, ExcludeL),
 	      CM \= M
 	    ),
 	    CMPIU),
@@ -101,17 +140,21 @@ add_use_module_cm(M, Alias, CM, PIL) :-
     module_property(CM, file(MFile)),
     replace_sentence((:- module(CM, MEL)),
 		     [(:- module(CM, MEL)),
-		      '$CLAUSE'((:- use_module(Alias)))],
+		      (:- use_module(Alias))],
 		     [alias(MFile)]),
     module_property(M, file(MainF)),
     replace_sentence((:- use_module(MainA, ExL)),
-		     (:- use_module(MainA, ExL2)),
+		     Into,
 		     ( absolute_file_name(MainA,
 					  MainF1,
 					  [file_type(prolog),
 					   access(read)]),
 		       MainF1=MainF,
-		       subtract(ExL, PIL, ExL2)
+		       subtract(ExL, PIL, ExL2),
+		       ( ExL2 \= []
+		       ->Into = (:- use_module(MainA, '$LISTB,NL'(ExL2)))
+		       ; Into = []
+		       )
 		     ),
 		     [module(CM)]).
 
@@ -141,9 +184,9 @@ decl_to_use_module(Decl, M, File, PIL, Alias) :-
       ->Into = (:- reexport(Alias))
       ; subtract(PIL, ReexportL, ExportL),
 	( ExportL = []
-	->Into = (:- reexport(Alias, ReexportL))
+	->Into = (:- reexport(Alias, '$LISTB,NL'(ReexportL)))
 	; Into = [(:- use_module(Alias)),
-		  (:- reexport(Alias, ReexportL))]
+		  (:- reexport(Alias, '$LISTB,NL'(ReexportL)))]
 	)
       )
     ),
@@ -196,9 +239,7 @@ collect_dispersed_assertions(PIL, File, M, PIA) :-
 		 ), PIUA),
     sort(PIUA, PIA).
 
-file_to_module(File, M, Base, PIL, PIM, MDL) :-
-    directory_file_path(_, Name, File),
-    file_name_extension(Base, _, Name),
+collect_predicates_to_move(File, M, ExcludeL, PIL) :-
     OptionL = [source(false),
 	       trace_reference(_)],
     retractall(module_to_export_db(_, _, _, _)),
@@ -208,8 +249,12 @@ file_to_module(File, M, Base, PIL, PIM, MDL) :-
     findall(F/A, ( module_to_export_db(F, A, M, _)
 		 ; implem_to_export(File, F, A, M,_)
 		 ), PIU),
-    sort(PIU, PIL),
-    report_dispersed_assertions(PIL, File, M),
+    sort(PIU, PIS),
+    subtract(PIS, ExcludeL, PIL).
+
+% file_to_module(+atm,+atm,+list,-list,-list) is det.
+%
+file_to_module(File, M, PIL, PIM, MDL) :-
     findall(EM-(F/A), ( retract(module_to_import_db(F, A, EM)),
 			\+ memberchk(F/A, PIL)), MU, MD),
     findall(EM-(F/A), ( loc_dynamic(H, EM, dynamic(_, M, _), From),
@@ -249,23 +294,6 @@ file_to_module(File, M, Base, PIL, PIM, MDL) :-
     ; list_sequence(PID, PIS),
       DYL = [(:- dynamic(PIS))]
     ),
-    findall(F/A, ( member(F/A, PIL),
-		   functor(H, F, A),
-		   findall(DFile,
-			   ( property_from((M:H)/_, clause(_), PFrom),
-			     from_to_file(PFrom, DFile)
-			     % DFile \= File
-			   ), DFileU),
-		   memberchk(File, DFileU),
-		   sort(DFileU, DFileL),
-		   DFileL = [_, _|_]
-		   % \+ predicate_property(M:H, multifile)
-		 ), PIUM),
-    sort(PIUM, PIM),
-    ( PIM = []
-    ->MDT = DYL
-    ; MDT = [(:- multifile('$LIST,NL'(PIM)))|DYL]
-    ),
     findall((:- Decl),
 	    ( member(EM-PEL, GL),
 	      findall(PPI,
@@ -296,10 +324,10 @@ file_to_module(File, M, Base, PIL, PIM, MDL) :-
 		 ),
 	      ( Decl = use_module(EA)
 	      ; ( EM = M, PEL \= REL, REL \= []
-		->Decl=use_module(EA, REL) % Explicit imports (bad smell) --EMM
+		->Decl=use_module(EA, '$LISTB,NL'(REL)) % Explicit imports (bad smell) --EMM
 		)
 	      )
-	    ), MDL, MDT).
+	    ), MDL, DYL).
 
 :- dynamic
     replaced/0.
