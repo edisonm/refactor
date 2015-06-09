@@ -73,20 +73,12 @@ file_to_module(Alias, OptionL0 ) :-
     report_dispersed_assertions(PIL, File, M),
     collect_multifile(M, File, PIL, PIM),
     declare_multifile(PIM, File),
-    file_to_module(File, M, PIL, PIM, MDL),
-    collect_not_exported(M, File, PIL, PIEx),
     directory_file_path(_, Name, File),
     file_name_extension(Base, _, Name),
+    add_qualification_head(File, M, Base, PIM),
+    file_to_module(File, M, PIL, ExcludeL, MDL),
+    collect_not_exported(M, File, PIL, PIEx),
     replace_sentence([], [(:- module(Base, PIEx))|MDL], [file(File)]),
-    forall(member(F/A, PIM),
-	   ( functor(H, F, A),
-	     findall(DFile,
-		     ( property_from(M:H, _, PFrom),
-		       from_to_file(PFrom, DFile),
-		       DFile \= File
-		     ), FileL),
-	     replace_head(H, Base:H, [module(M), aliases(FileL)])
-	   )),
     decl_to_use_module(consult, M, File, PIL, Alias),
     decl_to_use_module(include, M, File, PIL, Alias),
     add_use_module(M, File, ExcludeL, Alias).
@@ -108,10 +100,11 @@ collect_multifile(M, File, PIL, PIM) :-
 				% \+ predicate_property(M:H, multifile)
 		 ), PIM).
 
-declare_multifile(PIM, FIL) :-
+declare_multifile(PIM, File) :-
     ( PIM \= []
     ->replace_sentence((:- multifile PIL),
-		       (:- multifile('$LIST,NL'(PIM))),
+		       (:- multifile(NPIM)),
+		       append(PIL, '$LIST,NL'(PIM), NPIM),
 		       [max_changes(1), changes(C), file(File)]),
       ( C = 0
       ->replace_sentence([],
@@ -121,6 +114,17 @@ declare_multifile(PIM, FIL) :-
       )
     ; true
     ).
+
+add_qualification_head(File, M, Base, PIM) :-
+    forall(member(F/A, PIM),
+	   ( functor(H, F, A),
+	     findall(DFile,
+		     ( property_from(M:H, _, PFrom),
+		       from_to_file(PFrom, DFile),
+		       DFile \= File
+		     ), FileL),
+	     replace_head(H, Base:H, [module(M), aliases(FileL)])
+	   )).
 
 add_use_module(M, File, ExcludeL, Alias) :-
     findall(CM-(F/A),
@@ -252,11 +256,13 @@ collect_predicates_to_move(File, M, ExcludeL, PIL) :-
     sort(PIU, PIS),
     subtract(PIS, ExcludeL, PIL).
 
-% file_to_module(+atm,+atm,+list,-list,-list) is det.
+% file_to_module(+atm,+atm,+list,+list,-list) is det.
 %
-file_to_module(File, M, PIL, PIM, MDL) :-
+file_to_module(File, M, PIL, ExcludeL, MDL) :-
     findall(EM-(F/A), ( retract(module_to_import_db(F, A, EM)),
-			\+ memberchk(F/A, PIL)), MU, MD),
+			\+ memberchk(F/A, PIL),
+			\+ memberchk(F/A, ExcludeL)
+		      ), MU, MD),
     findall(EM-(F/A), ( loc_dynamic(H, EM, dynamic(_, M, _), From),
 			from_to_file(From, File),
 			( loc_declaration(H, EM, D, FromD),
@@ -324,7 +330,7 @@ file_to_module(File, M, PIL, PIM, MDL) :-
 		 ),
 	      ( Decl = use_module(EA)
 	      ; ( EM = M, PEL \= REL, REL \= []
-		->Decl=use_module(EA, '$LISTB,NL'(REL)) % Explicit imports (bad smell) --EMM
+		->Decl=use_module(EA, REL) % Explicit imports (bad smell) --EMM
 		)
 	      )
 	    ), MDL, DYL).
