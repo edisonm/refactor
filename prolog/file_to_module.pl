@@ -29,6 +29,7 @@
 
 :- module(file_to_module, [file_to_module/1, file_to_module/2]).
 
+:- use_module(library(clambda)).
 :- use_module(library(normalize_head)).
 :- use_module(library(extra_location)).
 :- use_module(library(location_utils)).
@@ -41,8 +42,7 @@
 :- use_module(library(audit/audit_codewalk)).
 
 :- dynamic
-    module_to_export_db/4,
-    module_to_import_db/3.
+    module_to_import_db/5.
 
 file_to_module(Alias) :-
     file_to_module(Alias, []).
@@ -64,8 +64,10 @@ collect_not_exported(M, File, PIL, PIEx) :-
 	    ), PIEx).
 
 file_to_module(Alias, OptionL0 ) :-
-    select_option(module(M), OptionL0, OptionL1, M),
-    select_option(exclude(ExcludeL), OptionL1, _, []),
+    select_option(module(M),         OptionL0, OptionL1, M),
+    select_option(exclude(ExcludeL), OptionL1, OptionL2, []),
+    select_option(addcl(AddL),       OptionL2, OptionL3, []),
+    select_option(delcl(DelL),       OptionL3, _,        []),
     absolute_file_name(Alias, File, [file_type(prolog), access(read)]),
     module_file(M, File),
     format('% from context ~a~n', [M]),
@@ -75,13 +77,16 @@ file_to_module(Alias, OptionL0 ) :-
     declare_multifile(PIM, File),
     directory_file_path(_, Name, File),
     file_name_extension(Base, _, Name),
-    add_qualification_head(File, M, Base, PIM),
+    add_qualification_head(File, M, PIM),
     file_to_module(File, M, PIL, ExcludeL, MDL),
     collect_not_exported(M, File, PIL, PIEx),
-    replace_sentence([], [(:- module(Base, PIEx))|MDL], [file(File)]),
+    append(AddL, MDL, CL),
+    replace_sentence([], [(:- module(Base, PIEx))|CL], [file(File)]),
+    forall(member(C, DelL), replace_sentence(C, [], [file(File)])),
     decl_to_use_module(consult, M, File, PIL, Alias),
     decl_to_use_module(include, M, File, PIL, Alias),
-    add_use_module(M, File, ExcludeL, Alias).
+    add_use_module(M, File, ExcludeL, Alias),
+    add_use_module_ex(M, File).
 
 collect_multifile(M, File, PIL, PIM) :-
     findall(F/A, ( member(F/A, PIL),
@@ -115,7 +120,7 @@ declare_multifile(PIM, File) :-
     ; true
     ).
 
-add_qualification_head(File, M, Base, PIM) :-
+add_qualification_head(File, M, PIM) :-
     forall(member(F/A, PIM),
 	   ( functor(H, F, A),
 	     findall(DFile,
@@ -123,12 +128,12 @@ add_qualification_head(File, M, Base, PIM) :-
 		       from_to_file(PFrom, DFile),
 		       DFile \= File
 		     ), FileL),
-	     replace_head(H, Base:H, [module(M), aliases(FileL)])
+	     replace_head(H, M:H, [module(M), aliases(FileL)])
 	   )).
 
 add_use_module(M, File, ExcludeL, Alias) :-
     findall(CM-(F/A),
-	    ( ( module_to_export_db(F, A, M, CM)
+	    ( ( module_to_import_db(F, A, M, CM, File)
 	      ; implem_to_export(File, F, A, M, CM)
 	      ),
 	      \+ memberchk(F/A, ExcludeL),
@@ -161,6 +166,67 @@ add_use_module_cm(M, Alias, CM, PIL) :-
 		       )
 		     ),
 		     [module(CM)]).
+
+declared_use_module(F, A, IM, M, EA, File) :-
+    module_property(IM, file(ImplFile)),
+    ( module_property(IM, exports(ExL)),
+      loc_declaration(EA, M, use_module, From)
+    ; loc_declaration(use_module(EA, ExL), M,
+		      use_module_2, From)
+    ),	
+    absolute_file_name(EA, EFile, [file_type(prolog),
+				   access(read)]),
+    EFile = ImplFile,
+    memberchk(F/A, ExL),
+    from_to_file(From, File).
+
+add_use_module_ex(M, File) :-
+    findall(ImportingFile-((IM:EA)-(F/A)),
+	    [M, File, ImportingFile, IM, EA, F, A] +\
+	    ( module_to_import_db(F, A, IM, M, ImportingFile),
+	      \+ declared_use_module(F, A, IM, M, _, ImportingFile),
+	      declared_use_module(F, A, IM, M, EA, File),
+	      absolute_file_name(EA,
+				 ImplementFile,
+				 [file_type(prolog),
+				  access(read)]),
+	      module_property(IM, file(ImplementFile))
+	    ),
+	    FileAliasPIU),
+    sort(FileAliasPIU, FileAliasPIL),
+    group_pairs_by_key(FileAliasPIL, FileAliasPIG),
+    forall(member(ImFile-AliasPIL, FileAliasPIG),
+	   add_use_module_ex_1(M, ImFile, AliasPIL)).
+
+add_use_module_ex_1(M, ImFile, AliasPIL) :-
+    group_pairs_by_key(AliasPIL, AliasPIG),
+    findall(Decl,
+	    ( member((IM:Alias)-PIL, AliasPIG),
+	      module_property(IM, exports(ExL)),
+	      ( member(F/A, ExL),
+		module_to_import_db(F, A, OM, M, ImFile),
+		OM \= IM
+	      ->Decl = (:- use_module(Alias, PIL))
+	      ; Decl = (:- use_module(Alias))
+	      )
+	    ),
+	    DeclL, Tail),
+    ( Tail = [],
+      replace_sentence((:- module(ImM, Ex)),
+		       [(:- module(ImM, Ex))|DeclL],
+		       [max_changes(1), changes(C), file(ImFile)]),
+      C \= 0
+    ->true
+    ; Term = (:- Decl),
+      Tail = [Term],
+      replace_sentence(Term, DeclL,
+		       memberchk(Decl, [use_module(_), use_module(_,_)]),
+		       [max_changes(1), changes(C), file(ImFile)]),
+      C \= 0
+    ->true
+    ; Tail = [],
+      replace_sentence([], DeclL, [max_changes(1), file(ImFile)])
+    ).
 
 decl_to_use_module(Decl, M, File, PIL, Alias) :-
     findall(DFile, ( extra_location(Alias, M, Decl, DFrom),
@@ -244,22 +310,27 @@ collect_dispersed_assertions(PIL, File, M, PIA) :-
     sort(PIUA, PIA).
 
 collect_predicates_to_move(File, M, ExcludeL, PIL) :-
-    OptionL = [source(false),
-	       trace_reference(_)],
-    retractall(module_to_export_db(_, _, _, _)),
-    retractall(module_to_import_db(_, _, _)),
+    OptionL = [source(false), trace_reference(_)],
+    retractall(module_to_import_db(_, _, _, _, _)),
     audit_walk_code(OptionL, collect_dynamic_locations(M, File), _, _),
-    audit_walk_code(OptionL, collect_file_to_module(M, File), _, _),
-    findall(F/A, ( module_to_export_db(F, A, M, _)
-		 ; implem_to_export(File, F, A, M,_)
+    audit_walk_code(OptionL, collect_file_to_module, _, _),
+    findall(F/A, ( module_to_import_db(F, A, M, _, _),
+		   implemented_in_file(F, A, M, File)
+		 ; implem_to_export(File, F, A, M, _)
 		 ), PIU),
     sort(PIU, PIS),
     subtract(PIS, ExcludeL, PIL).
 
+implemented_in_file(F, A, M, File) :-
+    functor(Goal, F, A),
+    property_from((M:Goal)/_, Decl, PFrom),
+    implementation_decl(Decl),
+    from_to_file(PFrom, File).
+
 % file_to_module(+atm,+atm,+list,+list,-list) is det.
 %
 file_to_module(File, M, PIL, ExcludeL, MDL) :-
-    findall(EM-(F/A), ( retract(module_to_import_db(F, A, EM)),
+    findall(EM-(F/A), ( module_to_import_db(F, A, EM, M, File),
 			\+ memberchk(F/A, PIL),
 			\+ memberchk(F/A, ExcludeL)
 		      ), MU, MD),
@@ -377,18 +448,36 @@ collect_dynamic_locations(M, File, MGoal, _, From) :-
     from_to_file(From, File),	% match the file
     record_location_dynamic(MGoal, M, From).
 
-collect_file_to_module(M, File, MGoal, _Caller, From) :-
-    MGoal = CM:Goal,
-    % \+ predicate_property(MGoal, built_in),
+collect_file_to_module(Callee, _Caller, From) :-
+    Callee = CM:Goal,
+    implementation_module(Callee, IM),
+    functor(Goal, F, A),
+    from_to_file(From, File),
+    /*
+    ( once(( property_from((IM:Goal)/_, Decl, PFrom),
+	     implementation_decl(Decl),
+	     from_to_file(PFrom, File)
+	   ))
+    ->NM=M
+    ; NM=IM
+    ),
+    */
+    ( module_to_import_db(F, A, IM, CM, File) -> true
+    ; assertz(module_to_import_db(F, A, IM, CM, File))
+    ). 
+
+/*
+collect_file_to_module(M, File, Callee, _Caller, From) :-
+    Callee = CM:Goal,
     from_to_file(From, FromFile),
-    implementation_module(MGoal, IM),
+    implementation_module(Callee, IM),
     ( FromFile \= File,
       IM = M
     ->once(( property_from((IM:Goal)/_, Decl, PFrom),
 	     implementation_decl(Decl),
 	     from_to_file(PFrom, File)
 	   )),
-	   %  predicate_property(MGoal, file(File))
+	   %  predicate_property(Callee, file(File))
 	   % ; extra_location(Goal, IM, Decl, EFrom),
 	   %   from_to_file(EFrom, File),
 	   %   memberchk(Decl, [dynamic, thread_local, multifile, discontiguous])
@@ -409,3 +498,4 @@ collect_file_to_module(M, File, MGoal, _Caller, From) :-
       )
     ; true
     ).
+*/
