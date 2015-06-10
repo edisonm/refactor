@@ -399,10 +399,11 @@ fetch_sentence_file(Index, FixPoint, Max, CP, M, File, SentPattern, OptionL,
 				      Expander, TermPos, Command),
 		b_getval(refactor_count, Count),
 		succ(Count, Count1),
+		nb_setval(refactor_count, Count1),
 		( nonvar(Max),
 		  Count1 >= Max
 		->prolog_cut_to(CP) % End non-deterministic loop
-		; nb_setval(refactor_count, Count1)
+		; true
 		)
 	      ))
 	)).
