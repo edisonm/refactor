@@ -313,8 +313,9 @@ apply_ec_term_level(Level, Term, Into, Expander, OptionL) :-
 				    [changes(Count)-Count],
 				    OptionL, _)
 		      ),
-			[refactor_count],
-		      [1]).
+		      [refactor_count],
+		      [0]
+		     ).
 
 ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
     (Level = goal -> DExpand=yes ; DExpand = no),
@@ -399,7 +400,7 @@ fetch_sentence_file(Index, FixPoint, Max, CP, M, File, SentPattern, OptionL,
 		b_getval(refactor_count, Count),
 		succ(Count, Count1),
 		( nonvar(Max),
-		  Count1 > Max
+		  Count1 >= Max
 		->prolog_cut_to(CP) % End non-deterministic loop
 		; nb_setval(refactor_count, Count1)
 		)
