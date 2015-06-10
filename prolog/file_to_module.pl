@@ -219,7 +219,9 @@ add_use_module_ex_1(M, ImFile, AliasPIL) :-
 	      )
 	    ),
 	    DeclL, Tail),
-    ( Tail = [],
+    ( DeclL == Tail
+    ->true
+    ; Tail = [],
       replace_sentence((:- module(ImM, Ex)),
 		       [(:- module(ImM, Ex))|DeclL],
 		       [max_changes(1), changes(C), file(ImFile)]),
@@ -344,7 +346,6 @@ implemented_in_file(F, A, M, File) :-
 % file_to_module(+list(atm),+atm,+list,+list,-list) is det.
 %
 file_to_module(FileL, M, PIL, ExcludeL, MDL) :-
-    gtrace,
     findall(EM-(F/A), ( module_to_import_db(F, A, EM, M, File),
 			memberchk(File, FileL),
 			functor(H, F, A),
@@ -431,9 +432,6 @@ file_to_module(FileL, M, PIL, ExcludeL, MDL) :-
 	      )
 	    ), MDL, DYL).
 
-:- dynamic
-    replaced/0.
-
 add_export_declarations_to_file(REL, FileL, M) :-
     findall(File-PI,
 	    ( PI = F/A,
@@ -446,21 +444,19 @@ add_export_declarations_to_file(REL, FileL, M) :-
     sort(FilePIU, FilePIL),
     group_pairs_by_key(FilePIL, FilePIG),
     forall(member(File-PIL, FilePIG),
-	   ( retractall(replaced),
-	     ( module_property(M, file(File))
-	     ->replace_sentence((:- module(M, L0 )),
-				(:- module(M, L)),
-				append(L0, PIL, L),
-				[alias(File)])
-	     ; replace_sentence((:- export(S)),
-				(:- export('$LIST,NL'([S|PIL]))),
-				[max_changes(1), changes(C), alias(File)]),
-	       C \= 0
-	     ->true
-	     ; replace_sentence([],
-				(:- export('$LIST,NL'(PIL))),
-				[alias(File)])
-	     )
+	   ( module_property(M, file(File))
+	   ->replace_sentence((:- module(M, L0 )),
+			      (:- module(M, L)),
+			      append(L0, PIL, L),
+			      [alias(File)])
+	   ; replace_sentence((:- export(S)),
+			      (:- export('$LIST,NL'([S|PIL]))),
+			      [max_changes(1), changes(C), alias(File)]),
+	     C \= 0
+	   ->true
+	   ; replace_sentence([],
+			      (:- export('$LIST,NL'(PIL))),
+			      [alias(File)])
 	   )).
 
 black_list_um(swi(_)).		% Ignore internal SWI modules
