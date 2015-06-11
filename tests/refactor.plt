@@ -886,7 +886,7 @@ test(exdcg) :-
 
 test(exnoload) :-
     execute_test_(exnoload, replace_goal(exnoload(A,B), 'exnoload*'(A,B)),
-		 [alias(exnoload)]).
+		 [files(exnoload)]).
 
 /* $opex1_1$
 --- opex1.pl (source)
@@ -901,7 +901,7 @@ test(exnoload) :-
 */
 
 test(opex1_1) :-
-    execute_test_(opex1_1, replace_goal(myis(A, B), p(A, B)), [alias(opex1)]).
+    execute_test_(opex1_1, replace_goal(myis(A, B), p(A, B)), [files(opex1)]).
 
 /* $opex1_2$
 --- opex1.pl (source)
@@ -916,7 +916,7 @@ test(opex1_1) :-
 */
 
 test(opex1_2) :-
-    execute_test_(opex1_2, replace_goal(myis(A, B), myis2(A, B)), [alias(opex1)]).
+    execute_test_(opex1_2, replace_goal(myis(A, B), myis2(A, B)), [files(opex1)]).
 
 :- use_module(opex2).
 
@@ -969,7 +969,7 @@ test(fpex) :-
 */
 
 test(eqname_1) :-
-    execute_test_(eqname_1, replace_term(A:B,A^B), [alias(eqname)]).
+    execute_test_(eqname_1, replace_term(A:B,A^B), [files(eqname)]).
 
 /* $eqname_2$
 --- eqname.pl (source)
@@ -983,7 +983,7 @@ test(eqname_1) :-
 */
 
 test(eqname_2) :-
-    execute_test_(eqname_2, replace_term((A:B),A*->B),[alias(eqname)]).
+    execute_test_(eqname_2, replace_term((A:B),A*->B),[files(eqname)]).
 
 /* $opfp$
 --- opfp.pl (source)
@@ -997,7 +997,7 @@ test(eqname_2) :-
 */
 
 test(opfp) :-
-    execute_test_(opfp, replace_term(A+B, A^B),[alias(opfp),fixpoint(true)]).
+    execute_test_(opfp, replace_term(A+B, A^B),[files(opfp),fixpoint(true)]).
 
 :- comment_data:disable.
 

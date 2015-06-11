@@ -92,8 +92,8 @@ file_to_module(Alias, OptionL0 ) :-
     file_to_module(FileL, M, PIL, ExcludeL, MDL),
     collect_not_exported(M, FileL, PIL, PIEx),
     append(AddL, MDL, CL),
-    replace_sentence([], [(:- module(Base, PIEx))|CL], [alias(File)]),
-    forall(member(C, DelL), replace_sentence(C, [], [alias(File)])),
+    replace_sentence([], [(:- module(Base, PIEx))|CL], [file(File)]),
+    forall(member(C, DelL), replace_sentence(C, [], [file(File)])),
     decl_to_use_module(consult, M, FileL, PIL, Alias),
     decl_to_use_module(include, M, FileL, PIL, Alias),
     add_use_module(M, FileL, ExcludeL, Alias),
@@ -124,11 +124,11 @@ declare_multifile(PIM, FileL) :-
     ->replace_sentence((:- multifile PIL),
 		       (:- multifile(NPIM)),
 		       append(PIL, '$LIST,NL'(PIM), NPIM),
-		       [max_changes(1), changes(C), aliases(FileL)]),
+		       [max_changes(1), changes(C), files(FileL)]),
       ( C = 0
       ->replace_sentence([],
 			 (:- multifile('$LIST,NL'(PIM))),
-			 [max_changes(1), aliases(FileL)])
+			 [max_changes(1), files(FileL)])
       ; true
       )
     ; true
@@ -137,7 +137,7 @@ declare_multifile(PIM, FileL) :-
 add_qualification_head(FileL, M, PIM) :-
     forall(member(F/A, PIM),
 	   ( functor(H, F, A),
-	     replace_head(H, M:H, [module(M), aliases(FileL)])
+	     replace_head(H, M:H, [module(M), files(FileL)])
 	   )).
 
 add_use_module(M, FileL, ExcludeL, Alias) :-
@@ -160,7 +160,7 @@ add_use_module_cm(M, Alias, CM, PIL) :-
     replace_sentence((:- module(CM, MEL)),
 		     [(:- module(CM, MEL)),
 		      (:- use_module(Alias))],
-		     [alias(MFile)]),
+		     [file(MFile)]),
     module_property(M, file(MainF)),
     replace_sentence((:- use_module(MainA, ExL)),
 		     Into,
@@ -200,7 +200,7 @@ del_use_module_ex(M, FileL) :-
 			    memberchk(File, FileL)
 			  )
 		     ),
-		     [aliases(FileL)]),
+		     [files(FileL)]),
     replace_sentence((:- use_module(EA, IL)),
 		     Into,
 		     ( absolute_file_name(EA,
@@ -218,7 +218,7 @@ del_use_module_ex(M, FileL) :-
 		       ; Into = (:- use_module(EA, NIL))
 		       )
 		     ),
-		     [aliases(FileL)]).
+		     [files(FileL)]).
 
 add_use_module_ex(M, FileL) :-
     findall(ImportingFile-((IM:EA)-(F/A)),
@@ -292,7 +292,7 @@ decl_to_use_module(Decl, M, FileL, PIL, Alias) :-
       replace_sentence((:- module(M, MEL)), (:- module(M, '$LISTB,NL'(NL))),
 			( subtract(MEL, ReexportL, NL),
 			  NL \= MEL
-			), [alias(MFile)]),
+			), [file(MFile)]),
       ( PIL = ReexportL
       ->Into = (:- reexport(Alias))
       ; subtract(PIL, ReexportL, ExportL),
@@ -303,7 +303,7 @@ decl_to_use_module(Decl, M, FileL, PIL, Alias) :-
 	)
       )
     ),
-    replace_sentence((:- Patt), Into, [aliases(DFileL)]).
+    replace_sentence((:- Patt), Into, [files(DFileL)]).
 
 implem_to_export(FileL, F, A, M, CM) :-
     ( loc_dynamic(H, M, dynamic(_, CM, _), FromD),
@@ -481,15 +481,15 @@ add_export_declarations_to_file(REL, FileL, M) :-
 	   ->replace_sentence((:- module(M, L0 )),
 			      (:- module(M, L)),
 			      append(L0, PIL, L),
-			      [alias(File)])
+			      [file(File)])
 	   ; replace_sentence((:- export(S)),
 			      (:- export('$LIST,NL'([S|PIL]))),
-			      [max_changes(1), changes(C), alias(File)]),
+			      [max_changes(1), changes(C), file(File)]),
 	     C \= 0
 	   ->true
 	   ; replace_sentence([],
 			      (:- export('$LIST,NL'(PIL))),
-			      [alias(File)])
+			      [file(File)])
 	   )).
 
 black_list_um(swi(_)).		% Ignore internal SWI modules
