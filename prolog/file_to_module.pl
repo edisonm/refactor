@@ -97,7 +97,8 @@ file_to_module(Alias, OptionL0 ) :-
     decl_to_use_module(consult, M, FileL, PIL, Alias),
     decl_to_use_module(include, M, FileL, PIL, Alias),
     add_use_module(M, FileL, ExcludeL, Alias),
-    add_use_module_ex(M, FileL).
+    add_use_module_ex(M, FileL),
+    del_use_module_ex(M, FileL).
 
 collect_multifile(M, FileL, PIL, PIM) :-
     findall(F/A, ( member(F/A, PIL),
@@ -186,6 +187,38 @@ declared_use_module(F, A, IM, M, EA, File) :-
     EFile = ImplFile,
     memberchk(F/A, ExL),
     from_to_file(From, File).
+
+del_use_module_ex(M, FileL) :-
+    replace_sentence((:- use_module(EA)),
+		     [],
+		     ( absolute_file_name(EA,
+					  ImplementFile,
+					  [file_type(prolog),
+					   access(read)]),
+		       module_property(IM, file(ImplementFile)),
+		       \+ ( module_to_import_db(F, A, IM, M, File),
+			    memberchk(File, FileL)
+			  )
+		     ),
+		     [aliases(FileL)]),
+    replace_sentence((:- use_module(EA, IL)),
+		     Into,
+		     ( absolute_file_name(EA,
+					  ImplementFile,
+					  [file_type(prolog),
+					   access(read)]),
+		       module_property(IM, file(ImplementFile)),
+		       findall(F/A,
+			       ( module_to_import_db(F, A, IM, M, File),
+				 memberchk(File, FileL)
+			       ), PIL),
+		       intersection(IL, PIL, NIL),
+		       ( NIL = []
+		       ->Into = []
+		       ; Into = (:- use_module(EA, NIL))
+		       )
+		     ),
+		     [aliases(FileL)]).
 
 add_use_module_ex(M, FileL) :-
     findall(ImportingFile-((IM:EA)-(F/A)),
@@ -472,49 +505,6 @@ collect_file_to_module(Callee, _Caller, From) :-
     implementation_module(Callee, IM),
     functor(Goal, F, A),
     from_to_file(From, File),
-    /*
-    ( once(( property_from((IM:Goal)/_, Decl, PFrom),
-	     implementation_decl(Decl),
-	     from_to_file(PFrom, File)
-	   ))
-    ->NM=M
-    ; NM=IM
-    ),
-    */
     ( module_to_import_db(F, A, IM, CM, File) -> true
     ; assertz(module_to_import_db(F, A, IM, CM, File))
     ). 
-
-/*
-collect_file_to_module(M, File, Callee, _Caller, From) :-
-    Callee = CM:Goal,
-    from_to_file(From, FromFile),
-    implementation_module(Callee, IM),
-    ( FromFile \= File,
-      IM = M
-    ->once(( property_from((IM:Goal)/_, Decl, PFrom),
-	     implementation_decl(Decl),
-	     from_to_file(PFrom, File)
-	   )),
-	   %  predicate_property(Callee, file(File))
-	   % ; extra_location(Goal, IM, Decl, EFrom),
-	   %   from_to_file(EFrom, File),
-	   %   memberchk(Decl, [dynamic, thread_local, multifile, discontiguous])
-	   % )),
-      functor(Goal, F, A),
-      ( module_to_export_db(F, A, IM, CM) -> true
-      ; assertz(module_to_export_db(F, A, IM, CM))
-      )
-    ; FromFile = File,
-      property_from(IM:Goal, Decl, PFrom),
-      Decl \= (export),
-      from_to_file(PFrom, ImplFile),
-      ImplFile \= File,
-      CM = M
-    ->functor(Goal, F, A),
-      ( module_to_import_db(F, A, IM) -> true
-      ; assertz(module_to_import_db(F, A, IM))
-      )
-    ; true
-    ).
-*/
