@@ -107,7 +107,8 @@ file_to_module(Alias, OptionL0 ) :-
     forall(member(C, DelL), replace_sentence(C, [], [file(File)])),
     decl_to_use_module(consult, M, PIL, Alias, ReexportL),
     decl_to_use_module(include, M, PIL, Alias, ReexportL),
-    add_use_module(M, FileL, Alias, ExcludeL),
+    append(ExcludeL, PIMu, ExTL),
+    add_use_module(M, FileL, Alias, ExTL),
     add_use_module_ex(M, FileL),
     del_use_module_ex(M, FileL).
 
@@ -407,7 +408,6 @@ collect_dispersed_assertions(PIL, FileL, M, PIA) :-
 collect_movable(FileL, M, ExcludeL, PIL) :-
     OptionL = [source(false), trace_reference(_)],
     retractall(module_to_import_db(_, _, _, _, _)),
-    audit_walk_code(OptionL, collect_dynamic_locations(M, File), _, _),
     audit_walk_code(OptionL, collect_file_to_module, _, _),
     findall(F/A, ( module_to_import_db(F, A, M, _, IFile),
 		   \+ memberchk(IFile, FileL),
@@ -496,8 +496,7 @@ file_to_module(M, FileL, PIL, ExcludeL, MDL) :-
 			( predicate_property(EM:HH, D),
 			  implementation_decl(D)
 			->true
-			; property_from((EM:HH)/_, clause(_), PFrom),
-			  from_to_file(PFrom, _PFile)
+			; implemented_in_file(FF, AA, EM, _PFile)
 			->true
 			)
 		      ), REL),
@@ -556,16 +555,21 @@ add_export_declarations_to_file(REL, FileL, M) :-
 black_list_um(swi(_)).		% Ignore internal SWI modules
 black_list_um(library(dialect/_)).
 
-collect_dynamic_locations(M, File, MGoal, _, From) :-
-    nonvar(MGoal),
-    from_to_file(From, File),	% match the file
-    record_location_dynamic(MGoal, M, From).
-
 collect_file_to_module(Callee, _Caller, From) :-
-    Callee = CM:Goal,
-    implementation_module(Callee, IM),
-    functor(Goal, F, A),
+    record_location_meta(Callee, _, From, all_call_refs, cu_caller_hook).
+
+cu_caller_hook(M:Head, CM, Type, Goal, _, From) :-
+    nonvar(M),
+    callable(Head),
+    ( Type \= lit
+    ->record_location(Head, M, dynamic(Type, CM, Goal), From)
+    ; true
+    ),
+    record_calls_to(Head, M, CM, From).
+
+record_calls_to(Head, M, CM, From) :-
+    functor(Head, F, A),
     from_to_file(From, File),
-    ( module_to_import_db(F, A, IM, CM, File) -> true
-    ; assertz(module_to_import_db(F, A, IM, CM, File))
-    ). 
+    ( module_to_import_db(F, A, M, CM, File) -> true
+    ; assertz(module_to_import_db(F, A, M, CM, File))
+    ).
