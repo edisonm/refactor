@@ -48,6 +48,7 @@ file_to_module(Alias) :-
     file_to_module(Alias, []).
 
 implementation_decl(dynamic).
+implementation_decl(multifile).
 implementation_decl(discontiguous).
 implementation_decl(volatile).
 implementation_decl(thread_local).
@@ -82,13 +83,14 @@ file_to_module(Alias, OptionL0 ) :-
     absolute_file_name(Alias, File, [file_type(prolog), access(read)]),
     files_to_move(M, File, FileL),
     format('% from context ~a~n', [M]),
-    collect_predicates_to_move(FileL, M, ExcludeL, PIL),
+    collect_movable(FileL, M, ExcludeL, PIMo),
+    collect_multifile(M, FileL, PIMo, PIMu),
+    add_qualification_head(FileL, M, PIMu),
+    add_qualification_decl(FileL, M, PIMu),
+    subtract(PIMo, PIMu, PIL),
     report_dispersed_assertions(PIL, FileL, M),
-    collect_multifile(M, FileL, PIL, PIM),
-    declare_multifile(PIM, FileL),
     directory_file_path(_, Name, File),
     file_name_extension(Base, _, Name),
-    add_qualification_head(FileL, M, PIM),
     file_to_module(FileL, M, PIL, ExcludeL, MDL),
     collect_not_exported(M, FileL, PIL, PIEx),
     append(AddL, MDL, CL),
@@ -101,43 +103,36 @@ file_to_module(Alias, OptionL0 ) :-
     del_use_module_ex(M, FileL).
 
 collect_multifile(M, FileL, PIL, PIM) :-
-    findall(F/A, ( member(F/A, PIL),
-		   functor(H, F, A),
-		   findall(DFile,
-			   ( property_from((M:H)/_, clause(_), PFrom),
-			     from_to_file(PFrom, DFile)
-				% DFile \= File
-			   ), DFileU),
-		   once(( member(File, FileL),
-			  memberchk(File, DFileU)
-			)),
-		   sort(DFileU, DFileL),
-		   DFileL = [_, _|_],
-		   \+ ( loc_declaration(H, M, multifile, From),
-			from_to_file(From, File)
-		      )
+    findall(F/A,
+	    ( member(F/A, PIL),
+	      functor(H, F, A),
+	      predicate_property(M:H, multifile),
+	      findall(File,
+		      ( implemented_in_file(F, A, M, File),
+			\+ memberchk(File, FileL)
+		      ), DFileU),
 				% \+ predicate_property(M:H, multifile)
-		 ), PIM).
-
-declare_multifile(PIM, FileL) :-
-    ( PIM \= []
-    ->replace_sentence((:- multifile PIL),
-		       (:- multifile(NPIM)),
-		       append(PIL, '$LIST,NL'(PIM), NPIM),
-		       [max_changes(1), changes(C), files(FileL)]),
-      ( C = 0
-      ->replace_sentence([],
-			 (:- multifile('$LIST,NL'(PIM))),
-			 [max_changes(1), files(FileL)])
-      ; true
-      )
-    ; true
-    ).
+	      sort(DFileU, DFileL),
+	      DFileL \= []
+	    ), PIM).
 
 add_qualification_head(FileL, M, PIM) :-
     forall(member(F/A, PIM),
 	   ( functor(H, F, A),
 	     replace_head(H, M:H, [module(M), files(FileL)])
+	   )).
+
+add_qualification_decl(FileL, M, PIM) :-
+    forall(( implementation_decl(DeclN),
+	     DeclN \= clause(_)
+	   ),
+	   ( functor(Decl, DeclN, 1),
+	     replace_term(F/A, M:F/A, ( atom(F),
+					integer(A),
+					memberchk(F/A, PIM)
+				      ),
+			  [sentence((:- Decl)),
+			   files(FileL)])
 	   )).
 
 add_use_module(M, FileL, ExcludeL, Alias) :-
@@ -356,7 +351,7 @@ collect_dispersed_assertions(PIL, FileL, M, PIA) :-
 		 ), PIUA),
     sort(PIUA, PIA).
 
-collect_predicates_to_move(FileL, M, ExcludeL, PIL) :-
+collect_movable(FileL, M, ExcludeL, PIL) :-
     OptionL = [source(false), trace_reference(_)],
     retractall(module_to_import_db(_, _, _, _, _)),
     audit_walk_code(OptionL, collect_dynamic_locations(M, File), _, _),
