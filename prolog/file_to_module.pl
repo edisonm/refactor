@@ -30,6 +30,7 @@
 :- module(file_to_module, [file_to_module/1, file_to_module/2]).
 
 :- use_module(library(clambda)).
+:- use_module(library(apply)).
 :- use_module(library(normalize_head)).
 :- use_module(library(extra_location)).
 :- use_module(library(location_utils)).
@@ -66,7 +67,9 @@ collect_not_exported(M, FileL, PIL, PIEx) :-
 	    ), PIEx).
 
 files_to_move(M, File, [File|FileL]) :-
-    module_file(M, File),
+    findall(MF, module_file(MF, File), MU),
+    sort(MU, ML),
+    member(M, ML),
     findall(IFile, file_includes(File, IFile), FileL).
 
 file_includes(File, IFile) :-
@@ -84,37 +87,52 @@ file_to_module(Alias, OptionL0 ) :-
     files_to_move(M, File, FileL),
     format('% from context ~a~n', [M]),
     collect_movable(FileL, M, ExcludeL, PIMo),
-    collect_multifile(M, FileL, PIMo, PIMu),
+    collect_multifile(M, FileL, PIMu),
     add_qualification_head(FileL, M, PIMu),
     add_qualification_decl(FileL, M, PIMu),
     subtract(PIMo, PIMu, PIL),
     report_dispersed_assertions(PIL, FileL, M),
     directory_file_path(_, Name, File),
     file_name_extension(Base, _, Name),
-    file_to_module(FileL, M, PIL, ExcludeL, MDL),
+    collect_to_reexport(M, FileL, PIL, ReexportL),
+    collect_export_decl_files(M, ExFileL),
+    del_modexp_decl(M, ReexportL),
+    del_export_decl(M, ExFileL, ReexportL),
+    del_export_decl(M, FileL, PIMu),
+    add_modexp_decl(M, PIMu),
+    file_to_module(M, FileL, PIL, ExcludeL, MDL),
     collect_not_exported(M, FileL, PIL, PIEx),
     append(AddL, MDL, CL),
     replace_sentence([], [(:- module(Base, PIEx))|CL], [file(File)]),
     forall(member(C, DelL), replace_sentence(C, [], [file(File)])),
-    decl_to_use_module(consult, M, FileL, PIL, Alias),
-    decl_to_use_module(include, M, FileL, PIL, Alias),
-    add_use_module(M, FileL, ExcludeL, Alias),
+    decl_to_use_module(consult, M, PIL, Alias, ReexportL),
+    decl_to_use_module(include, M, PIL, Alias, ReexportL),
+    add_use_module(M, FileL, Alias, ExcludeL),
     add_use_module_ex(M, FileL),
     del_use_module_ex(M, FileL).
 
-collect_multifile(M, FileL, PIL, PIM) :-
+add_modexp_decl(M, PIMu) :-
+    module_property(M, file(MFile)),
+    replace_sentence((:- module(M, MEL)),
+		     (:- module(M, NMExL)),
+		     ( subtract(PIMu, MEL, NExL),
+		       NExL \= [],
+		       append(MEL, '$LIST,NL'(NExL), NMExL)
+		     ), [file(MFile)]).
+
+collect_multifile(M, FileL, PIM) :-
     findall(F/A,
-	    ( member(F/A, PIL),
+	    ( current_predicate(M:F/A),
 	      functor(H, F, A),
 	      predicate_property(M:H, multifile),
-	      findall(File,
-		      ( implemented_in_file(F, A, M, File),
-			\+ memberchk(File, FileL)
-		      ), DFileU),
-				% \+ predicate_property(M:H, multifile)
-	      sort(DFileU, DFileL),
-	      DFileL \= []
-	    ), PIM).
+	      \+ predicate_property(M:H, imported_from(_)),
+	      once(( implemented_in_file(F, A, M, InFile),
+		     memberchk(InFile, FileL),
+		     implemented_in_file(F, A, M, ExFile),
+		     \+ memberchk(ExFile, FileL)
+		   ))
+	    ), PIU),
+    sort(PIU, PIM).
 
 add_qualification_head(FileL, M, PIM) :-
     forall(member(F/A, PIM),
@@ -135,9 +153,10 @@ add_qualification_decl(FileL, M, PIM) :-
 			   files(FileL)])
 	   )).
 
-add_use_module(M, FileL, ExcludeL, Alias) :-
+add_use_module(M, FileL, Alias, ExcludeL) :-
     findall(CM-(F/A),
-	    ( ( module_to_import_db(F, A, M, CM, File),
+	    ( ( module_to_import_db(F, A, M, CM, _File),
+		implemented_in_file(F, A, M, File),
 		memberchk(File, FileL)
 	      ; implem_to_export(FileL, F, A, M, CM)
 	      ),
@@ -266,29 +285,26 @@ add_use_module_ex_1(M, ImFile, AliasPIL) :-
       replace_sentence([], DeclL, [max_changes(1), file(ImFile)])
     ).
 
-decl_to_use_module(Decl, M, FileL, PIL, Alias) :-
+collect_to_reexport(M, FileL, PIL, ReexportL) :-
+    module_property(M, exports(EL1)),
+    findall(PI,
+	    ( PI=F/A,
+	      member(PI, EL1),
+	      functor(H, F, A),
+	      loc_declaration(H, M, export, From),
+	      from_to_file(From, FileX),
+	      \+ memberchk(FileX, FileL)
+	    ), EL),
+    intersection(PIL, EL, ReexportL).
+
+decl_to_use_module(Decl, M, PIL, Alias, ReexportL) :-
     findall(DFile, ( extra_location(Alias, M, Decl, DFrom),
 		     from_to_file(DFrom, DFile)
 		   ), DFileU),
     sort(DFileU, DFileL),
-    Patt =.. [Decl, Alias],
-    module_property(M, exports(EL1)),
-    findall(PI, ( PI=F/A,
-		  member(PI, EL1),
-		  functor(H, F, A),
-		  loc_declaration(H, M, export, From),
-		  from_to_file(From, FileX),
-		  \+ memberchk(FileX, FileL)
-		), EL),
-    intersection(PIL, EL, ReexportL),
     ( ReexportL = []
     ->Into = (:- use_module(Alias))
-    ; module_property(M, file(MFile)),
-      replace_sentence((:- module(M, MEL)), (:- module(M, '$LISTB,NL'(NL))),
-			( subtract(MEL, ReexportL, NL),
-			  NL \= MEL
-			), [file(MFile)]),
-      ( PIL = ReexportL
+    ; ( PIL = ReexportL
       ->Into = (:- reexport(Alias))
       ; subtract(PIL, ReexportL, ExportL),
 	( ExportL = []
@@ -298,7 +314,45 @@ decl_to_use_module(Decl, M, FileL, PIL, Alias) :-
 	)
       )
     ),
+    Patt =.. [Decl, Alias],
     replace_sentence((:- Patt), Into, [files(DFileL)]).
+
+collect_export_decl_files(M, ExFileL) :-
+    module_property(M, exports(Ex)),
+    findall(ExFile, ( PI=F/A,
+		      member(PI, Ex),
+		      functor(H, F, A),
+		      loc_declaration(H, M, export, From),
+		      from_to_file(From, ExFile)
+		    ), ExFileL).
+
+del_modexp_decl(M, DelExpDeclL) :-
+    module_property(M, file(MFile)),
+    replace_sentence((:- module(M, MEL)),
+		     (:- module(M, '$LISTB,NL'(NL))),
+		     ( subtract(MEL, DelExpDeclL, NL),
+		       NL \= MEL
+		     ), [file(MFile)]).
+
+del_export_decl(M, ExFileL, DelExpDeclL) :-
+    replace_sentence((:- export(ExS)),
+		     Exp,
+		     ( sequence_list(ExS, ExL, []),
+		       subtract(ExL, DelExpDeclL, ExNL),
+		       ( ExNL = []
+		       ->Exp = []
+		       ; Exp = (:- export('$LIST,NL'(ExNL)))
+		       )
+		     ), [module(M), files(ExFileL)]),
+    replace_sentence((:- M:export(ExS)),
+		     MExp,
+		     ( sequence_list(ExS, ExL, []),
+		       subtract(ExL, DelExpDeclL, ExNL),
+		       ( ExNL = []
+		       ->MExp = []
+			 ; MExp = (:- M:export('$LIST,NL'(ExNL)))
+		       )
+		     ), [files(ExFileL)]).
 
 implem_to_export(FileL, F, A, M, CM) :-
     ( loc_dynamic(H, M, dynamic(_, CM, _), FromD),
@@ -341,11 +395,10 @@ report_dispersed_assertions(PIL, FileL, M) :-
 collect_dispersed_assertions(PIL, FileL, M, PIA) :-
     findall(F/A, ( member(F/A, PIL),
 		   functor(H, F, A),
-		   loc_declaration(H, M, assertion(_, _), FromD),
-		   once(( property_from((M:H)/_, clause(_), PFrom),
-			  from_to_file(PFrom, File),
+		   once(( implemented_in_file(F, A, M, File),
 			  memberchk(File, FileL)
 			)),
+		   loc_declaration(H, M, assertion(_, _), FromD),
 		   from_to_file(FromD, FileD),
 		   \+ memberchk(FileD, FileL)
 		 ), PIUA),
@@ -371,57 +424,68 @@ implemented_in_file(F, A, M, File) :-
     implementation_decl(Decl),
     from_to_file(PFrom, File).
 
-% file_to_module(+list(atm),+atm,+list,+list,-list) is det.
+collect_used_outside(M, FileL, PIL, ExcludeL, UOL, T) :-
+    findall(EM-(F/A),
+	    ( module_to_import_db(F, A, EM, M, File),
+	      memberchk(File, FileL),
+	      implemented_in_file(F, A, EM, IFile),
+	      \+ memberchk(IFile, FileL),
+	      \+ memberchk(F/A, PIL),
+	      \+ memberchk(F/A, ExcludeL)
+	    ), UOL, T).
+
+collect_decl_outside(M, FileL, DOL, T) :-
+    findall(EM-(F/A),
+	    ( loc_dynamic(H, EM, dynamic(_, M, _), From),
+	      from_to_file(From, File),
+	      memberchk(File, FileL),
+	      ( loc_declaration(H, EM, D, FromD),
+		implementation_decl(D),
+		from_to_file(FromD, FileD),
+		memberchk(FileD, FileL)
+	      ->fail
+	      ; ( loc_declaration(H, EM, D, FromD),
+		  implementation_decl(D)
+		; loc_dynamic(H, EM, dynamic(Type, _, _), FromD),
+		  memberchk(Type, [retract, def])
+		),
+		from_to_file(FromD, FileD),
+		\+ memberchk(FileD, FileL)
+	      ->true
+	      ),
+	      functor(H, F, A)
+	    ), DOL, T).
+
+collect_requires_dyn_decl(M, FileL, PID) :-
+    findall(F/A,
+	    ( loc_dynamic(H, M, dynamic(_, _, _), FromD),
+	      from_to_file(FromD, FileD),
+	      \+ memberchk(FileD, FileL),
+	      ( loc_declaration(H, M, D, _),
+		implementation_decl(D)
+	      ->fail
+	      ; loc_dynamic(H, M, dynamic(_, M, _), From),
+		from_to_file(From, File),
+		memberchk(File, FileL)
+	      ->true
+	      ),
+	      functor(H, F, A)
+	    ), PIUD),
+    sort(PIUD, PID).
+
+% file_to_module(+atm,+list(atm),+list,+list,-list) is det.
 %
-file_to_module(FileL, M, PIL, ExcludeL, MDL) :-
-    findall(EM-(F/A), ( module_to_import_db(F, A, EM, M, File),
-			memberchk(File, FileL),
-			functor(H, F, A),
-			implemented_in_file(F, A, EM, IFile),
-			\+ memberchk(IFile, FileL),
-			\+ memberchk(F/A, PIL),
-			\+ memberchk(F/A, ExcludeL)
-		      ), MU, MD),
-    findall(EM-(F/A), ( loc_dynamic(H, EM, dynamic(_, M, _), From),
-			from_to_file(From, File),
-			memberchk(File, FileL),
-			( loc_declaration(H, EM, D, FromD),
-			  implementation_decl(D),
-			  from_to_file(FromD, FileD),
-			  memberchk(FileD, FileL)
-			->fail
-			; ( loc_declaration(H, EM, D, FromD),
-			    implementation_decl(D)
-			  ; loc_dynamic(H, EM, dynamic(Type, _, _), FromD),
-			    memberchk(Type, [retract, def])
-			  ),
-			  from_to_file(FromD, FileD),
-			  \+ memberchk(FileD, FileL)
-			->true
-			),
-			functor(H, F, A)
-		      ), MD),
-    sort(MU, ML),
-    group_pairs_by_key(ML, GL),
-    findall(F/A, ( loc_dynamic(H, M, dynamic(_, _, _), FromD),
-		   from_to_file(FromD, FileD),
-		   \+ memberchk(FileD, FileL),
-		   ( loc_declaration(H, M, D, _),
-		     implementation_decl(D)
-		   ->fail
-		   ; loc_dynamic(H, M, dynamic(_, M, _), From),
-		     from_to_file(From, File),
-		     memberchk(File, FileL)
-		   ->true
-		   ),
-		   functor(H, F, A)
-		 ), PIUD),
-    sort(PIUD, PID),
+file_to_module(M, FileL, PIL, ExcludeL, MDL) :-
+    collect_requires_dyn_decl(M, FileL, PID),
     ( PID = []
     ->DYL = []
     ; list_sequence(PID, PIS),
       DYL = [(:- dynamic(PIS))]
     ),
+    collect_used_outside(M, FileL, PIL, ExcludeL, UOL, DOL),
+    collect_decl_outside(M, FileL, DOL, []),
+    sort(UOL, ML),
+    group_pairs_by_key(ML, GL),
     findall((:- Decl),
 	    ( member(EM-PEL, GL),
 	      findall(PPI,
@@ -440,23 +504,25 @@ file_to_module(FileL, M, PIL, ExcludeL, MDL) :-
 	      current_module(EM, EF),
 	      smallest_alias(EF, EA),
 	      \+ black_list_um(EA),
-	      add_export_declarations_to_file(REL, FileL, EM),
+	      % add_export_declarations_to_file(REL, FileL, EM),
 	      ( EM=M, REL \= []
 	      ->print_message(warning,
 			      format("Back imports is a bad sign: ~w",
-				     [(:- use_module(EA, REL))]))
+				     [(:- EM:export(REL))]))
 	      ; true
 	      ),
 	      \+ ( loc_declaration(EA, _, use_module, UMFrom),
 		   from_to_file(UMFrom, File),
 		   memberchk(File, FileL)
 		 ),
-	      ( Decl = use_module(EA)
-	      ; ( EM = M,
+	      ( ( EM = M,
 		  PEL \= REL,
 		  REL \= []
-		->Decl=use_module(EA, REL) % Explicit imports --EMM
+		->list_sequence(REL, RES),
+		  Decl = EM:export(RES) % Explicit exports --EMM
+		; fail
 		)
+	      ; Decl = use_module(EA)
 	      )
 	    ), MDL, DYL).
 
