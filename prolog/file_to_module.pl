@@ -342,6 +342,7 @@ del_export_decl(M, ExFileL, DelExpDeclL) :-
 		     Exp,
 		     ( sequence_list(ExS, ExL, []),
 		       subtract(ExL, DelExpDeclL, ExNL),
+		       ExNL \= ExL,
 		       ( ExNL = []
 		       ->Exp = []
 		       ; Exp = (:- export('$LIST,NL'(ExNL)))
