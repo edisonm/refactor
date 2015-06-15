@@ -86,8 +86,8 @@ file_to_module(Alias, OptionL0 ) :-
     absolute_file_name(Alias, File, [file_type(prolog), access(read)]),
     files_to_move(M, File, FileL),
     format('% from context ~a~n', [M]),
-    collect_movable(FileL, M, ExcludeL, PIMo),
-    collect_multifile(M, FileL, PIMu),
+    collect_movable(M, FileL, ExcludeL, PIMo),
+    collect_multifile(M, FileL, ExcludeL, PIMu),
     add_qualification_head(FileL, M, PIMu),
     add_qualification_decl(FileL, M, PIMu),
     subtract(PIMo, PIMu, PIL),
@@ -121,11 +121,12 @@ add_modexp_decl(M, PIMu) :-
 		       append(MEL, '$LIST,NL'(NExL), NMExL)
 		     ), [file(MFile)]).
 
-collect_multifile(M, FileL, PIM) :-
+collect_multifile(M, FileL, ExcludeL, PIM) :-
     findall(F/A,
 	    ( current_predicate(M:F/A),
 	      functor(H, F, A),
 	      predicate_property(M:H, multifile),
+	      \+ memberchk(F/A, ExcludeL),
 	      \+ predicate_property(M:H, imported_from(_)),
 	      once(( implemented_in_file(F, A, M, InFile),
 		     memberchk(InFile, FileL),
@@ -325,7 +326,8 @@ collect_export_decl_files(M, ExFileL) :-
 		      functor(H, F, A),
 		      loc_declaration(H, M, export, From),
 		      from_to_file(From, ExFile)
-		    ), ExFileL).
+		    ), ExFileU),
+    sort(ExFileU, ExFileL).
 
 del_modexp_decl(M, DelExpDeclL) :-
     module_property(M, file(MFile)),
@@ -405,7 +407,7 @@ collect_dispersed_assertions(PIL, FileL, M, PIA) :-
 		 ), PIUA),
     sort(PIUA, PIA).
 
-collect_movable(FileL, M, ExcludeL, PIL) :-
+collect_movable(M, FileL, ExcludeL, PIL) :-
     OptionL = [source(false), trace_reference(_)],
     retractall(module_to_import_db(_, _, _, _, _)),
     audit_walk_code(OptionL, collect_file_to_module, _, _),
