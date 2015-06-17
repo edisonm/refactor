@@ -179,17 +179,25 @@ add_use_module_cm(M, Alias, CM, PIL) :-
 		     [file(MFile)]),
     module_property(M, file(MainF)),
     replace_sentence((:- use_module(MainA, ExL)),
-		     Into,
+		     [],
 		     ( absolute_file_name(MainA,
 					  MainF1,
 					  [file_type(prolog),
 					   access(read)]),
 		       MainF1=MainF,
 		       subtract(ExL, PIL, ExL2),
-		       ( ExL2 \= []
-		       ->Into = (:- use_module(MainA, '$LISTB,NL'(ExL2)))
-		       ; Into = []
-		       )
+		       ExL2 = []
+		     ),
+		     [module(CM)]),
+    replace_sentence((:- use_module(MainA, ExL)),
+		     (:- use_module(MainA, '$LISTB,NL'(ExL2))),
+		     ( absolute_file_name(MainA,
+					  MainF1,
+					  [file_type(prolog),
+					   access(read)]),
+		       MainF1=MainF,
+		       subtract(ExL, PIL, ExL2),
+		       ExL2 \= []
 		     ),
 		     [module(CM)]).
 
@@ -218,7 +226,7 @@ del_use_module_ex(M, FileL) :-
 		     ),
 		     [files(FileL)]),
     replace_sentence((:- use_module(EA, IL)),
-		     Into,
+		     [],
 		     ( absolute_file_name(EA,
 					  ImplementFile,
 					  [file_type(prolog),
@@ -229,10 +237,22 @@ del_use_module_ex(M, FileL) :-
 				 memberchk(File, FileL)
 			       ), PIL),
 		       intersection(IL, PIL, NIL),
-		       ( NIL = []
-		       ->Into = []
-		       ; Into = (:- use_module(EA, NIL))
-		       )
+		       NIL = []
+		     ),
+		     [files(FileL)]),
+    replace_sentence((:- use_module(EA, IL)),
+		     (:- use_module(EA, NIL)),
+		     ( absolute_file_name(EA,
+					  ImplementFile,
+					  [file_type(prolog),
+					   access(read)]),
+		       module_property(IM, file(ImplementFile)),
+		       findall(F/A,
+			       ( module_to_import_db(F, A, IM, M, File),
+				 memberchk(File, FileL)
+			       ), PIL),
+		       intersection(IL, PIL, NIL),
+		       NIL \= []
 		     ),
 		     [files(FileL)]).
 
