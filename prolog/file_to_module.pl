@@ -100,7 +100,11 @@ file_to_module(Alias, OptionL0 ) :-
     del_export_decl(M, ExFileL, ReexportL),
     del_export_decl(M, FileL, PIFx),
     add_modexp_decl(M, PIFx),
-    file_to_module(M, FileL, PIL, ExcludeL, MDL),
+    add_modmeta_decl(M, PIFx),
+    phrase(( collect_import_decls(M, FileL, PIL, ExcludeL),
+	     collect_dynamic_decls(M, FileL),
+	     collect_meta_decls(M, PIL)
+	   ), MDL, []),
     % collect_not_exported(M, FileL, PIL, PIEx),
     append(AddL, MDL, CL),
     replace_sentence([], [(:- module(Base, PIL))|CL], [file(File)]),
@@ -111,6 +115,30 @@ file_to_module(Alias, OptionL0 ) :-
     add_use_module(M, FileL, Alias, ExTL),
     add_use_module_ex(M, FileL),
     del_use_module_ex(M, FileL).
+
+collect_meta_decls(M, PIL, MDL, Tail) :-
+    collect_meta_specs(M, PIL, SpecL),
+    ( SpecL = []
+    ->MDL = Tail
+    ; MDL = [(:- meta_predicate('$LIST,NL'(SpecL)))|Tail]
+    ).
+
+collect_meta_specs(M, PIL, SpecL) :-
+    findall(Spec, ( member(F/A, PIL),
+		    functor(H, F, A),
+		    \+ predicate_property(M:H, meta_predicate(Spec)),
+		    prolog_metainference:inferred_meta_pred(H, M, Spec)
+		  ), SpecL).
+
+add_modmeta_decl(M, PIFx) :-
+    collect_meta_specs(M, PIFx, SpecL),
+    ( SpecL \= [] ->
+      replace_sentence((:- module(M, MEL)),
+		       [(:- module(M, MEL)),
+			(:- meta_predicate('$LIST,NL'(SpecL)))
+		       ], [max_changes(1), module(M)])
+    ; true
+    ).
 
 add_modexp_decl(M, PIFx) :-
     module_property(M, file(MFile)),
@@ -431,6 +459,9 @@ collect_dispersed_assertions(PIL, FileL, M, PIA) :-
 collect_movable(M, FileL, ExcludeL, PIL) :-
     OptionL = [source(false), trace_reference(_)],
     retractall(module_to_import_db(_, _, _, _, _)),
+    prolog_walk_code([autoload(false),
+		      source(false),
+		      infer_meta_predicates(true)]),
     audit_walk_code(OptionL, collect_file_to_module, _, _),
     findall(F/A, ( module_to_import_db(F, A, M, _, IFile),
 		   \+ memberchk(IFile, FileL),
@@ -496,15 +527,16 @@ collect_requires_dyn_decl(M, FileL, PID) :-
 	    ), PIUD),
     sort(PIUD, PID).
 
-% file_to_module(+atm,+list(atm),+list,+list,-list) is det.
-%
-file_to_module(M, FileL, PIL, ExcludeL, MDL) :-
+collect_dynamic_decls(M, FileL, DYL, Tail) :-
     collect_requires_dyn_decl(M, FileL, PID),
     ( PID = []
-    ->DYL = []
-    ; list_sequence(PID, PIS),
-      DYL = [(:- dynamic(PIS))]
-    ),
+    ->DYL = Tail
+    ; DYL = [(:- dynamic('$LIST,NL'(PID)))|Tail]
+    ).
+
+% collect_import_decls(+atm,+list(atm),+list,+list,-list,?list) is det.
+%
+collect_import_decls(M, FileL, PIL, ExcludeL, MDL, Tail) :-
     collect_used_outside(M, FileL, PIL, ExcludeL, UOL, DOL),
     collect_decl_outside(M, FileL, DOL, []),
     sort(UOL, ML),
@@ -550,7 +582,7 @@ file_to_module(M, FileL, PIL, ExcludeL, MDL) :-
 		   ),
 		Decl = use_module(EA)
 	      )
-	    ), MDL, DYL).
+	    ), MDL, Tail).
 
 add_export_declarations_to_file(REL, FileL, M) :-
     findall(File-PI,
