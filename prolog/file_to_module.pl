@@ -248,6 +248,7 @@ del_use_module_ex(M, FileL) :-
 					  [file_type(prolog),
 					   access(read)]),
 		       module_property(IM, file(ImplementFile)),
+		       \+ module_property(IM, exports([])),
 		       \+ ( module_to_import_db(F, A, IM, M, File),
 			    memberchk(File, FileL)
 			  )
@@ -255,11 +256,13 @@ del_use_module_ex(M, FileL) :-
 		     [files(FileL)]),
     replace_sentence((:- use_module(EA, IL)),
 		     [],
-		     ( absolute_file_name(EA,
+		     ( IL = [_|_],
+		       absolute_file_name(EA,
 					  ImplementFile,
 					  [file_type(prolog),
 					   access(read)]),
 		       module_property(IM, file(ImplementFile)),
+		       \+ module_property(IM, exports([])),
 		       findall(F/A,
 			       ( module_to_import_db(F, A, IM, M, File),
 				 memberchk(File, FileL)
@@ -270,7 +273,8 @@ del_use_module_ex(M, FileL) :-
 		     [files(FileL)]),
     replace_sentence((:- use_module(EA, IL)),
 		     (:- use_module(EA, NIL)),
-		     ( absolute_file_name(EA,
+		     ( IL = [_|_],
+		       absolute_file_name(EA,
 					  ImplementFile,
 					  [file_type(prolog),
 					   access(read)]),
@@ -288,6 +292,8 @@ add_use_module_ex(M, FileL) :-
     findall(ImportingFile-((IM:EA)-(F/A)),
 	    [M, FileL, ImportingFile, IM, EA, F, A] +\
 	    ( module_to_import_db(F, A, IM, M, ImportingFile),
+	      IM \= M,
+	      \+ module_file(IM, ImportingFile),
 	      \+ declared_use_module(F, A, IM, M, _, ImportingFile),
 	      declared_use_module(F, A, IM, M, EA, File),
 	      memberchk(File, FileL),
