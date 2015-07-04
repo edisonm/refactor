@@ -30,13 +30,10 @@
 :- module(file_to_module, [file_to_module/1, file_to_module/2]).
 
 :- use_module(library(clambda)).
-:- use_module(library(apply)).
-:- use_module(library(normalize_head)).
 :- use_module(library(extra_location)).
 :- use_module(library(location_utils)).
 :- use_module(library(from_utils)).
 :- use_module(library(infer_alias)).
-:- use_module(library(implementation_module)).
 :- use_module(library(list_sequence)).
 :- use_module(library(sequence_list)).
 :- use_module(library(module_files)).
@@ -54,17 +51,6 @@ implementation_decl(discontiguous).
 implementation_decl(volatile).
 implementation_decl(thread_local).
 implementation_decl(clause(_)).
-
-collect_not_exported(M, FileL, PIL, PIEx) :-
-    findall(PI,
-	    ( PI=F/A,
-	      member(PI, PIL),
-	      functor(H, F, A),
-	      \+ ( loc_declaration(H, M, export, From),
-		   from_to_file(From, File),
-		   memberchk(File, FileL)
-		 )
-	    ), PIEx).
 
 files_to_move(M, File, [File|FileL]) :-
     findall(MF, module_file(MF, File), MU),
@@ -105,7 +91,6 @@ file_to_module(Alias, OptionL0 ) :-
 	     collect_dynamic_decls(M, FileL),
 	     collect_meta_decls(M, PIL)
 	   ), MDL, []),
-    % collect_not_exported(M, FileL, PIL, PIEx),
     append(AddL, MDL, CL),
     replace_sentence([], [(:- module(Base, PIL))|CL], [file(File)]),
     forall(member(C, DelL), replace_sentence(C, [], [file(File)])),
@@ -568,7 +553,6 @@ collect_import_decls(M, FileL, PIL, ExcludeL, MDL, Tail) :-
 	      current_module(EM, EF),
 	      smallest_alias(EF, EA),
 	      \+ black_list_um(EA),
-	      % add_export_declarations_to_file(REL, FileL, EM),
 	      list_sequence(REL, RES),
 	      ( EM=M, REL \= []
 	      ->print_message(warning,
@@ -589,33 +573,6 @@ collect_import_decls(M, FileL, PIL, ExcludeL, MDL, Tail) :-
 		Decl = use_module(EA)
 	      )
 	    ), MDL, Tail).
-
-add_export_declarations_to_file(REL, FileL, M) :-
-    findall(File-PI,
-	    ( PI = F/A,
-	      member(PI, REL),
-	      functor(H, F, A),
-	      property_from(M:H, _, From),
-	      from_to_file(From, File),
-	      \+ memberchk(File, FileL)
-	    ), FilePIU),
-    sort(FilePIU, FilePIL),
-    group_pairs_by_key(FilePIL, FilePIG),
-    forall(member(File-PIL, FilePIG),
-	   ( module_property(M, file(File))
-	   ->replace_sentence((:- module(M, L0 )),
-			      (:- module(M, L)),
-			      append(L0, PIL, L),
-			      [file(File)])
-	   ; replace_sentence((:- export(S)),
-			      (:- export('$LIST,NL'([S|PIL]))),
-			      [max_changes(1), changes(C), file(File)]),
-	     C \= 0
-	   ->true
-	   ; replace_sentence([],
-			      (:- export('$LIST,NL'(PIL))),
-			      [file(File)])
-	   )).
 
 black_list_um(swi(_)).		% Ignore internal SWI modules
 black_list_um(library(dialect/_)).
