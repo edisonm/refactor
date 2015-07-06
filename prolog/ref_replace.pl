@@ -330,7 +330,6 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
 		 expand(Expand)-DExpand,
 		 expanded(Expanded)-Expanded,
 		 fixpoint(FixPoint)-none,
-		 file(File)-File,
 		 max_changes(Max)-Max
 		],
 		OptionL0, OptionL1),
