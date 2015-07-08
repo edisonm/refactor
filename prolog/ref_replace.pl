@@ -259,9 +259,6 @@ collect_file_commands(CallerPattern, Pattern, Into, Expander, FileChk,
 		      [], % TODO: Fill the gap
 		      ga(Term, Into, Expander)]).
 
-select_option_default(Holder-Default, OptionL0, OptionL) :-
-    select_option(Holder, OptionL0, OptionL, Default).
-
 do_replace(goal_cw, IM:Term, Into, Expander, OptionL) :- !,
     do_replace_goal_cw(IM:Term, Into, Expander, OptionL).
 do_replace(Level, Term, Into, Expander, OptionL) :-
