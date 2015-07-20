@@ -424,7 +424,7 @@ ref_term_info_file_([], [], _, _, OptionL) :-
 expand_if_required(Expand, M, Sent, TermPos, In, Expanded) :-
     ( Expand = no
     ->Expanded = Sent
-    ; prolog_source:expand(Sent, TermPos, In, Expanded)
+    ; '$expand':expand_terms(prolog_source:expand, Sent, TermPos, In, Expanded)
     ),
     '$set_source_module'(M, M),
     prolog_source:update_state(Sent, Expanded, M).
