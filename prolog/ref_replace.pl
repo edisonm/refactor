@@ -117,6 +117,7 @@
 % * body_rec
 % In a clause body, look for matching terms recursivelly
 %
+%
 % The term Into could contain certain hacks to control its behavior, as follows:
 %
 % * X @@ Y
@@ -162,6 +163,8 @@
 %
 % * '$LIST,NL'(L)
 % Print each element of L followed by a comma and a new line
+% If Level is sent, the tool will add this automatically if the replacement is
+% a list, and in the case of an empty list, the sentence will be removed.
 %
 % * '$LIST.NL'(L)
 % Print each element of L followed by a dot and a new line
