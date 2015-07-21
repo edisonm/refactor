@@ -294,19 +294,22 @@ add_use_module_ex(M, FileL) :-
     forall(member(ImFile-AliasPIL, FileAliasPIG),
 	   add_use_module_ex_1(M, ImFile, AliasPIL)).
 
+add_umexdecl_each(ImFile, M, AliasPIG, Decl) :-
+    ( member((IM:Alias)-PIL, AliasPIG),
+      module_property(IM, exports(ExL)),
+      ( member(F/A, ExL),
+	module_to_import_db(F, A, OM, M, ImFile),
+	OM \= IM,
+	functor(H, F, A),
+	\+ predicate_property(IM:H, imported_from(OM))
+      ->Decl = (:- use_module(Alias, PIL))
+      ; Decl = (:- use_module(Alias))
+      )
+    ).
+
 add_use_module_ex_1(M, ImFile, AliasPIL) :-
     group_pairs_by_key(AliasPIL, AliasPIG),
-    findall(Decl,
-	    ( member((IM:Alias)-PIL, AliasPIG),
-	      module_property(IM, exports(ExL)),
-	      ( member(F/A, ExL),
-		module_to_import_db(F, A, OM, M, ImFile),
-		OM \= IM
-	      ->Decl = (:- use_module(Alias, PIL))
-	      ; Decl = (:- use_module(Alias))
-	      )
-	    ),
-	    DeclL, Tail),
+    findall(Decl, add_umexdecl_each(ImFile, M, AliasPIG, Decl), DeclL, Tail),
     ( DeclL == Tail
     ->true
     ; Tail = [],
