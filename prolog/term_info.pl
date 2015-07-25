@@ -88,7 +88,7 @@ get_term_info_fd(In, PatternL, TermL, OptionL0 ) :-
     TermPosL = [TermPosI|_],
     arg(2, TermPosE, To),
     findall(From, ( Comments = [StreamPos-_|_],
-		    stream_position_data(line_position, StreamPos, From)
+		    stream_position_data(char_count, StreamPos, From)
 		  ; arg(1, TermPosI,  From)
 		  ),
 	    FromL),

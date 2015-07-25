@@ -999,6 +999,34 @@ test(eqname_2) :-
 test(opfp) :-
     execute_test_(opfp, replace_term(A+B, A^B),[files(opfp),fixpoint(true)]).
 
+:- use_module(exsl).
+
+/* $exsl$
+--- exsl.pl (source)
++++ exsl.pl (target)
+@@ -1,12 +1,12 @@
+ :- module(exsl, [f/1]).
+-% Hello world
+-% This comment belongs to f(a)
+-
+-f(a).
+-
+ % more
+ 
+ % There we go
+ f(b).
++% Hello world
++% This comment belongs to f(a)
++
++f(a).
++f(d).
+ 
+ % don't delete this.
+*/
+
+test(exsl) :-
+    execute_test(exsl, replace_sentence([f(a),f(b)],[f(b),f(a),f(d)])).
+
 :- comment_data:disable.
 
 :- end_tests(refactor).

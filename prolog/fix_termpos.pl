@@ -190,15 +190,24 @@ count_sub_string(Text, From0, To0, SubText, SubTextN, From, To, N) :-
       N = 0
     ).
 
-comment_bound(From, To, FromC, ToC) :-
+comment_bound(From0, To0, From, To) :-
     comment_bound(FromC, ToC),
-    From =< FromC,
-    ( FromC < To
+    ( FromC < To0
     ->true
-    ; FromC = To
+    ; FromC = To0
     ->!
     ; !,
       fail
+    ),
+    ( ToC < To0
+    ->To = ToC
+    ; !,
+      To = To0
+    ),
+    ( From0 =< FromC
+    ->From = FromC
+    ; From0 =< ToC
+    ->From = From0
     ).
 
 seek_sub_string(Text, SubText, SubTextN, F, T0, T) :-
