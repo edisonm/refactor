@@ -32,6 +32,9 @@
 	    get_term_info_file/5
 	  ]).
 
+:- use_module(library(apply)).
+:- use_module(library(clambda)).
+:- use_module(library(maplist_dcg)).
 :- use_module(library(prolog_source)).
 :- use_module(library(module_files)).
 
@@ -64,6 +67,33 @@ get_term_info_file(Pattern, Term, File, In, Options) :-
 		fail
 	      )).
 
+get_term_info_fd(In, PatternL, TermL, OptionL0 ) :-
+    is_list(PatternL), !,
+    maplist_dcg(\ (H-D)^O0^O^select_option(H, O0, O, D),
+		[subterm_positions(TermPos)-TermPos,
+		 comments(Comments)-Comments
+		], OptionL0, OptionT),
+    '$set_source_module'(M, M),
+    OptionC = [module(M)|OptionT],
+    PatternL = [_|PatternT],
+    maplist([In, OptionC] +\
+	   _^T^P^C^read_term(In, T,
+			     [subterm_positions(P), comments(C)|OptionC]),
+	    PatternT, TA, PA, CA),
+    maplist(append, [TA, PA, CA], TPCT, TPCH),
+    transverse_apply_2(get_term_info_each(In, OptionC), TPCH, TPCT,
+		       [TermL, TermPosL, CommentsL], [_, TermPosE, _]),
+    maplist(subsumes_term, PatternL, TermL),
+    append(CommentsL, Comments),
+    TermPosL = [TermPosI|_],
+    arg(2, TermPosE, To),
+    findall(From, ( Comments = [StreamPos-_|_],
+		    stream_position_data(char_count, StreamPos, From)
+		  ; arg(1, TermPosI,  From)
+		  ),
+	    FromL),
+    min_list(FromL, From),
+    TermPos = list_position(From, To, TermPosL, none).
 get_term_info_fd(In, Pattern, Term, Options) :-
     repeat,
     '$set_source_module'(M, M),
@@ -73,6 +103,21 @@ get_term_info_fd(In, Pattern, Term, Options) :-
       fail
     ; subsumes_term(Pattern, Term)
     ).
+
+transverse_apply(_,     ListL,  ListT, ListL, EL, EL) :- maplist(=([]), ListT).
+transverse_apply(Apply, ListH0, ListT, ListL, _,  EL) :-
+    maplist(\ [_|L]^L^true, ListH0, ListH),
+    transverse_apply_2(Apply, ListH, ListT, ListL, EL).
+
+transverse_apply_2(Apply, ListH, ListT0, ListL, EL) :-
+    call(Apply, EL0 ),
+    maplist(\ E^[E|L]^L^true, EL0, ListT0, ListT),
+    transverse_apply(Apply, ListH, ListT, ListL, EL0, EL).
+
+get_term_info_each(In, Options, [T, P, C]) :-
+    '$set_source_module'(M, M),
+    read_term(In, T, [subterm_positions(P), comments(C), module(M)|Options]),
+    T \== end_of_file.
 
 :- public read_terms/3.
 

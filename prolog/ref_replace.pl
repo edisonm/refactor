@@ -59,7 +59,7 @@
 
 /** <module> Basic Term Expansion operations
 
-  This library provides the predicate expand/5, which is the basic entry point
+  This library provides the predicate replace/5, which is the basic entry point
   for all the refactoring scenarios.
 
   Note for implementors/hackers:
@@ -84,9 +84,15 @@
 %
 % Given a Level of operation, in all terms of the source code that subsumes
 % Term, replace each Term with the term Into, provided that the goal Expander
-% succeeds.  Expander can be used to finalize the shape of Into as well
-% as to veto the expansion. The Options argument is used to control the
+% succeeds.  Expander can be used to finalize the shape of Into as well as to
+% veto the expansion (if fails). The Options argument is used to control the
 % behavior and scope of the predicate.
+%
+% The predicate is efficient enough to be used also as a walker to capture all
+% matches of Term, and failing to avoid the replacement. For example:
+% replace(sent, (:-use_module(X)), _, (writeln(X),fail), [file(F)]) will display
+% all the occurrences of use_module/1 declarations in the file F. Would be
+% useful for some complex refactoring scenarios.
 %
 % The levels of operations stablishes where to look for matching terms, and
 % could take one of the following values:
@@ -117,6 +123,17 @@
 % * body_rec
 % In a clause body, look for matching terms recursivelly
 %
+%
+% If level is sent, some special cases of Term are used to control its behavior:
+%
+% * []
+% Adds an extra sentence at the top of the file.
+%
+% * end_of_file
+% Adds an extra sentence at the bottom of the file.
+%
+% * [_|_]
+% Replace list of sentences
 %
 % The term Into could contain certain hacks to control its behavior, as follows:
 %
@@ -621,8 +638,8 @@ fix_subtermpos(Pattern, _, _, _) :-
 fix_subtermpos(_, Into, Sub, TermPos) :-
     fix_subtermpos(Sub, Into, TermPos).
 
-fix_subtermpos(sub_cw, _, _). % Do nothing
-fix_subtermpos(sub,    _, TermPos) :- fix_subtermpos(TermPos).
+fix_subtermpos(sub_cw, _,    _). % Do nothing
+fix_subtermpos(sub,    _,    TermPos) :- fix_subtermpos(TermPos).
 fix_subtermpos(top,    Into, TermPos) :-
     ( Into \= [_|_]
     ->fix_termpos(TermPos)
@@ -667,7 +684,7 @@ perform_substitution(Sub, Priority, M, Term, Term0, Pattern0, Into0, BindingL,
        apply it to the subterm positions being affected by the refactoring.
        The predicate performs destructive assignment (as in imperative
        languages), modifying term position once the predicate is called */
-    fix_subtermpos(Pattern, Into, Sub, TermPos),
+    fix_subtermpos(Pattern, Into1, Sub, TermPos),
     with_context_vars(subst_term(TermPos, M, Pattern, GTerm, Priority, Term3),
 		      [refactor_bind], [BindingL]),
     shared_variables(Term3, Into1, V5), % after subst_term, in case some
