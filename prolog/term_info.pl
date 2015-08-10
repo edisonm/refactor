@@ -38,7 +38,10 @@
 :- use_module(library(prolog_source)).
 :- use_module(library(module_files)).
 
-:- meta_predicate get_term_info(+, ?, ?, 1, -, -, +).
+:- meta_predicate
+    get_term_info(+, ?, ?, 1, -, -, +),
+    transverse_apply_2(1, +, ?, ?, ?).
+
 get_term_info(M, Pattern, Term, AllChk, File, In, Options) :-
     module_files(M, Files),
     member(File, Files),
