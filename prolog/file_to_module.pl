@@ -30,6 +30,7 @@
 :- module(file_to_module, [file_to_module/1, file_to_module/2]).
 
 :- use_module(library(clambda)).
+:- use_module(library(prolog_metainference)).
 :- use_module(library(extra_location)).
 :- use_module(library(location_utils)).
 :- use_module(library(from_utils)).
@@ -134,7 +135,7 @@ collect_meta_specs(M, PIL, SpecL) :-
     findall(Spec, ( member(F/A, PIL),
 		    functor(H, F, A),
 		    \+ predicate_property(M:H, meta_predicate(Spec)),
-		    prolog_metainference:inferred_meta_pred(H, M, Spec)
+		    inferred_meta_predicate(H, M, Spec)
 		  ), SpecL).
 
 add_modmeta_decl(M, PIFx) :-
