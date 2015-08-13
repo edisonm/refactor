@@ -135,7 +135,7 @@ collect_meta_specs(M, PIL, SpecL) :-
     findall(Spec, ( member(F/A, PIL),
 		    functor(H, F, A),
 		    \+ predicate_property(M:H, meta_predicate(Spec)),
-		    inferred_meta_predicate(H, M, Spec)
+		    inferred_meta_predicate(M:H, Spec)
 		  ), SpecL).
 
 add_modmeta_decl(M, PIFx) :-
