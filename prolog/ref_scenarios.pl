@@ -133,7 +133,7 @@ rename_predicate(M:Name0/Arity, Name, OptionL0) :-
 		 [sentence((:- use_module(Alias, _)))|OptionL0]),
     ( CM = M
     ->		 % Replace PIs, but only inside the module, although this part
-      		 % is `complete but not correct'
+		 % is `complete but not correct'
       replace_term(Name0/Arity, Name/Arity, OptionL)
     ; true
     ).
@@ -251,7 +251,7 @@ do_remove_call(Term, Call) :-
 
 :- meta_predicate replace_conjunction(?, ?, 0, +).
 replace_conjunction(Conj, Repl, Expander, Options) :-
-    replace_last_literal(Conj, Conj2, CLit, CBody),
+    replace_last_literal_(Conj, Conj2, CLit, CBody),
     replace_last_literal(Repl, Repl2, RLit, RBody),
     copy_term(t(Conj2, CLit, CBody, Repl2, RLit, RBody), Term),
     replace(body_rec, Conj2, Repl2,
