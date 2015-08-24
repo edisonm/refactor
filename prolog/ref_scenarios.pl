@@ -263,9 +263,15 @@ replace_conjunction(Conj, Replacement, Options) :-
     replace_conjunction(Conj, Replacement, true, Options).
 
 replace_last_literal(Conj, Body, Conj, Body) :- var(Conj), !.
-replace_last_literal((A,Conj), (A,Conj2), Lit, Body) :- !,
-    replace_last_literal(Conj, Conj2, Lit, Body).
+replace_last_literal((A,Conj), '$BODY'((A,Conj2)), Lit, Body) :- !,
+    replace_last_literal_(Conj, Conj2, Lit, Body).
 replace_last_literal(Conj, Body, Conj, Body).
+
+
+replace_last_literal_(Conj, Body, Conj, Body) :- var(Conj), !.
+replace_last_literal_((A,Conj), (A,Conj2), Lit, Body) :- !,
+    replace_last_literal_(Conj, Conj2, Lit, Body).
+replace_last_literal_(Conj, Body, Conj, Body).
 
 bind_lit_body(Term, CLit, CBody, RLit, RBody) :-
     ( subsumes_term(CLit, CBody) ->
