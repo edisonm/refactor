@@ -1298,7 +1298,7 @@ term_needs_braces(M:Term, Pri) :-
 	current_op(OpPri, Type, M:Name),
 	OpPri > Pri, !.
 
-cond_display(yes, A) :- display(A).
+cond_display(yes, A) :- write(A).
 cond_display(no,  _).
 
 print_expansion_sb(Into, _, _, TermPos, _, _, Text) :-
@@ -1519,8 +1519,8 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, O
     select_option(priority(Priority), OptionL0, OptionL, Priority),
     OptionL1=[priority(Priority1)|OptionL],
     ( comp_priority(M, GTerm, Priority, Into, Priority)
-    ->display('(')
-    ; Delta = 1 ->display(' ')	% Only if [...] ---> (...)
+    ->write('(')
+    ; Delta = 1 ->write(' ')	% Only if [...] ---> (...)
     ; true
     ),
     display_subtext(Text, From1, To1),
@@ -1540,7 +1540,7 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, O
       term_write_sep_list_inner_rec(ATail, [',', ' '], OptionL2),
       display_subtext(Text, To2, To)
     ),
-    (comp_priority(M, GTerm, Priority, Into, Priority) ->display(')') ; true).
+    (comp_priority(M, GTerm, Priority, Into, Priority) ->write(')') ; true).
 print_expansion_pos(brace_term_position(From, To, TermPos), {Into}, {Pattern},
 		    {GTerm}, OptionL, Text) :-
     arg(1, TermPos, AFrom),
