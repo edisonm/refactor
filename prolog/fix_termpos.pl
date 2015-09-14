@@ -32,7 +32,7 @@
 			term_innerpos/4
 		       ]).
 
-:- use_module(library(maplist_dcg)).
+:- use_module(library(apply)).
 
 %% term_innerpos(OFrom, OTo, InnerFrom, InnerTo)
 %
@@ -132,7 +132,7 @@ fix_subtermpos_rec(brace_term_position(From, _, Arg)) :-
 fix_subtermpos_rec(list_position(From, To, Elms, Tail)) :-
     b_getval(refactor_text, Text),
     succ(From, From1),
-    maplist_dcg(fix_termpos_from_left_comm(Text), Elms, From1, To1),
+    foldl(fix_termpos_from_left_comm(Text), Elms, From1, To1),
     ( Tail = none
     ->true
     ; succ(ToT, To),
@@ -143,7 +143,7 @@ fix_subtermpos_rec(list_position(From, To, Elms, Tail)) :-
 fix_subtermpos_rec(map_position(_, _, _, TypeTo, KVPos)) :-
     b_getval(refactor_text, Text),
     succ(TypeTo, TypeTo1),
-    maplist_dcg(fix_termpos_from_left_comm(Text), KVPos, TypeTo1, _).
+    foldl(fix_termpos_from_left_comm(Text), KVPos, TypeTo1, _).
 
 comment_bound(CommentL, From, To) :-
     member(Pos-Text, CommentL),
@@ -375,7 +375,7 @@ fix_subtermpos_from_to(From0, To0, FFrom, FTo, From, To, PosL) :-
       From = From0,
       arg(2, Pos, To)
     ; succ(FTo, FTo1),
-      maplist_dcg(fix_termpos_from_left_comm(Text), PosL, FTo1, _),
+      foldl(fix_termpos_from_left_comm(Text), PosL, FTo1, _),
       From = From0,
       To = To0
     ).

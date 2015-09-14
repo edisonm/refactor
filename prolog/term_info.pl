@@ -34,7 +34,7 @@
 
 :- use_module(library(apply)).
 :- use_module(library(clambda)).
-:- use_module(library(maplist_dcg)).
+:- use_module(library(apply)).
 :- use_module(library(prolog_source)).
 :- use_module(library(module_files)).
 
@@ -72,7 +72,7 @@ get_term_info_file(Pattern, Term, File, In, Options) :-
 
 get_term_info_fd(In, PatternL, TermL, OptionL0 ) :-
     is_list(PatternL), !,
-    maplist_dcg(\ (H-D)^O0^O^select_option(H, O0, O, D),
+    foldl(\ (H-D)^O0^O^select_option(H, O0, O, D),
 		[subterm_positions(TermPos)-TermPos,
 		 comments(Comments)-Comments
 		], OptionL0, OptionT),

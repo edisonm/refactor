@@ -41,7 +41,7 @@
 :- use_module(library(clambda)).
 :- use_module(library(gcb)).
 :- use_module(library(substitute)).
-:- use_module(library(maplist_dcg)).
+:- use_module(library(apply)).
 :- use_module(library(option_utils)).
 :- use_module(library(ref_changes)).
 :- use_module(library(ref_context)).
@@ -289,7 +289,7 @@ do_replace(Level, Term, Into, Expander, OptionL) :-
 
 do_replace_goal_cw(IM:Term, Into, Expander, OptionL0) :-
     option_allchk(OptionL0, OptionL1, AllChk),
-    maplist_dcg(select_option_default,
+    foldl(select_option_default,
 		[caller(Caller)-Caller,
 		 fixpoint(FixPoint)-none],
 		OptionL1, OptionL2),
@@ -326,7 +326,7 @@ apply_ec_term_level(Level, Term, Into, Expander, OptionL) :-
 						  Expander, OptionL),
 			       true),
 			b_getval(refactor_count, Count),
-			maplist_dcg(select_option_default,
+			foldl(select_option_default,
 				    [changes(Count)-Count],
 				    OptionL, _)
 		      ),
@@ -337,7 +337,7 @@ apply_ec_term_level(Level, Term, Into, Expander, OptionL) :-
 ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
     (Level = goal -> DExpand=yes ; DExpand = no),
     (Level = sent -> SentPattern = Term ; true), % speed up
-    maplist_dcg(select_option_default,
+    foldl(select_option_default,
 		[syntax_errors(SE)-error,
 		 subterm_positions(TermPos)-TermPos,
 		 module(M)-M,
@@ -675,7 +675,7 @@ perform_substitution(Sub, Priority, M, Term, Term0, Pattern0, Into0, BindingL,
     partition(singleton(Var1-Var2), UL0, UL20, UL2),
     partition(singleton_r(Var2), UL0, _, UL6),
     maplist(unif_eq, UL20),
-    maplist_dcg(substitute_2, UL2, sub(Term1, UL3), sub(Term3, [])),
+    foldl(substitute_2, UL2, sub(Term1, UL3), sub(Term3, [])),
     partition(choose1(UL3), UL6, _, UL7),
     maplist(eq, _, Var7, UL7),
     partition(singleton_r(Var7), UL7, _, UL1),
