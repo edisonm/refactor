@@ -1463,6 +1463,7 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT),
 		    Into, Pattern, GTerm, OptionL, Text) :-
     compound(Into),
     functor(Into,    FT, A),
+    nonvar(Pattern),
     functor(Pattern, FP, A),
     option(module(M), OptionL),
     ( FT == FP
