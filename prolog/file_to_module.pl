@@ -38,6 +38,7 @@
 :- use_module(library(list_sequence)).
 :- use_module(library(sequence_list)).
 :- use_module(library(module_files)).
+:- use_module(library(remove_dups)).
 :- use_module(library(audit/audit_codewalk)).
 
 %% module_to_import_db(F, A, M, CM, File)
@@ -64,7 +65,9 @@ files_to_move(M, File, [File|FileL]) :-
     findall(IFile, file_includes(File, IFile), FileL).
 
 file_includes(File, IFile) :-
-    source_file_property(File, includes(Incl, _)),
+    findall(Incl, source_file_property(File, includes(Incl, _)), IncD),
+    remove_dups(IncD, IncL),
+    member(Incl, IncL),
     ( IFile = Incl
     ; file_includes(Incl, IFile)
     ).
@@ -114,16 +117,33 @@ file_to_module(Alias, OptionL0 ) :-
 	     collect_dynamic_decls(M, FileL),
 	     collect_meta_decls(M, PIL)
 	   ), MDL, []),
-    append(AddL, MDL, CL),
-    replace_sentence([], [(:- module(NewM, PIL1))|CL], [file(File)]),
-    forall(member(C, DelL), replace_sentence(C, [], [file(File)])),
+    findall(C, ( member(C, AddL),
+		 replace_sentence(C, C, [max_changes(1),
+					 changes(N),
+					 file(File)]),
+		 N = 0
+	       ), CL, MDL),
+    add_module_decl(CL, NewM, PIL1, File),
     decl_to_use_module(consult, M, PIL1, Alias, ReexportL),
     decl_to_use_module(include, M, PIL1, Alias, ReexportL),
     append(ExcludeL, PIFx, ExTL),
     add_use_module(M, FileL, Alias, ExTL),
     add_use_module_ex(M, FileL),
-    del_use_module_ex(M, FileL).
+    del_use_module_ex(M, FileL),
+    forall(member(C, DelL), replace_sentence(C, [], [file(File)])).
 
+add_module_decl(CL, NewM, PIL1, File) :-
+    replace_sentence([Term],
+		     [Term@@(:- module('$BODY'((NewM, PIL2))))|NCL],
+		     ( Term = (:- export ExS)
+		     ->refactor_context(pattern, [(:- export ExP)]),
+		       PIL2 = '$LISTB,NL'(['$PRIORITY'('$BODY'(ExP@@ExS),1200)|PIL1]),
+		       NCL = CL
+		     ; PIL2 = '$LISTB,NL'(PIL1),
+		       NCL = [Term|CL]
+		     ),
+		     [max_changes(1), file(File)]).
+    
 collect_meta_decls(M, PIL, MDL, Tail) :-
     collect_meta_specs(M, PIL, SpecL),
     ( SpecL = []
@@ -608,8 +628,10 @@ collect_import_decls(M, FileL, ExcludeL, MDL, Tail) :-
 			functor(HH, FF, AA),
 			% \+ predicate_property(EM:HH, exported),
 			\+ ( extra_location(HH, EM, export, EFrom),
-			     from_to_file(EFrom, File),
-			     module_property(M, file(File))
+			     from_to_file(EFrom, EFile),
+			     ( memberchk(EFile, FileL)
+			     ; module_property(M, file(EFile))
+			     )
 			   ),
 			( predicate_property(EM:HH, D),
 			  implementation_decl(D)
@@ -635,8 +657,8 @@ collect_import_decls(M, FileL, ExcludeL, MDL, Tail) :-
 		; fail
 		)
 	      ;	\+ ( loc_declaration(EA, _, use_module, UMFrom),
-		     from_to_file(UMFrom, File),
-		     memberchk(File, FileL)
+		     from_to_file(UMFrom, UFile),
+		     memberchk(UFile, FileL)
 		   ),
 		Decl = use_module(EA)
 	      )
