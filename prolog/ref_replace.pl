@@ -160,6 +160,12 @@
 % * '$BODY'(X)
 % Like '$BODY'(X, 0)
 %
+% * '$BODYB'(X, Offset)
+% Like '$BODY', but adding braces if required
+%
+% * '$BODYB'(X)
+% Like '$BODYB'(X, 0)
+%
 % * '$CLAUSE'(X, Offset)
 % Print X as if it where a clause, starting indentation at Offset position.
 %
@@ -327,8 +333,8 @@ apply_ec_term_level(Level, Term, Into, Expander, OptionL) :-
 			       true),
 			b_getval(refactor_count, Count),
 			foldl(select_option_default,
-				    [changes(Count)-Count],
-				    OptionL, _)
+			      [changes(Count)-Count],
+			      OptionL, _)
 		      ),
 		      [refactor_count],
 		      [0]
@@ -994,10 +1000,6 @@ get_output_position(Pos) :-
     stream_position_data(line_position, StrPos, Pos1),
     compound_positions(Line1, Pos1, Pos0, Pos).
 
-rportray_body(B, Offs, OptL) :-
-    get_output_position(Pos),
-    write_b(B, OptL, Offs, Pos).
-
 portray_clause_(OptL, Clause) :-
     portray_clause(current_output, Clause, OptL).
 
@@ -1085,6 +1087,10 @@ rportray('$BODY'(B, Offs), Opt) :- !,
     rportray_body(B, Offs, Opt).
 rportray('$BODY'(B), Opt) :- !,
     rportray_body(B, 0, Opt).
+rportray('$BODYB'(B, Offs), Opt) :- !,
+    rportray_bodyb(B, Offs, Opt).
+rportray('$BODYB'(B), Opt) :- !,
+    rportray_bodyb(B, 0, Opt).
 rportray('$LIST,NL'(L), Opt) :- !,
     rportray_list_nl(L, 0, Opt).
 rportray('$LIST,NL'(L, Offs), Opt) :- !,
@@ -1093,6 +1099,9 @@ rportray('$LISTB,NL'(L), Opt) :- !,
     rportray_list_nl_b(L, 0, Opt).
 rportray('$LISTB,NL'(L, Offs), Opt) :- !,
     rportray_list_nl_b(L, Offs, Opt).
+rportray('$PRIORITY'(T, Priority), Opt) :- !,
+    merge_options([priority(Priority)], Opt, Opt1),
+    write_term(T, Opt1).
 rportray([E|T0], Opt) :- !,
     append(H, T1, [E|T0]),
     ( var(T1)
@@ -1430,6 +1439,7 @@ escape_term('$LIST,NL'(_)).
 escape_term('$LIST,NL'(_, _)).
 escape_term('$LISTB,NL'(_)).
 escape_term('$LISTB,NL'(_, _)).
+escape_term('$PRIORITY'(_, _)).
 escape_term('$TEXT'(_)).
 escape_term('$TEXT'(_, _)).
 escape_term('$TEXTQ'(_)).
@@ -1438,6 +1448,8 @@ escape_term('$CLAUSE'(_)).
 escape_term('$CLAUSE'(_, _)).
 escape_term('$BODY'(_, _)).
 escape_term('$BODY'(_)).
+escape_term('$BODYB'(_, _)).
+escape_term('$BODYB'(_)).
 
 valid_op_type_arity(xf,  1).
 valid_op_type_arity(yf,  1).
@@ -1617,6 +1629,14 @@ bin_op(Term, Op, Left, Right, A, B) :-
     prolog_listing:infix_op(Op, Left, Right),
     arg(1, Term, A),
     arg(2, Term, B).
+
+rportray_bodyb(B, Offs, OptL) :-
+    get_output_position(Pos),
+    write_b(B, OptL, Offs, Pos).
+
+rportray_body(B, Offs, OptL) :-
+    get_output_position(Pos),
+    write_b1(B, OptL, Offs, Pos).
 
 write_b(Term, OptL, Offs, Pos0) :-
     ( option(priority(N), OptL),
