@@ -1072,13 +1072,13 @@ rportray('$TEXT'(T), Opt) :- !,
     write_t(T, Opt).
 rportray('$TEXT'(T, Offs), Opt) :-
     integer(Offs), !,
-    while(between(1, Offs, _), write(' ')),
+    forall(between(1, Offs, _), write(' ')),
     write_t(T, Opt).
 rportray('$TEXTQ'(T), Opt) :- !,
     write_q(T, Opt).
 rportray('$TEXTQ'(T, Offs), Opt) :-
     integer(Offs), !,
-    while(between(1, Offs, _), write(' ')),
+    forall(between(1, Offs, _), write(' ')),
     write_q(T, Opt).
 rportray('$LISTC'(CL), Opt) :- !,
     '$set_source_module'(M, M),
