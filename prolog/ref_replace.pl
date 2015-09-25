@@ -1070,24 +1070,31 @@ rportray('$LIST,_'(L), Opt) :- !,
     maplist(term_write_comma_2(Opt), L).
 rportray('$TEXT'(T), Opt) :- !,
     write_t(T, Opt).
-rportray('$TEXT'(T,_), Opt) :- !,
+rportray('$TEXT'(T, Offs), Opt) :-
+    integer(Offs), !,
+    while(between(1, Offs, _), write(' ')),
     write_t(T, Opt).
 rportray('$TEXTQ'(T), Opt) :- !,
     write_q(T, Opt).
-rportray('$TEXTQ'(T,_), Opt) :- !,
+rportray('$TEXTQ'(T, Offs), Opt) :-
+    integer(Offs), !,
+    while(between(1, Offs, _), write(' ')),
     write_q(T, Opt).
 rportray('$LISTC'(CL), Opt) :- !,
     '$set_source_module'(M, M),
     maplist(portray_clause_(M:Opt), CL).
 rportray('$CLAUSE'(C), Opt) :- !,
     rportray_clause(C, 4, Opt).
-rportray('$CLAUSE'(C, Offs), Opt) :- !,
+rportray('$CLAUSE'(C, Offs), Opt) :-
+    integer(Offs), !,
     rportray_clause(C, Offs, Opt).
-rportray('$BODY'(B, Offs), Opt) :- !,
+rportray('$BODY'(B, Offs), Opt) :-
+    integer(Offs), !,
     rportray_body(B, Offs, Opt).
 rportray('$BODY'(B), Opt) :- !,
     rportray_body(B, 0, Opt).
-rportray('$BODYB'(B, Offs), Opt) :- !,
+rportray('$BODYB'(B, Offs), Opt) :-
+    integer(Offs), !,
     rportray_bodyb(B, Offs, Opt).
 rportray('$BODYB'(B), Opt) :- !,
     rportray_bodyb(B, 0, Opt).
@@ -1097,9 +1104,11 @@ rportray('$LIST,NL'(L, Offs), Opt) :- !,
     rportray_list_nl(L, Offs, Opt).
 rportray('$LISTB,NL'(L), Opt) :- !,
     rportray_list_nl_b(L, 0, Opt).
-rportray('$LISTB,NL'(L, Offs), Opt) :- !,
+rportray('$LISTB,NL'(L, Offs), Opt) :-
+    integer(Offs), !,
     rportray_list_nl_b(L, Offs, Opt).
-rportray('$PRIORITY'(T, Priority), Opt) :- !,
+rportray('$PRIORITY'(T, Priority), Opt) :-
+    integer(Priority), !,
     merge_options([priority(Priority)], Opt, Opt1),
     write_term(T, Opt1).
 rportray([E|T0], Opt) :- !,
