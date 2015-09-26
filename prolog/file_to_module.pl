@@ -135,8 +135,8 @@ file_to_module(Alias, OptionL0 ) :-
 add_module_decl(CL, NewM, PIL1, File) :-
     replace_sentence([Term],
 		     [Term@@(:- module('$BODY'((NewM, PIL2))))|NCL],
-		     ( Term = (:- export ExS)
-		     ->refactor_context(pattern, [(:- export ExP)]),
+		     ( Term = (:- export(ExS))
+		     ->refactor_context(pattern, [(:- export(ExP))]),
 		       PIL2 = '$LISTB,NL'(['$PRIORITY'('$BODY'(ExP@@ExS),1200)|PIL1]),
 		       NCL = CL
 		     ; PIL2 = '$LISTB,NL'(PIL1),
