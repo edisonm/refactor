@@ -35,6 +35,7 @@
 	   replace_sentence/3,
 	   rename_variable/3,
 	   rename_variables/2,
+	   underscore_singletons/1,
 	   replace_term_id/3,
 	   unfold_goal/2,
 	   rename_predicate/3,
@@ -46,6 +47,8 @@
 	   remove_call/3
 	  ]).
 
+:- use_module(library(clambda)).
+:- use_module(library(option_utils)).
 :- use_module(library(ref_context)).
 :- use_module(library(ref_replace)).
 :- use_module(library(ref_replacers)).
@@ -75,26 +78,44 @@ being_used(M, F/A) :-
     functor(H, F, A),
     predicate_property(C:H, imported_from(M)), C \== user.
 
+:- meta_predicate apply_var_renamer(2, +).
+apply_var_renamer(Renamer, OptionL0 ) :-
+    foldl(select_option_default,
+	  [sentence(Sent)-Sent,
+	   variable_names(Dict)-Dict],
+	  OptionL0, OptionL),
+    replace_sentence(Sent, Sent,
+		     ( findall(Name0='$VAR'(Name),
+			       ( call(Renamer, Name0, Name),
+				 \+ memberchk(Name=_, Dict)
+			       ), ARenameL),
+		       intersection(ARenameL, Dict, AppliedL),
+		       AppliedL \= []
+		     ), [sentence(Sent), variable_names(Dict)|OptionL]).
+
 %% rename_variable(?Name0:atom, +Name:atom, +Options) is det.
 %
 % Rename a variable in a Term, provided that such variable doesn't exist in such
 % term.
+
 rename_variable(Name0, Name, Options) :-
-    replace_sentence(Sent, Sent,
-		    ( \+ memberchk(Name=_, Dict),
-		      memberchk(Name0='$VAR'(Name), Dict)
-		    ), [variable_names(Dict)|Options]).
+    apply_var_renamer([Name0, Name] +\ Name0^Name^true, Options).
+
+underscore_singletons(OptionL0 ) :-
+    foldl(select_option_default,
+	  [sentence(Sent)-Sent,
+	   variable_names(Dict)-Dict],
+	  OptionL0, OptionL),
+    apply_var_renamer([Dict, Sent] +\ Name0^Name
+		     ^( member(Name0=Var, Dict),
+			\+ atom_concat('_', _, Name0),
+			occurrences_of_var(Var, Sent, 1),
+			atom_concat('_', Name0, Name)
+		      ), [sentence(Sent), variable_names(Dict)|OptionL]).
 
 rename_variables(RenameL, Options) :-
-    replace_sentence(Sent, Sent,
-		    ( findall(Name0='$VAR'(Name),
-			      ( ARename=(Name0=Name),
-				member(ARename, RenameL),
-				\+ memberchk(Name=_, Dict)
-			      ), ARenameL),
-		      intersection(ARenameL, Dict, AppliedL),
-		      AppliedL \= []
-		    ), [variable_names(Dict)|Options]).
+    apply_var_renamer([RenameL] +\ Name0^Name^member(Name0=Name, RenameL),
+		      Options).
 
 rename_functor(Functor/Arity, NewName, Options) :-
     functor(Term, Functor, Arity),
