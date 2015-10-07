@@ -340,6 +340,10 @@ apply_ec_term_level(Level, Term, Into, Expander, OptionL) :-
 		      [0]
 		     ).
 
+clause_file_module(CRef, File, M) :-
+    clause_property(CRef, file(File)),
+    clause_property(CRef, module(M)).
+
 ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
     (Level = goal -> DExpand=yes ; DExpand = no),
     (Level = sent -> SentPattern = Term ; true), % speed up
@@ -356,7 +360,12 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
 		 max_changes(Max)-Max
 		],
 		OptionL0, OptionL1),
-    option_allchk(M, File, FileMGen-OptionL1, true-OptionL2),
+    ( option(clause(CRef), OptionL1)
+    ->FileMGen = clause_file_module(CRef, File, M),
+      clause_property(CRef, line_count(Line)),
+      merge_options([line(Line)], OptionL1, OptionL2)
+    ; option_allchk(M, File, FileMGen-OptionL1, true-OptionL2)
+    ),
     OptionL = [syntax_errors(SE),
 	       subterm_positions(TermPos),
 	       comments(Comments)|OptionL2],

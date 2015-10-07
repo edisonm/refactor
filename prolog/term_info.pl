@@ -61,7 +61,12 @@ get_term_info_file(Pattern, Term, File, In, Options) :-
     prolog_canonical_source(File, Path),
     print_message(informational, format("Reading ~w", Path)),
     catch(setup_call_cleanup(ti_open_source(Path, In),
-			     ( get_term_info_fd(In, Pattern, Term, Options)
+			     ( ( option(line(Line), Options)
+			       ->seek(In, 0, bof, _),
+				 prolog_source:seek_to_line(In, Line),
+				 once(get_term_info_fd(In, Pattern, Term, Options))
+			       ; get_term_info_fd(In, Pattern, Term, Options)
+			       )
 			     ; fail % don't close In up to the next iteration
 			     ),
 			     prolog_close_source(In)),
