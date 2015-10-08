@@ -20,3 +20,5 @@ refactor_context(goal_args, Sentence) :-
     b_getval(refactor_goal_args, Sentence).
 refactor_context(termpos, TermPos) :-
     b_getval(refactor_termpos, TermPos).
+refactor_context(file, File) :-
+    b_getval(refactor_file, File).
