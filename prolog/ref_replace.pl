@@ -73,9 +73,9 @@
     apply_commands(?, ?, 2),
     with_styles(0, +),
     collect_file_commands(+,+,+,:,1,+,+,+),
-    with_pattern_into(0, ?, ?),
+    with_pattern_into_termpos(0, ?, ?, +),
     with_from(0, ?),
-    with_context(?, ?, ?, ?, ?, 0),
+    with_context(?, ?, ?, ?, ?, ?, 0),
     with_context_vars(0, +, +),
     fixpoint_loop(+, 0).
 
@@ -340,6 +340,8 @@ apply_ec_term_level(Level, Term, Into, Expander, OptionL) :-
 		      [0]
 		     ).
 
+:- public clause_file_module/3.
+
 clause_file_module(CRef, File, M) :-
     clause_property(CRef, file(File)),
     clause_property(CRef, module(M)).
@@ -513,8 +515,9 @@ substitute_term(rec, _, M, Term, Priority, Pattern, Into, Expander, TermPos, Cmd
 substitute_term(norec, Level, M, Term, Priority, Pattern, Into, Expander, TermPos, Cmd) :-
     substitute_term_norec(Level, M, Term, Priority, Pattern, Into, Expander, TermPos, Cmd).
 
-with_pattern_into(Goal, Pattern, Into) :-
-    with_context_vars(Goal, [refactor_pattern, refactor_into], [Pattern, Into]).
+with_pattern_into_termpos(Goal, Pattern, Into, TermPos) :-
+    with_context_vars(Goal, [refactor_pattern, refactor_into, refactor_termpos],
+		      [Pattern, Into, TermPos]).
 
 with_from(Goal, From) :-
     with_context_vars(Goal, [refactor_from], [From]).
@@ -573,12 +576,12 @@ apply_change(Text, M, subst(TermPos, Priority, Pattern, Term, Into),
 		   print_expansion_0(Into, Pattern, Term, TermPos,
 				     OptionL, Text, From, To)).
 
-with_context(Src, Pattern0, Into0, Pattern1, Into2, Goal) :-
+with_context(Src, Pattern0, Into0, TermPos, Pattern1, Into2, Goal) :-
     copy_term(Pattern0-Into0, Pattern1-Into1),
     refactor_context(sentence, Sent),
     refactor_context(sent_pattern, Sent),
     Pattern0 = Src,
-    with_pattern_into(once(Goal), Pattern1, Into1), % Allow changes in Pattern1/Into1
+    with_pattern_into_termpos(once(Goal), Pattern1, Into1, TermPos), % Allow changes in Pattern1/Into1
     term_variables(Pattern1, Vars), % Variable bindings in Pattern
     %% Apply changes to Pattern/Into and bind Vars:
     copy_term(t(Pattern1, Into1, Vars), t(Pattern0, Into0, Vars0)),
@@ -642,7 +645,7 @@ substitute_term_norec(Sub, M, Term, Priority, Pattern, Into, Expander, TermPos, 
       refactor_context(sent_pattern, SentPattern),
       subsumes_term(SentPattern-Pattern, Sent-Term),
       copy_term(Term, Term2),
-      with_context(Term, Pattern, Into, Pattern1, Into1, Expander),
+      with_context(Term, Pattern, Into, TermPos, Pattern1, Into1, Expander),
       greatest_common_binding(Pattern1, Into1, Pattern2, Into2, [[]], Unifier, [])
     ),
     perform_substitution(Sub, Priority, M, Term, Term2, Pattern2, Into2, Unifier, TermPos, Cmd).
