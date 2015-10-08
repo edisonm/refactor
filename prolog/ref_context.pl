@@ -18,3 +18,5 @@ refactor_context(options, Options) :-
     b_getval(refactor_options, Options).
 refactor_context(goal_args, Sentence) :-
     b_getval(refactor_goal_args, Sentence).
+refactor_context(termpos, TermPos) :-
+    b_getval(refactor_termpos, TermPos).
