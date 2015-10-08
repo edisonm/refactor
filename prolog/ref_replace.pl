@@ -515,10 +515,6 @@ substitute_term(rec, _, M, Term, Priority, Pattern, Into, Expander, TermPos, Cmd
 substitute_term(norec, Level, M, Term, Priority, Pattern, Into, Expander, TermPos, Cmd) :-
     substitute_term_norec(Level, M, Term, Priority, Pattern, Into, Expander, TermPos, Cmd).
 
-with_pattern_into_termpos(Goal, Pattern, Into, TermPos) :-
-    with_context_vars(Goal, [refactor_pattern, refactor_into, refactor_termpos],
-		      [Pattern, Into, TermPos]).
-
 with_from(Goal, From) :-
     with_context_vars(Goal, [refactor_from], [From]).
 
@@ -576,12 +572,24 @@ apply_change(Text, M, subst(TermPos, Priority, Pattern, Term, Into),
 		   print_expansion_0(Into, Pattern, Term, TermPos,
 				     OptionL, Text, From, To)).
 
+with_pattern_into_termpos(Goal, Pattern, Into, TermPos) :-
+    refactor_context(file, File),
+    with_context_vars(catch(once(Goal), Error,
+	 ( print_message(error, refactor(file_term_position(File, TermPos))),
+	   print_message(error, Error),
+	   fail
+	 )),
+		      [refactor_pattern,
+		       refactor_into,
+		       refactor_termpos],
+		      [Pattern, Into, TermPos]).
+
 with_context(Src, Pattern0, Into0, TermPos, Pattern1, Into2, Goal) :-
     copy_term(Pattern0-Into0, Pattern1-Into1),
     refactor_context(sentence, Sent),
     refactor_context(sent_pattern, Sent),
     Pattern0 = Src,
-    with_pattern_into_termpos(once(Goal), Pattern1, Into1, TermPos), % Allow changes in Pattern1/Into1
+    with_pattern_into_termpos(Goal, Pattern1, Into1, TermPos), % Allow changes in Pattern1/Into1
     term_variables(Pattern1, Vars), % Variable bindings in Pattern
     %% Apply changes to Pattern/Into and bind Vars:
     copy_term(t(Pattern1, Into1, Vars), t(Pattern0, Into0, Vars0)),
@@ -979,6 +987,9 @@ substitute_term_list([], TP, M, Tail, Ref, Into, Expander, Cmd) :-
 prolog:message(acheck(refactor(Goal, From))) -->
     prolog:message_location(From),
     ['Unable to refactor ~w, no term position information available'-[Goal], nl].
+prolog:message(refactor(From)) -->
+    prolog:message_location(From),
+    ['Exception raised while refactorizing', nl].
 
 compound_positions(Line1, Pos1, Pos0, Pos) :-
     Line1 =< 1,
