@@ -36,6 +36,7 @@
 	   rename_variable/3,
 	   rename_variables/2,
 	   underscore_singletons/1,
+	   anonymize_singletons/1,
 	   replace_term_id/3,
 	   unfold_goal/2,
 	   rename_predicate/3,
@@ -111,6 +112,18 @@ underscore_singletons(OptionL0 ) :-
 			\+ atom_concat('_', _, Name0),
 			occurrences_of_var(Var, Sent, 1),
 			atom_concat('_', Name0, Name)
+		      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+
+anonymize_singletons(OptionL0 ) :-
+    foldl(select_option_default,
+	  [sentence(Sent)-Sent,
+	   variable_names(Dict)-Dict],
+	  OptionL0, OptionL),
+    apply_var_renamer([Dict, Sent] +\ Name0^Name
+		     ^( member(Name0=Var, Dict),
+			\+ atom_concat('_', _, Name0),
+			occurrences_of_var(Var, Sent, 1),
+			Name = '_'
 		      ), [sentence(Sent), variable_names(Dict)|OptionL]).
 
 rename_variables(RenameL, Options) :-
