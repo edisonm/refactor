@@ -46,10 +46,10 @@
 	   remove_call/3
 	  ]).
 
-:- use_module(library(ref_context)).
-:- use_module(library(ref_replace)).
-:- use_module(library(ref_replacers)).
-:- use_module(library(list_sequence)).
+:- use_module(refactor(ref_context)).
+:- use_module(refactor(ref_replace)).
+:- use_module(refactor(ref_replacers)).
+:- use_module(xlibrary(list_sequence)).
 
 :- meta_predicate
 	unfold_goal(0,+).
@@ -187,7 +187,7 @@ rgbmm(Body0, Body, M, Module) :-
     ; Body = M:Body0
     ).
 
-:- use_module(library(infer_alias)).
+:- use_module(xlibrary(infer_alias)).
 
 rsum(Module, UML) :-
     findall(Import-(F/A), retract(add_import(Module, Import, F, A)), Pairs),

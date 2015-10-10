@@ -10,12 +10,12 @@
 	   apply_command_q/1
 	  ]).
 
-:- use_module(library(ref_shell)).
+:- use_module(refactor(ref_shell)).
 :- use_module(library(ref_changes),
 	      [reset_changes/0,
 	       pending_change/1,
 	       undo_changes/1]).
-:- use_module(library(ref_command)).
+:- use_module(refactor(ref_command)).
 
 :- meta_predicate apply_command_q(0).
 apply_command_q(Call) :-

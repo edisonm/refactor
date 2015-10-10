@@ -29,17 +29,17 @@
 
 :- module(file_to_module, [file_to_module/1, file_to_module/2]).
 
-:- use_module(library(clambda)).
 :- use_module(library(prolog_metainference)).
-:- use_module(library(extra_location)).
-:- use_module(library(location_utils)).
-:- use_module(library(from_utils)).
-:- use_module(library(infer_alias)).
-:- use_module(library(list_sequence)).
-:- use_module(library(sequence_list)).
-:- use_module(library(module_files)).
-:- use_module(library(remove_dups)).
-:- use_module(library(audit/audit_codewalk)).
+:- use_module(xlibrary(clambda)).
+:- use_module(xlibrary(infer_alias)).
+:- use_module(xlibrary(list_sequence)).
+:- use_module(xlibrary(remove_dups)).
+:- use_module(xlibrary(sequence_list)).
+:- use_module(xtools(extra_codewalk)).
+:- use_module(xtools(extra_location)).
+:- use_module(xtools(from_utils)).
+:- use_module(xtools(location_utils)).
+:- use_module(xtools(module_files)).
 
 %% module_to_import_db(F, A, M, CM, File)
 %
@@ -541,7 +541,7 @@ collect_movable(M, FileL, ExcludeL, PIL) :-
     prolog_walk_code([autoload(false),
 		      source(false),
 		      infer_meta_predicates(true)]),
-    audit_walk_code(OptionL, collect_file_to_module, _, _),
+    extra_walk_code(OptionL, collect_file_to_module, _, _),
     findall(F/A, ( module_to_import_db(F, A, M, _, IFile),
 		   \+ memberchk(IFile, FileL),
 		   implemented_in_file(F, A, M, File),

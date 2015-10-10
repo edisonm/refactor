@@ -18,11 +18,11 @@
 :- use_module(library(apply)).
 :- use_module(library(lists)).
 :- use_module(library(readutil)).
-:- use_module(library(clambda)).
-:- use_module(library(term_info)).
-:- use_module(library(ref_changes)).
-:- use_module(library(i18n/i18n_support)).
-:- use_module(library(i18n/i18n_parser)).
+:- use_module(refactor(ref_changes)).
+:- use_module(refactor(term_info)).
+:- use_module(xlibrary(clambda)).
+:- use_module(xlibrary(i18n/i18n_parser)).
+:- use_module(xlibrary(i18n/i18n_support)).
 
 current_po_file(M, Lang, PoFile) :-
     current_pot_file(M, PotFile),
