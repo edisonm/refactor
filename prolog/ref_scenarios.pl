@@ -38,6 +38,9 @@
 	   underscore_singletons/1,
 	   anonymize_singletons/1,
 	   anonymize_all_singletons/1,
+	   new_name/3,
+	   fix_multi_singletons/1,
+	   anonymize_term_singletons/2,
 	   replace_term_id/3,
 	   unfold_goal/2,
 	   rename_predicate/3,
@@ -126,6 +129,19 @@ anonymize_all_singletons(OptionL0 ) :-
 			Name = '_'
 		      ), [sentence(Sent), variable_names(Dict)|OptionL]).
 
+anonymize_term_singletons(Term, OptionL0 ) :-
+    foldl(select_option_default,
+	  [sentence(Sent)-Sent,
+	   variable_names(Dict)-Dict],
+	  OptionL0, OptionL),
+    apply_var_renamer([Term, Dict, Sent] +\ Name0^Name
+		     ^( member(Name0=Var, Dict),
+			occurrences_of_var(Var, Sent, 1),
+			\+ occurrences_of_var(Var, Term, 0 ),
+			Name = '_'
+		      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+    
+
 anonymize_singletons(OptionL0 ) :-
     foldl(select_option_default,
 	  [sentence(Sent)-Sent,
@@ -136,6 +152,32 @@ anonymize_singletons(OptionL0 ) :-
 			\+ atom_concat('_', _, Name0 ),
 			occurrences_of_var(Var, Sent, 1),
 			Name = '_'
+		      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+
+:- meta_predicate new_name(1, +, -).
+new_name(AlreadyUsedName, Name, Name) :-
+    \+ call(AlreadyUsedName, Name), !.
+new_name(AlreadyUsedName, Name0, Name) :-
+    new_name_rec(AlreadyUsedName, 2, Name0, Name).
+
+new_name_rec(AlreadyUsedName, Idx, Name0, Name) :-
+    atomic_concat(Name0, Idx, Name),
+    \+ call(AlreadyUsedName, Name), !.
+new_name_rec(AlreadyUsedName, Idx0, Name0, Name) :-
+    succ(Idx0, Idx),
+    new_name(AlreadyUsedName, Idx, Name0, Name).
+
+fix_multi_singletons(OptionL0 ) :-
+    foldl(select_option_default,
+	  [sentence(Sent)-Sent,
+	   variable_names(Dict)-Dict],
+	  OptionL0, OptionL),
+    apply_var_renamer([Dict, Sent] +\ Name0^Name
+		     ^( member(Name0=Var, Dict),
+			atom_concat('_', Name1, Name0 ),
+			occurrences_of_var(Var, Sent, N),
+			N > 1,
+			new_name([Dict]+\ X^member(X=_, Dict), Name1, Name)
 		      ), [sentence(Sent), variable_names(Dict)|OptionL]).
 
 rename_variables(RenameL, Options) :-
