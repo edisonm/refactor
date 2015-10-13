@@ -135,6 +135,9 @@
 % * [_|_]
 % Replace list of sentences
 %
+% * '$NODOT'(X)
+% Print X but without the ending dot
+%
 % The term Into could contain certain hacks to control its behavior, as follows:
 %
 % * X @@ Y
@@ -1283,11 +1286,12 @@ print_expansion_1('$TEXTQ'(Into, Delta), _, _, TermPos, OptionL, _, From, To) :-
     arg(2, TermPos, To0),
     write_q(Into, OptionL),
     To is To0 + Delta.
-print_expansion_1('$LIST.NL'([Into|IntoL]), Pattern, Term, TermPos, OptionL0,
+print_expansion_1('$LIST.NL'(IntoL), Pattern, Term, TermPos, OptionL0,
 		  Text, From, To) :- !,
     merge_options([priority(1200)], OptionL0, OptionL),
-    print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To),
-    term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, OptionL, Text).
+    print_expansion_rm_dot(TermPos, Text, From, To),
+    with_from(term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, OptionL,
+				      Text), From).
 print_expansion_1(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
     print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To).
 
@@ -1299,14 +1303,15 @@ term_write_stop_nl_list('$sb'(_, _, _, _, _, IntoL), Pattern, Term, TermPos,
     term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, OptionL, Text).
 term_write_stop_nl_list([], _, _, _, _, _).
 
-term_write_stop_nl__('$NOOP'(Into), Pattern, Term, TermPos, OptionL, Text) :-
+term_write_stop_nl__('$NOOP'(Into), Pattern, Term, TermPos, OptionL, Text) :- !,
     with_output_to(string(_),	%Ignore, but process
 		   term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL,
 					Text)).
+term_write_stop_nl__('$NODOT'(Into), Pattern, Term, TermPos, OptionL, Text) :- !,
+    print_expansion(Into, Pattern, Term, TermPos, OptionL, Text).
 term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL, Text) :-
-    write('.'), nl,
-    arg(1, TermPos, From),
-    with_from(print_expansion(Into, Pattern, Term, TermPos, OptionL, Text), From).
+    print_expansion(Into, Pattern, Term, TermPos, OptionL, Text),
+    write('.'), nl.
 
 print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
     arg(1, TermPos, From),
@@ -1463,6 +1468,7 @@ escape_term(_$@_).
 % escape_term('$G'(_, _)).
 % escape_term('$C'(_, _)).
 escape_term('$NOOP'(_)).
+escape_term('$NODOT'(_)).
 escape_term('$LIST'(_)).
 escape_term('$LISTC'(_)).
 escape_term('$LIST,'(_)).
