@@ -165,7 +165,7 @@ new_name_rec(AlreadyUsedName, Idx, Name0, Name) :-
     \+ call(AlreadyUsedName, Name), !.
 new_name_rec(AlreadyUsedName, Idx0, Name0, Name) :-
     succ(Idx0, Idx),
-    new_name(AlreadyUsedName, Idx, Name0, Name).
+    new_name_rec(AlreadyUsedName, Idx, Name0, Name).
 
 fix_multi_singletons(OptionL0 ) :-
     foldl(select_option_default,
