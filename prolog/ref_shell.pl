@@ -36,8 +36,8 @@
 	   rsave/1
 	  ]).
 
-:- use_module(library(file_changes)).
-:- use_module(library(ref_changes)).
+:- use_module(refactor(file_changes)).
+:- use_module(refactor(ref_changes)).
 
 ref_commit :-
     once(pending_change(Index)),
