@@ -305,12 +305,20 @@ seekn_parenthesis_right(N, Text, L, T0, T) :-
       )
     ).
 
+:- multifile prolog:message/3.
+prolog:message(fix_termpos(Loc, Format, ArgL)) -->
+    prolog:message_location(Loc),
+    [Format-ArgL].
+    
+
 fix_boundaries_from_right(Text, Pos, To0, From2, To2, From, To) :-
     arg(2, Pos, To1),
     ( To0 < To1
     ->RL is To1 - To0,
       sub_string(Text, To0, RL, _, TextL),
-      print_message(warning, format("Misplaced text --> `~w'", [TextL]))
+      b_getval(refactor_file, File),
+      print_message(warning, fix_termpos(file_term_position(File, Pos),
+					 "Misplaced text --> `~w'", [TextL]))
     ; true
     ),
     count_sub_string(Text, To1, To0, ")", 1, _, To2, N),
@@ -348,7 +356,12 @@ fix_boundaries_from_left(Text, Pos, From0, From2, From, To) :-
     ( From1 < From0 ->
       RL is From0 - From1,
       sub_string(Text, From1, RL, _, TextL),
-      print_message(warning, format("Misplaced text <-- `~w'", [TextL]))
+      b_getval(refactor_file, File),
+      print_message(warning,
+		    fix_termpos(file_term_position(File, Pos),
+				"Misplaced text <-- `~w' (~w)",
+				[TextL,
+				 fix_boundaries_from_left(_, Pos, From0, From2, From, To)]))
     ; true
     ),
     count_sub_string(Text, From0, From1, "(", 1, From2, _, N),

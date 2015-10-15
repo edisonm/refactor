@@ -33,22 +33,21 @@
 		       ]).
 
 :- use_module(library(apply)).
+:- use_module(library(codesio)).
 :- use_module(library(lists)).
 :- use_module(library(option)).
 :- use_module(library(prolog_codewalk)).
-:- use_module(library(readutil)).
-:- use_module(library(term_info)).
-:- use_module(library(clambda)).
-:- use_module(library(gcb)).
-:- use_module(library(substitute)).
-:- use_module(library(apply)).
-:- use_module(library(option_utils)).
-:- use_module(library(ref_changes)).
-:- use_module(library(ref_context)).
-:- use_module(library(fix_termpos)).
-:- use_module(library(mklinear)).
-:- use_module(library(codesio)).
 :- use_module(library(prolog_source), []). % expand/4
+:- use_module(library(readutil)).
+:- use_module(refactor(fix_termpos)).
+:- use_module(refactor(gcb)).
+:- use_module(refactor(ref_changes)).
+:- use_module(refactor(ref_context)).
+:- use_module(refactor(term_info)).
+:- use_module(xlibrary(clambda)).
+:- use_module(xlibrary(mklinear)).
+:- use_module(xlibrary(substitute)).
+:- use_module(xtools(option_utils)).
 
 :- thread_local
     file_commands_db/3,

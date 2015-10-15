@@ -33,10 +33,9 @@
 	  ]).
 
 :- use_module(library(apply)).
-:- use_module(library(clambda)).
-:- use_module(library(apply)).
 :- use_module(library(prolog_source)).
-:- use_module(library(module_files)).
+:- use_module(xlibrary(clambda)).
+:- use_module(xtools(module_files)).
 
 :- meta_predicate
     get_term_info(+, ?, ?, 1, -, -, +),
