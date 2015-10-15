@@ -280,11 +280,15 @@ collect_file_commands(CallerPattern, Pattern, Into, Expander, FileChk,
 		      [refactor_sent_pattern,
 		       refactor_sentence,
 		       refactor_comments,
+		       refactor_subpos,
+		       refactor_file,
 		       refactor_goal_args
 		      ],
 		     [CallerPattern,
 		      Caller,
 		      [], % TODO: Fill the gap
+		      TermPos,
+		      File,
 		      ga(Term, Into, Expander)]).
 
 do_replace(goal_cw, IM:Term, Into, Expander, OptionL) :- !,
