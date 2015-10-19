@@ -343,7 +343,7 @@ replace_conjunction(Conj, Repl, Expander, Options) :-
     replace_last_literal(Repl, Repl2, RLit, RBody),
     copy_term(t(Conj2, CLit, CBody, Repl2, RLit, RBody), Term),
     replace(body_rec, Conj2, Repl2,
-	    ( bind_lit_body(Term, CLit, CBody, RLit, RBody),
+	    ( bind_lit_body(Term, Conj2, CLit, CBody, RLit, RBody),
 	      Expander
 	    ), Options).
 
@@ -361,14 +361,14 @@ replace_last_literal_((A,Conj), (A,Conj2), Lit, Body) :- !,
     replace_last_literal_(Conj, Conj2, Lit, Body).
 replace_last_literal_(Conj, Body, Conj, Body).
 
-bind_lit_body(Term, CLit, CBody, RLit, RBody) :-
-    ( subsumes_term(CLit, CBody) ->
-      CBody = CLit,
+bind_lit_body(Term, Conj2, CLit, CBody, RLit, RBody) :-
+    ( subsumes_term(Conj2-CLit, Conj2-CBody)
+    ->CBody = CLit,
       RBody = RLit,
       PCBody = PCLit,
       PRBody = PRLit
-    ; subsumes_term((CLit, Rest), CBody) ->
-      CBody = (CLit, Rest),
+    ; subsumes_term(Conj2-(CLit, Rest), Conj2-CBody)
+    ->CBody = (CLit, Rest),
       RBody = (RLit, Rest),
       PCBody = (PCLit, PRest),
       PRBody = (PRLit, PRest)
