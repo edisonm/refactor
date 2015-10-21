@@ -1146,20 +1146,24 @@ rportray([E|T0], Opt) :- !,
     ->!, fail
     ; T1 = '$sb'(TermPos, IFrom, ITo, GTerm, GPriority, Term),
       is_list(Term),
-      compound(TermPos),
-      !,
+      compound(TermPos), !,
       arg(1, TermPos, TFrom),
       arg(2, TermPos, TTo),
-      succ(TFrom, From),
-      succ(To, TTo),
+      term_innerpos(TFrom, TTo, From, To),
       T2 = '$sb'(From-To, IFrom, ITo, GTerm, GPriority, Term),
+      with_output_to(string(SB), write_term(T2, Opt)),
+      sub_string(SB, 1, _, 1, SC),
+      b_getval(refactor_text, Text),
+      get_subtext(Text, TFrom, From, SL),
+      get_subtext(Text, To, TTo, SR),
+      format(atom(ST), "~s~s~s", [SL, SC, SR]),
       ( Term == []
       ->T = H,
 	write('['),
 	term_write_sep_list(T, ', ', Opt),
-	write_term(T2, Opt),
+	format("~s", [ST]),
 	write(']')
-      ; append(H, [T2], T),
+      ; append(H, ['$TEXT'(ST)], T),
 	write_term(T, Opt)
       )
     ).
