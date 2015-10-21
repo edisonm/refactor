@@ -1,4 +1,11 @@
 :- module(exapp, [exapp/3]).
+:- style_check(-singleton).
+exls(L) :-
+    append([a], /* 0 */ [ /* 1 */ ] /* 2 */, L).
+exls(L) :-
+    append([a], [f(B) /* 1 */] /*2*/, L).
+exls(L) :-
+    append([a], [f(b)], L).
 
 exapp(A, T, C) :-
     append([ /*1*/A,

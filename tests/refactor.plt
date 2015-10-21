@@ -760,8 +760,18 @@ test(excomm_3) :-
 /* $exapp_1$
 --- exapp.pl (source)
 +++ exapp.pl (target)
-@@ -1,8 +1,6 @@
+@@ -1,15 +1,13 @@
  :- module(exapp, [exapp/3]).
+ :- style_check(-singleton).
+ exls(L) :-
+-    append([a], /* 0 */ [ /* 1 */ ] /* 2 */, L).
++    L=[a/* 0 */  /* 1 */  /* 2 */].
+ exls(L) :-
+-    append([a], [f(B) /* 1 */] /*2*/, L).
++    L=[a, f(B) /*2*/].
+ exls(L) :-
+-    append([a], [f(b)], L).
++    L=[a, f(b)].
  
  exapp(A, T, C) :-
 -    append([ /*1*/A,
@@ -770,7 +780,7 @@ test(excomm_3) :-
  exapp(A1-A2, T, C) :-
 -    append([ [ _, [ A1 ] ] ], [ [ _, [ A2 ] ], [ _, [ T ] ] ],
 -	   C).
-+    C=[[_, [A1]], [[_, [A2]], [_, [T]]]].
++    C=[[_, [A1]], [_, [A2]], [_, [T]]].
 */
 
 test(exapp_1) :-
@@ -781,8 +791,18 @@ test(exapp_1) :-
 /* $exapp_2$
 --- exapp.pl (source)
 +++ exapp.pl (target)
-@@ -1,8 +1,7 @@
+@@ -1,15 +1,14 @@
  :- module(exapp, [exapp/3]).
+ :- style_check(-singleton).
+ exls(L) :-
+-    append([a], /* 0 */ [ /* 1 */ ] /* 2 */, L).
++    L=[a/* 0 */  /* 2 */].
+ exls(L) :-
+-    append([a], [f(B) /* 1 */] /*2*/, L).
++    L=[a, f(B) /* 1 */ /*2*/].
+ exls(L) :-
+-    append([a], [f(b)], L).
++    L=[a, f(b)].
  
  exapp(A, T, C) :-
 -    append([ /*1*/A,
