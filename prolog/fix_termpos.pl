@@ -129,14 +129,14 @@ fix_subtermpos_rec(brace_term_position(From, _, Arg)) :-
     b_getval(refactor_text, Text),
     succ(From, From1),
     fix_termpos_from_left(Text, Arg, From1, _).
+% Note: don't assume that a list is between brackets [], because this is also
+% used to process list of clauses:
 fix_subtermpos_rec(list_position(From, To, Elms, Tail)) :-
     b_getval(refactor_text, Text),
-    succ(From, From1),
-    foldl(fix_termpos_from_left_comm(Text), Elms, From1, To1),
+    foldl(fix_termpos_from_left_comm(Text), Elms, From, To1),
     ( Tail = none
     ->true
-    ; succ(ToT, To),
-      once(seek_sub_string(Text, "|", 1, ToT, To1, ToL)),
+    ; once(seek_sub_string(Text, "|", 1, To, To1, ToL)),
       succ(ToL, FromT),
       fix_termpos_from_left(Text, Tail, FromT, _)
     ).
