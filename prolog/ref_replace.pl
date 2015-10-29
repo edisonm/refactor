@@ -431,11 +431,10 @@ fetch_sentence_file(Index, FixPoint, Max, CP, M, File, SentPattern, OptionL,
 	      [Max, CP, M, File, SentPattern, OptionL, Expand, TermPos, Expanded,
 	       LinearTerm, Linear, Bindings, Level, Term, Into, Expander]
 	      +\ M^Command^
-	      ( ref_term_info_file(SentPattern, Sent, File, In, OptionL),
-		expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
-		make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
-		substitute_term_level(Level, M, Linear, 1200, Term, Into,
-				      Expander, TermPos, Command),
+	      ( with_source_file(File,
+		    fetch_and_expand(M, SentPattern, OptionL, Expand, TermPos,
+				     Expanded, LinearTerm, Linear, Bindings,
+				     Level, Term, Into, Expander, Command)),
 		b_getval(refactor_count, Count),
 		succ(Count, Count1),
 		nb_setval(refactor_count, Count1),
@@ -447,18 +446,31 @@ fetch_sentence_file(Index, FixPoint, Max, CP, M, File, SentPattern, OptionL,
 	      ))
 	)).
 
-ref_term_info_file(SentPattern, Sent, File, In, OptionL) :-
+fetch_and_expand(M, SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
+		 Linear, Bindings, Level, Term, Into, Expander, Command, In) :-
+    repeat,
+      prolog_current_choice(CP),
+      ( ref_fetch_term_info(SentPattern, Sent, OptionL, In)
+      ; !,
+	fail
+      ),
+      expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
+      make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
+      substitute_term_level(Level, M, Linear, 1200, Term, Into, Expander, TermPos, Command),
+      prolog_cut_to(CP).
+
+ref_fetch_term_info(SentPattern, Sent, OptionL, In) :-
     nonvar(SentPattern),
     memberchk(SentPattern, [[], end_of_file]), !,
     option(comments([]), OptionL),
-    ref_term_info_file_(SentPattern, Sent, File, In, OptionL).
-ref_term_info_file(SentPattern, Sent, File, In, OptionL) :-
-    get_term_info_file(SentPattern, Sent, File, In, OptionL).
+    ref_term_info_file_(SentPattern, Sent, OptionL, In).
+ref_fetch_term_info(SentPattern, Sent, OptionL, In) :-
+    fetch_term_info(SentPattern, Sent, OptionL, In).
 
-ref_term_info_file_(end_of_file, end_of_file, File, _, OptionL) :-
-    size_file(File, Size),
+ref_term_info_file_(end_of_file, end_of_file, OptionL, In) :-
+    seek(In, 0, eof, Size),
     option(subterm_positions(Size-Size), OptionL).
-ref_term_info_file_([], [], _, _, OptionL) :-
+ref_term_info_file_([], [], OptionL, _) :-
     option(subterm_positions(0-0), OptionL).
 
 expand_if_required(Expand, M, Sent, TermPos, In, Expanded) :-

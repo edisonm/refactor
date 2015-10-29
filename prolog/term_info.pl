@@ -28,8 +28,9 @@
 */
 
 :- module(term_info,
-	  [ get_term_info/7,
-	    get_term_info_file/5
+	  [ get_term_info/6,
+	    with_source_file/2,
+	    fetch_term_info/4
 	  ]).
 
 :- use_module(library(apply)).
@@ -38,14 +39,15 @@
 :- use_module(xtools(module_files)).
 
 :- meta_predicate
-    get_term_info(+, ?, ?, 1, -, -, +),
+    with_source_file(+, 1),
+    get_term_info(+, ?, ?, 1, -, +),
     transverse_apply_2(1, +, ?, ?, ?).
 
-get_term_info(M, Pattern, Term, AllChk, File, In, Options) :-
+get_term_info(M, Pattern, Term, AllChk, File, Options) :-
     module_files(M, Files),
     member(File, Files),
     call(AllChk, File),
-    get_term_info_file(Pattern, Term, File, In, Options).
+    get_term_info_file(Pattern, Term, File, Options).
 
 fix_exception(error(Error, stream(_,  Line, Row, Pos)), File,
 	      error(Error, file(File, Line, Row, Pos))) :- !.
@@ -56,23 +58,29 @@ ti_open_source(Path, In) :-
     prolog_open_source(Path, In),
     b_setval(ti_open_source, no).
 
-get_term_info_file(Pattern, Term, File, In, Options) :-
+with_source_file(File, Goal) :-
     prolog_canonical_source(File, Path),
     print_message(informational, format("Reading ~w", Path)),
     catch(setup_call_cleanup(ti_open_source(Path, In),
-			     ( ( option(line(Line), Options)
-			       ->seek(In, 0, bof, _),
-				 prolog_source:seek_to_line(In, Line),
-				 once(get_term_info_fd(In, Pattern, Term, Options))
-			       ; get_term_info_fd(In, Pattern, Term, Options)
-			       )
-			     ; fail % don't close In up to the next iteration
-			     ),
+			     call(Goal, In),
 			     prolog_close_source(In)),
 	  E0, ( fix_exception(E0, Path, E),
 		print_message(error, E),
 		fail
 	      )).
+
+fetch_term_info(Pattern, Term, Options, In) :-
+    ( ( option(line(Line), Options)
+      ->seek(In, 0, bof, _),
+	prolog_source:seek_to_line(In, Line),
+	once(get_term_info_fd(In, Pattern, Term, Options))
+      ; get_term_info_fd(In, Pattern, Term, Options)
+      )
+    ; fail			% dont close In up to the next iteration
+    ).
+
+get_term_info_file(Pattern, Term, File, Options) :-
+    with_source_file(File, fetch_term_info(Pattern, Term, Options)).
 
 get_term_info_fd(In, PatternL, TermL, OptionL0 ) :-
     is_list(PatternL), !,
@@ -80,15 +88,11 @@ get_term_info_fd(In, PatternL, TermL, OptionL0 ) :-
 		[subterm_positions(TermPos)-TermPos,
 		 comments(Comments)-Comments
 		], OptionL0, OptionT),
-    '$set_source_module'(M, M),
-    OptionC = [module(M)|OptionT],
     PatternL = [_|PatternT],
-    maplist([In, OptionC] +\
-	   _^T^P^C^read_term(In, T,
-			     [subterm_positions(P), comments(C)|OptionC]),
-	    PatternT, TA, PA, CA),
+    maplist([In, OptionT] +\
+	   _^T^P^C^get_term_info_each(In, OptionT, [T, P, C]), PatternT, TA, PA, CA),
     maplist(append, [TA, PA, CA], TPCT, TPCH),
-    transverse_apply_2(get_term_info_each(In, OptionC), TPCH, TPCT,
+    transverse_apply_2(get_term_info_each(In, OptionT), TPCH, TPCT,
 		       [TermL, TermPosL, CommentsL], [_, TermPosE, _]),
     maplist(subsumes_term, PatternL, TermL),
     append(CommentsL, Comments),
