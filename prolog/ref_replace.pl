@@ -1173,7 +1173,9 @@ rportray([E|T0], Opt) :- !,
       ( Term == []
       ->T = H,
 	write('['),
-	term_write_sep_list(T, ', ', Opt),
+	term_priority([_|_], user, 1, Priority),
+	merge_options([priority(Priority)], Opt, Opt1),
+	term_write_sep_list(T, ', ', Opt1),
 	format("~s", [ST]),
 	write(']')
       ; append(H, ['$TEXT'(ST)], T),
@@ -1189,8 +1191,13 @@ rportray_list_nl_b(L, Offs, Opt) :-
     rportray_list_nl(L, Offs, Opt),
     write(']').
 
-rportray_list_nl([], _, _).
-rportray_list_nl([E|L], Offs, Opt) :-
+rportray_list_nl(L, Offs, Opt) :-
+    term_priority([_|_], user, 1, Priority),
+    merge_options([priority(Priority)], Opt, Opt1),
+    rportray_list_nl_(L, Offs, Opt1).
+
+rportray_list_nl_([], _, _).
+rportray_list_nl_([E|L], Offs, Opt) :-
     term_write_sep_list_2([E|L], Offs, Opt).
 
 term_write_sep_list_2([E|T], Offs, Opt) :- !,
