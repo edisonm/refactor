@@ -116,13 +116,13 @@ file_to_module(Alias, OptionL0 ) :-
     phrase(( collect_import_decls(M, FileL, ExL2),
 	     collect_dynamic_decls(M, FileL),
 	     collect_meta_decls(M, PIL)
-	   ), MDL, []),
-    findall(C, ( member(C, AddL),
+	   ), MDL, AddL),
+    findall(C, ( member(C, MDL),
 		 replace_sentence(C, C, [max_changes(1),
 					 changes(N),
 					 file(File)]),
 		 N = 0
-	       ), CL, MDL),
+	       ), CL),
     add_module_decl(CL, NewM, PIL1, File),
     decl_to_use_module(consult, M, PIL1, Alias, ReexportL),
     decl_to_use_module(include, M, PIL1, Alias, ReexportL),
@@ -134,16 +134,20 @@ file_to_module(Alias, OptionL0 ) :-
 
 add_module_decl(CL, NewM, PIL1, File) :-
     replace_sentence([Term],
-		     [Term@@(:- module('$BODY'((NewM, PIL2))))|NCL],
+		     [Term@@(:- module('$BODY'((NewM, PIL2))))|CL],
 		     ( Term = (:- export(ExS))
 		     ->refactor_context(pattern, [(:- export(ExP))]),
-		       PIL2 = '$LISTB,NL'(['$PRIORITY'('$BODY'(ExP@@ExS),1200)|PIL1]),
-		       NCL = CL
-		     ; PIL2 = '$LISTB,NL'(PIL1),
-		       NCL = [Term|CL]
+		       PIL2 = '$LISTB,NL'(['$PRIORITY'('$BODY'(ExP@@ExS),1200)|PIL1])
 		     ),
-		     [max_changes(1), file(File)]).
-    
+		     [max_tries(1), changes(N), file(File)]),
+    ( N = 0
+    ->replace_sentence([],
+		       [(:- module('$BODY'((NewM,
+					    '$LISTB,NL'(PIL1)))))|CL],
+		       [max_changes(1), file(File)])
+    ; true
+    ).
+
 collect_meta_decls(M, PIL, MDL, Tail) :-
     collect_meta_specs(M, PIL, SpecL),
     ( SpecL = []
