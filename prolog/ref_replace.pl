@@ -178,7 +178,7 @@
 % Print each element of L
 %
 % * '$LISTC'(L)
-% Print each element of L as portray_clause
+% Print each element of L in a way similar to portray_clause
 %
 % * '$LIST,'(L)
 % Print each element of L placing a comma between them
@@ -192,7 +192,7 @@
 % a list, and in the case of an empty list, the sentence will be removed.
 %
 % * '$LIST.NL'(L)
-% Print each element of L followed by a dot and a new line
+% Print each element of L followed by a dot and a new line without clause layout
 %
 % * '$TEXT'(T, N)
 % Write T with higest priority and no quoted, byasing N characters to the right
@@ -338,12 +338,14 @@ apply_ec_term_level(Level, Term, Into, Expander, OptionL) :-
 						  Expander, OptionL),
 			       true),
 			b_getval(refactor_count, Count),
+			b_getval(refactor_tries, Tries),
 			foldl(select_option_default,
-			      [changes(Count)-Count],
+			      [changes(Count)-Count,
+			       tries(Tries)  -Tries],
 			      OptionL, _)
 		      ),
-		      [refactor_count],
-		      [0]
+		      [refactor_count, refactor_tries],
+		      [0,              0 ]
 		     ).
 
 :- public clause_file_module/3.
@@ -365,7 +367,8 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
 		 expand(Expand)-DExpand,
 		 expanded(Expanded)-Expanded,
 		 fixpoint(FixPoint)-none,
-		 max_changes(Max)-Max
+		 max_changes(Max)-Max,
+		 max_tries(MaxTries)-MaxTries
 		],
 		OptionL0, OptionL1),
     ( option(clause(CRef), OptionL1)
@@ -398,7 +401,8 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
 	     refactor_subpos,
 	     refactor_file,
 	     refactor_goal_args,
-	     refactor_modified],
+	     refactor_modified,
+	     refactor_max_tries],
 	    [SentPattern,
 	     Linear,
 	     Expanded,
@@ -408,7 +412,8 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
 	     TermPos,
 	     File,
 	     ga(Term, Into, Expander),
-	     false]),
+	     false,
+	     MaxTries]),
 	'$set_source_module'(_, OldM)).
 
 fixpoint_loop(none, Goal) :- ignore(Goal).
@@ -593,6 +598,14 @@ apply_change(Text, M, subst(TermPos, Priority, Pattern, Term, Into),
 
 with_pattern_into_termpos(Goal, Pattern, Into, TermPos) :-
     refactor_context(file, File),
+    nb_getval(refactor_tries, Tries),
+    nb_getval(refactor_max_tries, MaxTries),
+    ( nonvar(MaxTries)
+    ->Tries < MaxTries
+    ; true
+    ),
+    succ(Tries, Tries1),
+    nb_setval(refactor_tries, Tries1),
     with_context_vars(catch(once(Goal), Error,
 	 ( print_message(error, refactor(file_term_position(File, TermPos))),
 	   print_message(error, Error),
@@ -659,7 +672,7 @@ special_term(sub,    _, Term,  Term).
 special_term(top,    _, Term0, Term) :- top_term(Term0, Term).
 
 top_term(Var, Var) :- var(Var), !.
-top_term(List, '$LIST.NL'(List)) :- List = [_|_], !.
+top_term(List, '$LISTC.NL'(List)) :- List = [_|_], !.
 top_term([], '$RM') :- !.
 top_term(Term, Term).
 
@@ -1042,8 +1055,19 @@ get_output_position(Pos) :-
     stream_position_data(line_position, StrPos, Pos1),
     compound_positions(Line1, Pos1, Pos0, Pos).
 
-portray_clause_(OptL, Clause) :-
-    portray_clause(current_output, Clause, OptL).
+write_term_dot_nl(Term, OptL) :-
+    write_term(Term, OptL),
+    write('.\n').
+rportray_clause_dot_nl(Clause, OptL) :-
+    rportray_clause(Clause, OptL),
+    write('.\n').
+
+rportray_clause(Clause, OptL) :-
+    rportray_clause(Clause, 4, OptL).
+
+%% We can not use portray_clause/3 because it does not handle the hooks
+% portray_clause_(OptL, Clause) :-
+%     portray_clause(current_output, Clause, OptL).
 
 rportray_clause(C, Offs, OptL) :-
     ( nonvar(C),
@@ -1122,11 +1146,8 @@ rportray('$TEXTQ'(T, Offs), Opt) :-
     integer(Offs), !,
     forall(between(1, Offs, _), write(' ')),
     write_q(T, Opt).
-rportray('$LISTC'(CL), Opt) :- !,
-    '$set_source_module'(M, M),
-    maplist(portray_clause_(M:Opt), CL).
 rportray('$CLAUSE'(C), Opt) :- !,
-    rportray_clause(C, 4, Opt).
+    rportray_clause(C, Opt).
 rportray('$CLAUSE'(C, Offs), Opt) :-
     integer(Offs), !,
     rportray_clause(C, Offs, Opt).
@@ -1140,10 +1161,24 @@ rportray('$BODYB'(B, Offs), Opt) :-
     rportray_bodyb(B, Offs, Opt).
 rportray('$BODYB'(B), Opt) :- !,
     rportray_bodyb(B, 0, Opt).
+rportray('$LIST'(L, Sep), Opt) :- !,
+    rportray_list(L, write_term, Sep, Opt).
+rportray('$LISTC'(CL), Opt) :- !,
+    merge_options([priority(1200)], Opt, Opt1),
+    rportray_list(CL, rportray_clause_dot_nl, '', Opt1).
+rportray('$LISTC.NL'(CL), Opt) :- !,
+    merge_options([priority(1200)], Opt, Opt1),
+    rportray_list(CL, rportray_clause, '.\n', Opt1).
+rportray('$LIST.NL'(L), Opt) :- !,
+    merge_options([priority(1200)], Opt, Opt1),
+    rportray_list(L, write_term_dot_nl, '', Opt1).
+rportray('$LISTNL.'(L), Opt) :- !,
+    merge_options([priority(1200)], Opt, Opt1),
+    rportray_list(L, write_term, '.\n', Opt1).
 rportray('$LIST,NL'(L), Opt) :- !,
-    rportray_list_nl(L, 0, Opt).
+    rportray_list_nl_comma(L, 0, Opt).
 rportray('$LIST,NL'(L, Offs), Opt) :- !,
-    rportray_list_nl(L, Offs, Opt).
+    rportray_list_nl_comma(L, Offs, Opt).
 rportray('$LISTB,NL'(L), Opt) :- !,
     rportray_list_nl_b(L, 0, Opt).
 rportray('$LISTB,NL'(L, Offs), Opt) :-
@@ -1188,53 +1223,57 @@ term_write(Opt, Term) :- write_term(Term, Opt).
 rportray_list_nl_b([], _, Opt) :- !, write_term([], Opt).
 rportray_list_nl_b(L, Offs, Opt) :-
     write('['),
-    rportray_list_nl(L, Offs, Opt),
+    rportray_list_nl_comma(L, Offs, Opt),
     write(']').
 
-rportray_list_nl(L, Offs, Opt) :-
+rportray_list_nl_comma(L, Offs, Opt) :-
     term_priority([_|_], user, 1, Priority),
     merge_options([priority(Priority)], Opt, Opt1),
-    rportray_list_nl_(L, Offs, Opt1).
+    sep_nl(Offs, ',', Sep),
+    rportray_list(L, write_term, Sep, Opt1).
 
-rportray_list_nl_([], _, _).
-rportray_list_nl_([E|L], Offs, Opt) :-
-    term_write_sep_list_2([E|L], Offs, Opt).
+:- meta_predicate rportray_list(+, 2, +, +).
+rportray_list([], _, _, _).
+rportray_list([E|L], Writter, Sep, Opt) :-
+    term_write_sep_list_2([E|L], Writter, Sep, Opt).
 
-term_write_sep_list_2([E|T], Offs, Opt) :- !,
-    get_output_position(Pos),
-    LinePos is Offs + Pos,
-    write_term(E, Opt),
-    term_write_sep_list_inner(T, LinePos, Opt).
-term_write_sep_list_2(E, _, Opt) :-
-    write_term(E, Opt).
+term_write_sep_list_2([E|T], Writter, Sep, Opt) :- !,
+    call(Writter, E, Opt),
+    term_write_sep_list_inner(T, Writter, Sep, Opt).
+term_write_sep_list_2(E, Writter, _, Opt) :-
+    call(Writter, E, Opt).
 
-term_write_sep_list_inner(T, LinePos, Opt) :-
-    with_output_to(atom(In), line_pos(LinePos)),
-    term_write_sep_list_inner_rec(T, [',', '\n', In], Opt).
+term_write_sep_list_inner(T, Writter, Sep, Opt) :-
+    term_write_sep_list_inner_rec(T, Writter, Sep, Opt).
 
-term_write_sep_list_inner_rec([E|T], SepIn, Opt) :- !,
-    maplist(write, SepIn),
-    write_term(E, Opt),
-    term_write_sep_list_inner_rec(T, SepIn, Opt).
-term_write_sep_list_inner_rec(T, SepIn, Opt) :-
+term_write_sep_list_inner_rec([E|T], Writter, SepIn, Opt) :- !,
+    write(SepIn),
+    call(Writter, E, Opt),
+    term_write_sep_list_inner_rec(T, Writter, SepIn, Opt).
+term_write_sep_list_inner_rec(T, Writter, SepIn, Opt) :-
     ( T == []
     ->true
-    ; write_tail(T, SepIn, Opt)
+    ; write_tail(T, Writter, SepIn, Opt)
     ).
 
-write_tail(T, _, Opt) :-
+sep_nl(Offs, Sep, SepNl) :-
+    get_output_position(Pos),
+    LinePos is Offs + Pos,
+    with_output_to(atom(In), line_pos(LinePos)),
+    atomic_list_concat([Sep, '\n', In], SepNl).
+
+write_tail(T, _, _, Opt) :-
     var(T),
     !,
     write_term(T, Opt).
-write_tail([], _, _) :- !.
-write_tail('$LIST,NL'(L), _, Opt) :- !,
-    get_output_position(Pos),
-    term_write_sep_list_inner(L, Pos, Opt).
-write_tail('$LIST,NL'(L, Offs), _, Opt) :- !,
-    get_output_position(Pos),
-    LinePos is Offs + Pos,
-    term_write_sep_list_inner(L, LinePos, Opt).
-write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), SepIn, Opt) :-
+write_tail([], _, _, _) :- !.
+write_tail('$LIST,NL'(L), Writter, _, Opt) :- !,
+    sep_nl(0, ',', Sep),
+    term_write_sep_list_inner(L, Writter, Sep, Opt).
+write_tail('$LIST,NL'(L, Offs), Writter, _, Opt) :- !,
+    sep_nl(Offs, ',', Sep),
+    term_write_sep_list_inner(L, Writter, Sep, Opt).
+write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), Writter, SepIn, Opt) :-
     is_list(Term),
     nonvar(Pos0),
     arg(1, Pos0, From0),
@@ -1243,7 +1282,7 @@ write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), SepIn, Opt) :-
     b_getval(refactor_text, Text),
     display_subtext(Text, From0, IFrom),
     ( Pos0 = list_position(_, _, PosL, Tail)
-    ->maplist(write, SepIn),
+    ->write(SepIn),
       PosL = [LPos|_],
       arg(1, LPos, From),
       append(_, [RPos], PosL),
@@ -1253,11 +1292,12 @@ write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), SepIn, Opt) :-
       ),
       print_expansion_sb(Term, Term, GTerm, list_position(From, To, PosL, Tail),
 			 GPriority, Opt, Text)
-    ; term_write_sep_list_inner_rec(Term, SepIn, Opt)
+    ; term_write_sep_list_inner_rec(Term, Writter, SepIn, Opt)
     ),
     display_subtext(Text, ITo, To0).
-write_tail(T, [_|In], Opt) :-
-    maplist(write, ['|'|In]),
+write_tail(T, _Writter, Sep, Opt) :-
+    write(Sep),
+    write('|'),
     write_term(T, Opt).
 
 term_write_sep_list([],    _,   _).
@@ -1619,7 +1659,7 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, O
       maplist(print_expansion_elem(OptionL1, Text), FromToL, PosL, ArgL, PatGTrL),
       term_priority(Into, M, 2, Priority2),
       OptionL2=[priority(Priority2)|OptionL],
-      term_write_sep_list_inner_rec(ATail, [',', ' '], OptionL2),
+      term_write_sep_list_inner_rec(ATail, write_term, ', ', OptionL2),
       display_subtext(Text, To2, To)
     ),
     (comp_priority(M, GTerm, Priority, Into, Priority) ->write(')') ; true).
@@ -1710,6 +1750,8 @@ write_b(Term, OptL, Offs, Pos0) :-
     -> write('( '),
       Pos is Pos0 + 2,
       write_b1(Term, OptL, Offs, Pos),
+      nl,
+      line_pos(Pos0+Offs),
       write(')')
     ; write_b1(Term, OptL, Offs, Pos0)
     ).
@@ -1738,8 +1780,7 @@ write_b_layout(Term, OptL0, Layout, Offs, Pos) :-
 nl_indent(or, Op, LinePos) :-
     nl,
     line_pos(LinePos - 2),
-    write(Op),
-    write(' ').
+    format('~|~a~2+',[Op]).
 nl_indent(and, Op, LinePos) :-
     write(Op),
     nl,
