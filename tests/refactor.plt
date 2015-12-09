@@ -3,7 +3,7 @@
 :- begin_tests(refactor).
 
 :- use_module(library(refactor)).
-:- use_module(library(call_in_module_file)).
+:- use_module(library(call_in_dir)).
 :- use_module(library(comment_data)).
 
 :- comment_data:enable.
@@ -23,10 +23,10 @@ execute_test(Module, Test, Goal, OptionL) :-
 
 execute_test_(Test, Goal, OptionL) :-
     rreset,
-    call_in_module_file(ex1,
-			( call(Goal, OptionL),
-			  with_output_to(string(Result), rshow)
-			)),
+    call_in_module_dir(ex1,
+		       ( call(Goal, OptionL),
+			 with_output_to(string(Result), rshow)
+		       )),
     comment_data(Test, Pattern),
     assertion(Pattern == Result).
 
@@ -577,7 +577,7 @@ test(conjex) :-
 
 test(two_changes) :-
     rreset,
-    call_in_module_file(conjex, test_two_changes).
+    call_in_module_dir(conjex, test_two_changes).
 
 test_two_changes :-
     replace_term(a(B),aa(B),[module(conjex)]),
