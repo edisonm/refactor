@@ -15,7 +15,6 @@
 	   arrange_po_files/1,
 	   subtract_po_file/2]).
 
-:- use_module(library(apply)).
 :- use_module(library(lists)).
 :- use_module(library(readutil)).
 :- use_module(refactor(ref_changes)).
