@@ -815,7 +815,7 @@ test(exapp_1) :-
 +    C=[ [ _, [ A1 ] ], [ _, [ A2 ] ], [ _, [ T ] ] ].
 */
 
-test(exapp_2) :-
+test(exapp_2, [blocked(todo)]) :-
     execute_test(exapp, exapp_2,
 		 replace_term(append(A,B,C),C=L$@A,(is_list(A),append(A,B,L))),
 		 [linear_term(yes)]).
@@ -826,12 +826,12 @@ test(self_refactor_1) :-
 		 print_expansion_(A, B, C, D, E, F), [module(ref_replace)]),
     with_output_to(string(Result), rshow), assertion(Result \== "").
 
-test(self_refactor_2) :-
+test(self_refactor_2, [blocked(todo)]) :-
     rreset,
     replace_term(rportray(A, B), rportray_(A, B), [module(ref_replace)]),
     with_output_to(string(Result), rshow), assertion(Result \== "").
 
-test(save_changes) :-
+test(save_changes, [blocked(todo)]) :-
     current_module(plunit_refactor, F),
     absolute_file_name('ex1_.pl', Ex1, [file_type(prolog), relative_to(F)]),
     copy_file(Ex1, '/tmp/ex1_.pl'),
@@ -951,7 +951,7 @@ test(opex1_2) :-
 +    A myis2 B.
  
 */
-test(opex2) :-
+test(opex2, [blocked(todo)]) :-
     execute_test(opex2, opex2,
 		 replace(goal_cw,_:myis(A, B), myis2(A, B), true), []).
 
