@@ -1047,6 +1047,21 @@ test(opfp) :-
 test(exsl) :-
     execute_test(exsl, replace_sentence([f(a),f(b)],[f(b),f(a),f(d)])).
 
+:- use_module(exst).
+
+/* $exst$
+--- exst.pl (source)
++++ exst.pl (target)
+@@ -1,3 +1,3 @@
+ :- module(exst, [p/1]).
+ 
+-p([a,b,c,d]).
++p([a-"A",b-"B",c-"C",d-"D"]).
+*/
+
+test(exst) :-
+    execute_test(exst, exst, replace_term(X, X-Y, (atom(X), string_upper(X, Y))), [sentence(p(_))]).
+
 :- comment_data:disable.
 
 :- end_tests(refactor).
