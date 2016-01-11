@@ -486,7 +486,7 @@ expand_if_required(Expand, M, Sent, TermPos, In, Expanded) :-
     ; '$expand':expand_terms(prolog_source:expand, Sent, TermPos, In, Expanded)
     ),
     '$set_source_module'(CM, CM),
-    M = CM,u
+    M = CM,
     prolog_source:update_state(Sent, Expanded, M).
 
 make_linear_if_required(Sent, LinearTerm, Linear, Bindings) :-
