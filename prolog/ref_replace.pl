@@ -432,37 +432,39 @@ fetch_sentence_file(Index, FixPoint, Max, CP, M, File, SentPattern, OptionL,
 		    Expand, TermPos, Expanded, LinearTerm, Linear, Bindings,
 		    Level, Term, Into, Expander) :-
     fixpoint_loop(FixPoint,
-	( apply_commands(Index, File,
-	      [Max, CP, M, File, SentPattern, OptionL, Expand, TermPos, Expanded,
-	       LinearTerm, Linear, Bindings, Level, Term, Into, Expander]
-	      +\ M^Command^
-	      ( with_source_file(File,
-		    fetch_and_expand(M, SentPattern, OptionL, Expand, TermPos,
-				     Expanded, LinearTerm, Linear, Bindings,
-				     Level, Term, Into, Expander, Command)),
-		b_getval(refactor_count, Count),
-		succ(Count, Count1),
-		nb_setval(refactor_count, Count1),
-		( nonvar(Max),
-		  Count1 >= Max
-		->prolog_cut_to(CP) % End non-deterministic loop
-		; true
-		)
-	      ))
-	)).
+		  apply_commands(Index, File,
+				 gen_module_command(Max, CP, M, File, SentPattern,
+						    OptionL, Expand, TermPos, Expanded,
+						    LinearTerm, Linear, Bindings, Level,
+						    Term, Into, Expander))).
+
+gen_module_command(Max, CP, M, File, SentPattern,
+		   OptionL, Expand, TermPos, Expanded,
+		   LinearTerm, Linear, Bindings, Level,
+		   Term, Into, Expander, M, Command) :-
+    with_source_file(File,
+		     fetch_and_expand(M, SentPattern, OptionL, Expand, TermPos,
+				      Expanded, LinearTerm, Linear, Bindings,
+				      Level, Term, Into, Expander, Command)),
+    b_getval(refactor_count, Count),
+    succ(Count, Count1),
+    nb_setval(refactor_count, Count1),
+    ( nonvar(Max),
+      Count1 >= Max
+    ->prolog_cut_to(CP)		% End non-deterministic loop
+    ; true
+    ).
 
 fetch_and_expand(M, SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
 		 Linear, Bindings, Level, Term, Into, Expander, Command, In) :-
     repeat,
-      prolog_current_choice(CP),
       ( ref_fetch_term_info(SentPattern, Sent, OptionL, In)
       ; !,
 	fail
       ),
       expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
       make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
-      substitute_term_level(Level, M, Linear, 1200, Term, Into, Expander, TermPos, Command),
-      prolog_cut_to(CP).
+      substitute_term_level(Level, M, Linear, 1200, Term, Into, Expander, TermPos, Command).
 
 ref_fetch_term_info(SentPattern, Sent, OptionL, In) :-
     nonvar(SentPattern),
@@ -483,7 +485,8 @@ expand_if_required(Expand, M, Sent, TermPos, In, Expanded) :-
     ->Expanded = Sent
     ; '$expand':expand_terms(prolog_source:expand, Sent, TermPos, In, Expanded)
     ),
-    '$set_source_module'(M, M),
+    '$set_source_module'(CM, CM),
+    M = CM,u
     prolog_source:update_state(Sent, Expanded, M).
 
 make_linear_if_required(Sent, LinearTerm, Linear, Bindings) :-
