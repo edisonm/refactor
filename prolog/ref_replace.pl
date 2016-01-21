@@ -207,9 +207,15 @@
 % like '$TEXTQ'(T, 0)
 %
 
+is_(A, B) :- A is B.
+
+goal_expansion(A is B, (catch(is_(A, B), E, (print_message(error, E),
+					     backtrace(100))))).
+
 replace(Level, Term, Into, Expander, OptionL) :-
     %% At this point we are not interested in styles
-    with_styles(do_replace(Level, Term, Into, Expander, OptionL), [-singleton]).
+    with_styles(with_counters(do_replace(Level, Term, Into, Expander, OptionL),
+			      OptionL), [-singleton]).
 
 curr_style(Style, CurrStyle) :-
     arg(1, Style, Name),
@@ -334,9 +340,14 @@ cleanup_level(goal, Ref) :- !,
 cleanup_level(_, _).
 
 apply_ec_term_level(Level, Term, Into, Expander, OptionL) :-
-    with_context_vars(( forall(ec_term_level_each(Level, Term, Into,
-						  Expander, OptionL),
-			       true),
+    forall(ec_term_level_each(Level, Term, Into, Expander, OptionL), true).
+
+:- meta_predicate with_counters(0, +).
+with_counters(Goal, OptionL0 ) :-
+    foldl(select_option_default,
+	  [max_tries(MaxTries)-MaxTries],
+	  OptionL0, OptionL),
+    with_context_vars(( Goal,
 			b_getval(refactor_count, Count),
 			b_getval(refactor_tries, Tries),
 			foldl(select_option_default,
@@ -344,8 +355,12 @@ apply_ec_term_level(Level, Term, Into, Expander, OptionL) :-
 			       tries(Tries)  -Tries],
 			      OptionL, _)
 		      ),
-		      [refactor_count, refactor_tries],
-		      [0,              0 ]
+		      [refactor_count,
+		       refactor_tries,
+		       refactor_max_tries],
+		      [0,
+		       0,
+		       MaxTries]
 		     ).
 
 :- public clause_file_module/3.
@@ -358,19 +373,18 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
     (Level = goal -> DExpand=yes ; DExpand = no),
     (Level = sent -> SentPattern = Term ; true), % speed up
     foldl(select_option_default,
-		[syntax_errors(SE)-error,
-		 subterm_positions(TermPos)-TermPos,
-		 module(M)-M,
-		 linear_term(LinearTerm)-no,
-		 sentence(SentPattern)-SentPattern,
-		 comments(Comments)-Comments,
-		 expand(Expand)-DExpand,
-		 expanded(Expanded)-Expanded,
-		 fixpoint(FixPoint)-none,
-		 max_changes(Max)-Max,
-		 max_tries(MaxTries)-MaxTries
-		],
-		OptionL0, OptionL1),
+	  [syntax_errors(SE)-error,
+	   subterm_positions(TermPos)-TermPos,
+	   module(M)-M,
+	   linear_term(LinearTerm)-no,
+	   sentence(SentPattern)-SentPattern,
+	   comments(Comments)-Comments,
+	   expand(Expand)-DExpand,
+	   expanded(Expanded)-Expanded,
+	   fixpoint(FixPoint)-none,
+	   max_changes(Max)-Max
+	  ],
+	  OptionL0, OptionL1),
     ( option(clause(CRef), OptionL1)
     ->FileMGen = clause_file_module(CRef, File, M),
       clause_property(CRef, line_count(Line)),
@@ -401,8 +415,7 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
 	     refactor_subpos,
 	     refactor_file,
 	     refactor_goal_args,
-	     refactor_modified,
-	     refactor_max_tries],
+	     refactor_modified],
 	    [SentPattern,
 	     Linear,
 	     Expanded,
@@ -412,8 +425,7 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
 	     TermPos,
 	     File,
 	     ga(Term, Into, Expander),
-	     false,
-	     MaxTries]),
+	     false]),
 	'$set_source_module'(_, OldM)).
 
 fixpoint_loop(none, Goal) :- ignore(Goal).
@@ -1180,7 +1192,8 @@ rportray('$LISTNL.'(L), Opt) :- !,
     rportray_list(L, write_term, '.\n', Opt1).
 rportray('$LIST,NL'(L), Opt) :- !,
     rportray_list_nl_comma(L, 0, Opt).
-rportray('$LIST,NL'(L, Offs), Opt) :- !,
+rportray('$LIST,NL'(L, Offs), Opt) :-
+    integer(Offs), !,
     rportray_list_nl_comma(L, Offs, Opt).
 rportray('$LISTB,NL'(L), Opt) :- !,
     rportray_list_nl_b(L, 0, Opt).
@@ -1265,15 +1278,15 @@ sep_nl(Offs, Sep, SepNl) :-
     with_output_to(atom(In), line_pos(LinePos)),
     atomic_list_concat([Sep, '\n', In], SepNl).
 
-write_tail(T, _, _, Opt) :-
-    var(T),
-    !,
-    write_term(T, Opt).
+write_tail(T, Writter, _, Opt) :-
+    var(T), !,
+    call(Writter, T, Opt).
 write_tail([], _, _, _) :- !.
 write_tail('$LIST,NL'(L), Writter, _, Opt) :- !,
     sep_nl(0, ',', Sep),
     term_write_sep_list_inner(L, Writter, Sep, Opt).
-write_tail('$LIST,NL'(L, Offs), Writter, _, Opt) :- !,
+write_tail('$LIST,NL'(L, Offs), Writter, _, Opt) :-
+    integer(Offs), !,
     sep_nl(Offs, ',', Sep),
     term_write_sep_list_inner(L, Writter, Sep, Opt).
 write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), Writter, SepIn, Opt) :-
@@ -1298,10 +1311,9 @@ write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), Writter, SepIn, Opt)
     ; term_write_sep_list_inner_rec(Term, Writter, SepIn, Opt)
     ),
     display_subtext(Text, ITo, To0).
-write_tail(T, _Writter, Sep, Opt) :-
-    write(Sep),
+write_tail(T, Writter, _, Opt) :-
     write('|'),
-    write_term(T, Opt).
+    call(Writter, T, Opt).
 
 term_write_sep_list([],    _,   _).
 term_write_sep_list([T|L], Sep, Opt) :-
