@@ -1062,6 +1062,35 @@ test(exsl) :-
 test(exst) :-
     execute_test(exst, exst, replace_term(X, X-Y, (atom(X), string_upper(X, Y))), [sentence(p(_))]).
 
+/* $ref_body$
+--- ref_body.pl (source)
++++ ref_body.pl (target)
+@@ -2,7 +2,9 @@
+ 
+ rb :-
+     call_cleanup(call,
+-		 cleanup).
++		 ( cleanup1(a),
++		   cleanup2(a)
++		 )).
+ 
+ call.
+ 
+@@ -10,7 +12,8 @@
+ 
+ rb2 :-
+     call,
+-    cleanup,
++    cleanup1(a),
++    cleanup2(a),
+     done.
+ 
+ cleanup :-
+*/
+
+test(ref_body) :-
+    execute_test_(ref_body, replace_conjunction(cleanup, (cleanup1(a),cleanup2(a))), [file(ref_body)]).
+
 :- comment_data:disable.
 
 :- end_tests(refactor).

@@ -351,7 +351,7 @@ replace_conjunction(Conj, Replacement, Options) :-
     replace_conjunction(Conj, Replacement, true, Options).
 
 replace_last_literal(Conj, Body, Conj, Body) :- var(Conj), !.
-replace_last_literal((A,Conj), '$BODY'((A,Conj2)), Lit, Body) :- !,
+replace_last_literal((A,Conj), '$BODYB'((A,Conj2)), Lit, Body) :- !,
     replace_last_literal_(Conj, Conj2, Lit, Body).
 replace_last_literal(Conj, Body, Conj, Body).
 
