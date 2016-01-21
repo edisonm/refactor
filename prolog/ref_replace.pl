@@ -1750,7 +1750,7 @@ write_b(Term, OptL, Offs, Pos0) :-
     ( option(priority(N), OptL),
       option(module(M), OptL),
       term_needs_braces(M:Term, N)
-    -> write('( '),
+    ->write('( '),
       Pos is Pos0 + 2,
       write_b1(Term, OptL, Offs, Pos),
       nl,
