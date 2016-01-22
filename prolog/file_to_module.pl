@@ -113,10 +113,11 @@ file_to_module(Alias, OptionL0 ) :-
     add_modmeta_decl(M, PIFx),
     append([PIL1, PIRn, ExcludeL], ExU2),
     sort(ExU2, ExL2),
-    phrase(( collect_import_decls(M, FileL, ExL2),
+    phrase(( AddL,
+	     collect_import_decls(M, FileL, ExL2),
 	     collect_dynamic_decls(M, FileL),
 	     collect_meta_decls(M, PIL)
-	   ), MDL, AddL),
+	   ), MDL, []),
     findall(C, ( member(C, MDL),
 		 replace_sentence(C, C, [max_changes(1),
 					 changes(N),
