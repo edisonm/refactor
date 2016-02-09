@@ -138,7 +138,9 @@ add_module_decl(CL, NewM, PIL1, File) :-
 		     [Term@@(:- module('$BODY'((NewM, PIL2))))|CL],
 		     ( Term = (:- export(ExS))
 		     ->refactor_context(pattern, [(:- export(ExP))]),
-		       PIL2 = '$LISTB,NL'(['$PRIORITY'('$BODY'(ExP@@ExS),1200)|PIL1])
+		       sequence_list(ExS, ExL, []),
+		       subtract(PIL1, ExL, PILD),
+		       PIL2 = '$LISTB,NL'(['$PRIORITY'('$BODY'(ExP@@ExS),1200)|PILD])
 		     ),
 		     [max_tries(1), changes(N), file(File)]),
     ( N = 0
@@ -179,7 +181,10 @@ add_modexp_decl(M, PIFx) :-
 		     (:- module(M, NMExL)),
 		     ( subtract(PIFx, MEL, NExL),
 		       NExL \= [],
-		       append(MEL, '$LIST,NL'(NExL), NMExL)
+		       ( MEL = []
+		       ->NMExL = '$LISTB,NL'(NExL)
+		       ; append(MEL, '$LIST,NL'(NExL), NMExL)
+		       )
 		     ), [file(MFile)]).
 
 %% collect_fixable(M, FileL, ExcludeL, PIM) is det
