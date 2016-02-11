@@ -28,6 +28,7 @@
 */
 
 :- module(ref_replace, [replace/5,
+			refactor_message/2,
 			op(100,xfy,($@)),
 			op(100,xfy,(@@))
 		       ]).
@@ -612,7 +613,6 @@ apply_change(Text, M, subst(TermPos, Priority, Pattern, Term, Into),
 				     OptionL, Text, From, To)).
 
 with_pattern_into_termpos(Goal, Pattern, Into, TermPos) :-
-    refactor_context(file, File),
     nb_getval(refactor_tries, Tries),
     nb_getval(refactor_max_tries, MaxTries),
     ( nonvar(MaxTries)
@@ -622,14 +622,18 @@ with_pattern_into_termpos(Goal, Pattern, Into, TermPos) :-
     succ(Tries, Tries1),
     nb_setval(refactor_tries, Tries1),
     with_context_vars(catch(once(Goal), Error,
-	 ( print_message(error, refactor(file_term_position(File, TermPos))),
-	   print_message(error, Error),
-	   fail
-	 )),
+			    ( refactor_message(error, Error),
+			      fail
+			    )),
 		      [refactor_pattern,
 		       refactor_into,
 		       refactor_termpos],
 		      [Pattern, Into, TermPos]).
+
+refactor_message(Type, Message) :-
+    refactor_context(file, File),
+    nb_getval(refactor_termpos, TermPos),
+    print_message(Type, refactor_message(file_term_position(File, TermPos), Message)).
 
 with_context(Src, Pattern0, Into0, TermPos, Pattern1, Into2, Goal) :-
     copy_term(Pattern0-Into0, Pattern1-Into1),
@@ -1034,6 +1038,10 @@ substitute_term_list([], TP, M, Tail, Ref, Into, Expander, Cmd) :-
 prolog:message(acheck(refactor(Goal, From))) -->
     prolog:message_location(From),
     ['Unable to refactor ~w, no term position information available'-[Goal], nl].
+prolog:message(refactor_message(From, Message)) -->
+    prolog:message_location(From),
+    ['While refactorizing: '],
+    '$messages':translate_message(Message).
 prolog:message(refactor(From)) -->
     prolog:message_location(From),
     ['Exception raised while refactorizing', nl].
@@ -1200,6 +1208,7 @@ rportray('$LISTB,NL'(L), Opt) :- !,
 rportray('$LISTB,NL'(L, Offs), Opt) :-
     integer(Offs), !,
     rportray_list_nl_b(L, Offs, Opt).
+rportray('$NL', _) :- nl.
 rportray('$PRIORITY'(T, Priority), Opt) :-
     integer(Priority), !,
     merge_options([priority(Priority)], Opt, Opt1),
