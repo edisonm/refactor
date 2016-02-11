@@ -70,7 +70,8 @@ with_source_file(File, Goal) :-
 	      )).
 
 fetch_term_info(Pattern, Term, Options, In) :-
-    ( ( option(line(Line), Options)
+    ( ( option(line(Line), Options),
+	nonvar(Line)
       ->seek(In, 0, bof, _),
 	prolog_source:seek_to_line(In, Line),
 	once(get_term_info_fd(In, Pattern, Term, Options))
@@ -105,15 +106,25 @@ get_term_info_fd(In, PatternL, TermL, OptionL0 ) :-
 	    FromL),
     min_list(FromL, From),
     TermPos = list_position(From, To, TermPosL, none).
-get_term_info_fd(In, Pattern, Term, Options) :-
+get_term_info_fd(In, Pattern, Term, Options0 ) :-
+    should_set_line(SetLine, Options0, Options),
     repeat,
-    '$set_source_module'(M, M),
-    read_term(In, Term, [module(M)|Options]),
-    ( Term == end_of_file ->
-      !,
-      fail
-    ; subsumes_term(Pattern, Term)
-    ).
+      '$set_source_module'(M, M),
+      read_term(In, Term, [module(M)|Options]),
+      set_line(SetLine),
+      ( Term == end_of_file ->
+	!,
+	fail
+      ; subsumes_term(Pattern, Term)
+      ).
+
+should_set_line(posline(Pos, Line), Options, [term_position(Pos)|Options]) :-
+    option(line(Line), Options), !.
+should_set_line(no, Options, Options).
+
+set_line(no).
+set_line(posline(Pos, Line)) :-
+    stream_position_data(line_count, Pos, Line).
 
 transverse_apply(_,     ListL,  ListT, ListL, EL, EL) :- maplist(=([]), ListT).
 transverse_apply(Apply, ListH0, ListT, ListL, _,  EL) :-
