@@ -570,7 +570,9 @@ with_context_vars(Goal, NameL, ValueL) :-
 % This is weird due to the operators
 apply_commands(Index, File, GenMCommand) :-
     ( pending_change(_, File, Text) -> true
-    ; read_file_to_string(File, Text, [])
+    ; exists_file(File)
+    ->read_file_to_string(File, Text, [])
+    ; Text = ""
     ),
     setup_call_cleanup(
 	IPosText = 0-"",
