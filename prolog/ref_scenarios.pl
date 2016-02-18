@@ -369,9 +369,9 @@ bind_lit_body(Term, Conj2, CLit, CBody, RLit, RBody) :-
       PRBody = PRLit
     ; subsumes_term(Conj2-(CLit, Rest), Conj2-CBody)
     ->CBody = (CLit, Rest),
-      RBody = (RLit, Rest),
+      RBody = (RLit, Rest) $@ CBody,
       PCBody = (PCLit, PRest),
-      PRBody = (PRLit, PRest)
+      PRBody = (PRLit, PRest) $@ PCBody
     ),
     Term = t(Conj, PCLit, PCBody, Repl, PRLit, PRBody),
     refactor_context(pattern, Conj),
