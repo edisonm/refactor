@@ -35,8 +35,8 @@
 
 :- use_module(library(apply)).
 :- use_module(library(prolog_source)).
-:- use_module(xlibrary(clambda)).
-:- use_module(xtools(module_files)).
+:- use_module(library(clambda)).
+:- use_module(library(module_files)).
 
 :- meta_predicate
     with_source_file(+, 1),

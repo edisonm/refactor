@@ -6,7 +6,7 @@
 	   replace_sentence/4
 	  ]).
 
-:- use_module(refactor(ref_replace)).
+:- use_module(library(ref_replace)).
 
 :- meta_predicate
     replace_term(+,-,0,+),
