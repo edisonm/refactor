@@ -33,6 +33,17 @@
 			op(100,xfy,(@@))
 		       ]).
 
+/** <module> Basic Term Expansion operations
+
+  This library provides the predicate replace/5, which is the basic entry point
+  for all the refactoring scenarios.
+
+  Note for implementors/hackers:
+  Be careful with some variables, they uses destructive assignment --TODO:
+  document them
+
+*/
+
 :- use_module(library(apply)).
 :- use_module(library(codesio)).
 :- use_module(library(lists)).
@@ -57,16 +68,10 @@
 :- multifile
     prolog:xref_open_source/2.	% +SourceId, -Stream
 
-/** <module> Basic Term Expansion operations
-
-  This library provides the predicate replace/5, which is the basic entry point
-  for all the refactoring scenarios.
-
-  Note for implementors/hackers:
-  Be careful with some variables, they uses destructive assignment --TODO:
-  document them
-
-*/
+:- dynamic
+    rportray_pos/2,
+    ref_position/3,
+    rportray_skip/0.
 
 :- meta_predicate
     replace(+,?,?,0,-),
@@ -207,6 +212,16 @@
 % * '$TEXTQ'(T)
 % like '$TEXTQ'(T, 0)
 %
+% * '$POS'(Name, Term)
+% Preserves the current write position in Name, for further usage in hacks that
+% have Offset as argument
+%
+% * '$OUTPOS'
+% In an Offset expression, is replaced by the current write position.
+% For example:
+% '$TEXT'(T,'$OUTPOS')
+% is equivalent to:
+% '$POS'(my_outpos, '$TEXT'(T, my_outpos))
 
 is_(A, B) :- A is B.
 
@@ -230,8 +245,6 @@ with_styles(Goal, StyleL) :-
     setup_call_cleanup(maplist(style_check, StyleL),
 		       Goal,
 		       maplist(style_check, OldStyleL)).
-
-:- dynamic ref_position/3.
 
 % Note: To avoid that this hook be applied more than once, we record the
 % positions already refactorized in ref_position/3.
@@ -603,16 +616,27 @@ string_concat_to(RText, t(From, To, PasteText), Pos-Text0, To-Text) :-
     string_concat(Text0, Text1, Text2),
     string_concat(Text2, PasteText, Text).
 
-add_module_option(M) --> [module(M)].
-
 apply_change(Text, M, subst(TermPos, Priority, Pattern, Term, Into),
 	     t(From, To, PasteText)) :-
-    wr_options(OptionL0),
-    add_module_option(M, OptionL1, OptionL0),
-    OptionL = [priority(Priority)|OptionL1],
-    with_output_to(string(PasteText),
-		   print_expansion_0(Into, Pattern, Term, TermPos,
-				     OptionL, Text, From, To)).
+    wr_options(OptionL),
+    call_cleanup(
+	with_output_to(string(PasteText),
+	    print_expansion_0(Into, Pattern, Term, TermPos,
+			      [priority(Priority), module(M)|OptionL],
+			      Text, From, To)),
+	retractall(rportray_pos(_, _))).
+
+wr_options([portray_goal(ref_replace:rportray),
+	    spacing(next_argument),
+	    numbervars(true),
+	    quoted(true),
+	    partial(true)]).
+
+print_expansion_0(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
+    ( nonvar(Into) ->
+      print_expansion_1(Into, Pattern, Term, TermPos, OptionL, Text, From, To)
+    ; print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To)
+    ).
 
 with_pattern_into_termpos(Goal, Pattern, Into, TermPos) :-
     nb_getval(refactor_tries, Tries),
@@ -1094,19 +1118,15 @@ rportray_clause(Clause, OptL) :-
 % portray_clause_(OptL, Clause) :-
 %     portray_clause(current_output, Clause, OptL).
 
-rportray_clause(C, Offs, OptL) :-
+rportray_clause(C, Pos, OptL) :-
     ( nonvar(C),
       C = (H :- B)
     ->write_term(H, OptL),
       write(' :-\n'),
-      get_output_position(Pos),
-      LinePos is Offs + Pos,
-      line_pos(LinePos),
-      write_b(B, OptL, Offs, Pos)
+      line_pos(4 + Pos),
+      write_b(B, OptL, 4 + Pos)
     ; write_term(C, OptL)
     ).
-
-:- dynamic rportray_skip/0.
 
 :- public rportray/2.
 rportray('$sb'(TermPos), _Opt) :-
@@ -1162,30 +1182,41 @@ rportray('$LIST,_'(L), Opt) :- !,
 rportray('$TEXT'(T), Opt) :- !,
     write_t(T, Opt).
 rportray('$TEXT'(T, Offs), Opt) :-
-    integer(Offs), !,
-    forall(between(1, Offs, _), write(' ')),
+    offset_pos(Offs, Pos), !,
+    line_pos(Pos),
     write_t(T, Opt).
 rportray('$TEXTQ'(T), Opt) :- !,
     write_q(T, Opt).
 rportray('$TEXTQ'(T, Offs), Opt) :-
-    integer(Offs), !,
-    forall(between(1, Offs, _), write(' ')),
+    offset_pos(Offs, Pos), !,
+    line_pos(Pos),
     write_q(T, Opt).
 rportray('$CLAUSE'(C), Opt) :- !,
     rportray_clause(C, Opt).
 rportray('$CLAUSE'(C, Offs), Opt) :-
-    integer(Offs), !,
-    rportray_clause(C, Offs, Opt).
+    offset_pos(Offs, Pos), !,
+    rportray_clause(C, Pos, Opt).
 rportray('$BODY'(B, Offs), Opt) :-
-    integer(Offs), !,
-    rportray_body(B, Offs, Opt).
+    offset_pos(Offs, Pos), !,
+    rportray_body(B, Pos, Opt).
 rportray('$BODY'(B), Opt) :- !,
-    rportray_body(B, 0, Opt).
+    offset_pos('$OUTPOS', Pos),
+    rportray_body(B, Pos, Opt).
 rportray('$BODYB'(B, Offs), Opt) :-
-    integer(Offs), !,
-    rportray_bodyb(B, Offs, Opt).
+    offset_pos(Offs, Pos), !,
+    rportray_bodyb(B, Pos, Opt).
+rportray('$POS'(Name, Term), Opt) :-
+    get_output_position(Pos),
+    nonvar(Name),
+    ( \+ rportray_pos(Name, _)
+    ->assertz(rportray_pos(Name, Pos))
+    ; refactor_message(warning, format("Position named ~w redefined", [Name])),
+      fail
+    ),
+    write_term(Term, Opt).
 rportray('$BODYB'(B), Opt) :- !,
-    rportray_bodyb(B, 0, Opt).
+    offset_pos('$OUTPOS', Pos),
+    rportray_bodyb(B, Pos, Opt).
 rportray('$LIST'(L, Sep), Opt) :- !,
     rportray_list(L, write_term, Sep, Opt).
 rportray('$LISTC'(CL), Opt) :- !,
@@ -1201,15 +1232,17 @@ rportray('$LISTNL.'(L), Opt) :- !,
     merge_options([priority(1200)], Opt, Opt1),
     rportray_list(L, write_term, '.\n', Opt1).
 rportray('$LIST,NL'(L), Opt) :- !,
-    rportray_list_nl_comma(L, 0, Opt).
+    offset_pos('$OUTPOS', Pos), !,
+    rportray_list_nl_comma(L, Pos, Opt).
 rportray('$LIST,NL'(L, Offs), Opt) :-
-    integer(Offs), !,
-    rportray_list_nl_comma(L, Offs, Opt).
+    offset_pos(Offs, Pos), !,
+    rportray_list_nl_comma(L, Pos, Opt).
 rportray('$LISTB,NL'(L), Opt) :- !,
-    rportray_list_nl_b(L, 0, Opt).
+    offset_pos('$OUTPOS', Pos), !,
+    rportray_list_nl_b(L, Pos, Opt).
 rportray('$LISTB,NL'(L, Offs), Opt) :-
-    integer(Offs), !,
-    rportray_list_nl_b(L, Offs, Opt).
+    offset_pos(Offs, Pos), !,
+    rportray_list_nl_b(L, Pos, Opt).
 rportray('$NL', _) :- nl.
 rportray('$PRIORITY'(T, Priority), Opt) :-
     integer(Priority), !,
@@ -1245,24 +1278,44 @@ rportray([E|T0], Opt) :- !,
       )
     ).
 
+pos_value(Pos, Value) :-
+    ( rportray_pos(Pos, Value)
+    ->true
+    ; Pos == '$OUTPOS'
+    ->get_output_position(Value)
+    ; fail
+    ).
+
+arithexpression(X) :- number(X), !.
+arithexpression(X) :-
+    current_arithmetic_function(X),
+    forall(arg(_, X, V), arithexpression(V)).
+
+offset_pos(Offs, Pos) :-
+    substitute(pos_value, Offs, Expr),
+    arithexpression(Expr),
+    catch(Pos is round(Expr), _, fail).
+
 term_write(Opt, Term) :- write_term(Term, Opt).
 
 rportray_list_nl_b([], _, Opt) :- !, write_term([], Opt).
-rportray_list_nl_b(L, Offs, Opt) :-
+rportray_list_nl_b([E|L], Pos, Opt) :- !,
     write('['),
-    rportray_list_nl_comma(L, Offs, Opt),
+    rportray_list_nl_comma([E|L], Pos, Opt),
     write(']').
+rportray_list_nl_b(L, Pos, Opt) :-
+    rportray_list_nl_comma(L, Pos, Opt).
 
-rportray_list_nl_comma(L, Offs, Opt) :-
+rportray_list_nl_comma(L, Pos, Opt) :-
     term_priority([_|_], user, 1, Priority),
     merge_options([priority(Priority)], Opt, Opt1),
-    sep_nl(Offs, ',', Sep),
+    sep_nl(Pos, ',', Sep),
     rportray_list(L, write_term, Sep, Opt1).
 
 :- meta_predicate rportray_list(+, 2, +, +).
-rportray_list([], _, _, _).
-rportray_list([E|L], Writter, Sep, Opt) :-
-    term_write_sep_list_2([E|L], Writter, Sep, Opt).
+rportray_list([], _, _, _) :- !.
+rportray_list(L, Writter, Sep, Opt) :-
+    term_write_sep_list_2(L, Writter, Sep, Opt).
 
 term_write_sep_list_2([E|T], Writter, Sep, Opt) :- !,
     call(Writter, E, Opt),
@@ -1283,9 +1336,7 @@ term_write_sep_list_inner_rec(T, Writter, SepIn, Opt) :-
     ; write_tail(T, Writter, SepIn, Opt)
     ).
 
-sep_nl(Offs, Sep, SepNl) :-
-    get_output_position(Pos),
-    LinePos is Offs + Pos,
+sep_nl(LinePos, Sep, SepNl) :-
     with_output_to(atom(In), line_pos(LinePos)),
     atomic_list_concat([Sep, '\n', In], SepNl).
 
@@ -1294,11 +1345,12 @@ write_tail(T, Writter, _, Opt) :-
     call(Writter, T, Opt).
 write_tail([], _, _, _) :- !.
 write_tail('$LIST,NL'(L), Writter, _, Opt) :- !,
-    sep_nl(0, ',', Sep),
+    offset_pos('$OUTPOS', Pos),
+    sep_nl(Pos, ',', Sep),
     term_write_sep_list_inner(L, Writter, Sep, Opt).
 write_tail('$LIST,NL'(L, Offs), Writter, _, Opt) :-
-    integer(Offs), !,
-    sep_nl(Offs, ',', Sep),
+    offset_pos(Offs, Pos), !,
+    sep_nl(Pos, ',', Sep),
     term_write_sep_list_inner(L, Writter, Sep, Opt).
 write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), Writter, SepIn, Opt) :-
     is_list(Term),
@@ -1334,18 +1386,6 @@ term_write_sep_list([T|L], Sep, Opt) :-
 term_write_sep_elem(Sep, Opt, Term) :- write(Sep), write_term(Term, Opt).
 
 term_write_comma_2(Opt, Term) :- write_term(Term, Opt), write(', ').
-
-print_expansion_0(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
-    ( nonvar(Into) ->
-      print_expansion_1(Into, Pattern, Term, TermPos, OptionL, Text, From, To)
-    ; print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To)
-    ).
-
-wr_options([portray_goal(ref_replace:rportray),
-	    spacing(next_argument),
-	    numbervars(true),
-	    quoted(true),
-	    partial(true)]).
 
 print_expansion_rm_dot(TermPos, Text, From, To) :-
     arg(1, TermPos, From),
@@ -1761,47 +1801,44 @@ bin_op(Term, Op, Left, Right, A, B) :-
     arg(1, Term, A),
     arg(2, Term, B).
 
-rportray_bodyb(B, Offs, OptL) :-
-    get_output_position(Pos),
-    write_b(B, OptL, Offs, Pos).
+rportray_bodyb(B, Pos, OptL) :-
+    write_b(B, OptL, Pos).
 
-rportray_body(B, Offs, OptL) :-
-    get_output_position(Pos),
-    write_b1(B, OptL, Offs, Pos).
+rportray_body(B, Pos, OptL) :-
+    write_b1(B, OptL, Pos).
 
-write_b(Term, OptL, Offs, Pos0) :-
+write_b(Term, OptL, Pos0) :-
     ( option(priority(N), OptL),
       option(module(M), OptL),
       term_needs_braces(M:Term, N)
     ->write('( '),
       Pos is Pos0 + 2,
-      write_b1(Term, OptL, Offs, Pos),
+      write_b1(Term, OptL, Pos),
       nl,
-      line_pos(Pos0+Offs),
+      line_pos(Pos0 ),
       write(')')
-    ; write_b1(Term, OptL, Offs, Pos0)
+    ; write_b1(Term, OptL, Pos0 )
     ).
 
 and_layout(T) :- T = (_,_).
 
-write_b1(Term, OptL, Offs, Pos) :-
+write_b1(Term, OptL, Pos) :-
     prolog_listing:or_layout(Term), !,
-    write_b_layout(Term, OptL, or,  Offs, Pos).
-write_b1(Term, OptL, Offs, Pos) :-
+    write_b_layout(Term, OptL, or,  Pos).
+write_b1(Term, OptL, Pos) :-
     and_layout(Term), !,
-    write_b_layout(Term, OptL, and, Offs, Pos).
-write_b1(Term, OptL, _, _) :-
+    write_b_layout(Term, OptL, and, Pos).
+write_b1(Term, OptL, _) :-
     write_term(Term, OptL).
 
-write_b_layout(Term, OptL0, Layout, Offs, Pos) :-
+write_b_layout(Term, OptL0, Layout, Pos) :-
     bin_op(Term, Op, Left, Right, A, B),
     !,
     merge_options([priority(Left)], OptL0, OptL1),
-    write_b(A, OptL1, Offs, Pos),
-    LinePos is Offs + Pos,
-    nl_indent(Layout, Op, LinePos),
+    write_b(A, OptL1, Pos),
+    nl_indent(Layout, Op, Pos),
     merge_options([priority(Right)], OptL0, OptL2),
-    write_b(B, OptL2, Offs, Pos).
+    write_b(B, OptL2, Pos).
 
 nl_indent(or, Op, LinePos) :-
     nl,
