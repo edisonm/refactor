@@ -834,8 +834,10 @@ test(self_refactor_2) :-
 test(save_changes) :-
     current_module(plunit_refactor, F),
     absolute_file_name('ex1_.pl', Ex1, [file_type(prolog), relative_to(F)]),
-    copy_file(Ex1, '/tmp/ex1_.pl'),
-    ['/tmp/ex1_.pl'],
+    tmp_file_stream(text, File, Stream),
+    close(Stream),
+    copy_file(Ex1, File),
+    [File],
     rreset,
     replace_term((((same_term(c,a),d,b))),(((d,b))), [module(ex1_)]),
     with_output_to(string(Result), rshow),
