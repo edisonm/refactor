@@ -677,7 +677,7 @@ collect_import_decls(M, FileL, ExcludeL, MDL, Tail) :-
 black_list_um(swi(_)).		% Ignore internal SWI modules
 black_list_um(library(dialect/_)).
 
-collect_file_to_module(Callee, _Caller, From) :-
+collect_file_to_module(_Stage, Callee, _Caller, From) :-
     record_location_meta(Callee, _, From, all_call_refs, cu_caller_hook).
 
 cu_caller_hook(M:Head, CM, Type, Goal, _, From) :-
