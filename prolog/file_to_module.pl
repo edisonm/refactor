@@ -551,7 +551,7 @@ collect_movable(M, FileL, ExcludeL, PIL) :-
     prolog_walk_code([autoload(false),
 		      source(false),
 		      infer_meta_predicates(true)]),
-    extra_walk_code(OptionL, collect_file_to_module, _, _),
+    extra_walk_code([on_etrace(collect_file_to_module)|OptionL]),
     findall(F/A, ( module_to_import_db(F, A, M, _, IFile),
 		   \+ memberchk(IFile, FileL),
 		   implemented_in_file(F, A, M, File),
@@ -677,7 +677,8 @@ collect_import_decls(M, FileL, ExcludeL, MDL, Tail) :-
 black_list_um(swi(_)).		% Ignore internal SWI modules
 black_list_um(library(dialect/_)).
 
-collect_file_to_module(_Stage, Callee, _Caller, From) :-
+:- public collect_file_to_module/3.
+collect_file_to_module(Callee, _Caller, From) :-
     record_location_meta(Callee, _, From, all_call_refs, cu_caller_hook).
 
 cu_caller_hook(M:Head, CM, Type, Goal, _, From) :-
