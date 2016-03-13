@@ -59,6 +59,7 @@
 :- use_module(library(clambda)).
 :- use_module(library(mklinear)).
 :- use_module(library(substitute)).
+:- use_module(library(subpos_utils)).
 :- use_module(library(option_utils)).
 
 :- thread_local
@@ -1608,6 +1609,7 @@ escape_term('$LIST,'(_)).
 escape_term('$LIST,_'(_)).
 escape_term('$LIST,NL'(_)).
 escape_term('$LIST,NL'(_, _)).
+escape_term('$LISTC.NL'(_)).
 escape_term('$LISTB,NL'(_)).
 escape_term('$LISTB,NL'(_, _)).
 escape_term('$PRIORITY'(_, _)).
@@ -1750,37 +1752,6 @@ print_subtext(RefPos, Text) :-
 trim_list(N, L0, L, T) :-
     length(L, N),
     append(L, T, L0).
-
-subterm_location_eq([],    Find, Term) :- Find==Term.
-subterm_location_eq([N|L], Find, Term) :-
-    compound(Term),
-    arg(N, Term, SubTerm),
-    subterm_location_eq(L, Find, SubTerm).
-
-subterm_location([],    Term, Term).
-subterm_location([N|L], Find, Term) :-
-    compound(Term),
-    arg(N, Term, SubTerm),
-    subterm_location(L, Find, SubTerm).
-
-location_subpos(term_position(_, _, _, _, PosL), N, Pos) :-
-    nth1(N, PosL, Pos).
-location_subpos(list_position(From, To, PosL, Tail), N, Pos) :-
-    ( N = 1
-    ->PosL = [Pos|_]
-    ; N = 2
-    ->( PosL = [_]
-      ->Pos = Tail
-      ; PosL = [_|PosL1],
-	Pos = list_position(From, To, PosL1, Tail)
-      )
-    ).
-location_subpos(brace_term_position(_, _, Pos), 1, Pos).
-
-subpos_location([],    Pos,    Pos).
-subpos_location([N|L], SubPos, Pos) :-
-    location_subpos(SubPos, N, Pos0),
-    subpos_location(L, Pos0, Pos).
 
 display_subtext(Text0, From, To) :-
     ( From == To
