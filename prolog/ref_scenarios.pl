@@ -52,6 +52,7 @@
 	   remove_call/3
 	  ]).
 
+:- use_module(library(implementation_module)).
 :- use_module(library(option_utils)).
 :- use_module(library(ref_context)).
 :- use_module(library(ref_replace)).
@@ -244,35 +245,44 @@ replace_goal(Term, Into, Options) :-
 
 :- dynamic add_import/4.
 
-rgbmm(Body0, Body, M, Module) :-
-    ( Module == M
+rgbmm_arg(IM, CM, _, Spec, Arg0, Arg) :-
+    nonvar(Arg0),
+    ( integer(Spec)
+    ; Spec = (^)
+    ), !,
+    strip_module(IM:Arg0, NM, Arg1),
+    rgbmm(Arg1, Arg, NM, CM).
+rgbmm_arg(_, _, _, _, Arg, Arg).
+
+:- use_module(library(mapargs)).
+
+rgbmm(M:Body0, Body, _, CM) :- !, rgbmm(Body0, Body, M, CM).
+rgbmm(Body0, Body, IM, CM) :-
+    ( CM == IM
     ->Body = Body0
-    ; predicate_property(Module:Body0, imported_from(_))
-    ->( \+ ( predicate_property(Module:Body0, meta_predicate(Spec)),
-	     arg(_, Spec, ASpec),
-	     ( integer(ASpec)
-	     ; ASpec = (^)
-	     )
-	   )
-      ->Body = Body0
-      ; Body = M:Body0
-      )
-    ; predicate_property(M:Body0, imported_from(M2))
-    ->( M2 == Module
-      ->Body = Body0
-      ; ( \+ ( predicate_property(M:Body0, meta_predicate(Spec)),
-	       arg(_, Spec, ASpec),
-	       ( integer(ASpec)
-	       ; ASpec = (^)
-	       )
-	     )
-	->functor(Body0, F, A),
-	  assertz(add_import(Module, M2, F, A)),
-	  Body = Body0
-	; Body = M:Body0
+    ; implementation_module(IM:Body0, IM1),
+      ( predicate_property(CM:Body0, defined)
+      ->implementation_module(CM:Body0, IM2)
+      ; predicate_property(IM:Body0, exported)
+      ->IM2 = IM1,
+	functor(Body0, F, A),
+        assertz(add_import(CM, IM1, F, A))
+      ; IM2 = CM %% Make IM2 different than IM1
+      ),
+      ( predicate_property(IM:Body0, meta_predicate(Meta)),
+	arg(_, Meta, Spec),
+	( integer(Spec)
+	; Spec = (^)
 	)
+      ->functor(Body0, F, A),
+	functor(Body1, F, A),
+	mapargs(rgbmm_arg(IM, CM), Meta, Body0, Body1)
+      ; Body1 = Body0
+      ),
+      ( IM1 \= IM2
+      ->Body = IM:Body1
+      ; Body = Body1
       )
-    ; Body = M:Body0
     ).
 
 :- use_module(library(infer_alias)).
@@ -295,10 +305,10 @@ unfold_goal(MGoal, OptionL0) :-
     MGoal = M:Goal,
     select_option(module(Module), OptionL0, OptionL, Module),
     retractall(add_import(_, _, _, _)),
-    replace_goal(Goal, Body,
+    replace_goal(Goal, '$BODY'(Body),
 		 rgbmm(Body0, Body, M, Module),
 		 [module(Module)|OptionL]),
-    replace_sentence((:- use_module(Alias, L0)), [(:- use_module(Alias, '$LIST,NL'(L)))],
+    replace_sentence((:- use_module(Alias, L0)), [(:- use_module(Alias, '$LISTB,NL'(L)))],
 		     ( catch(absolute_file_name(Alias, IFile, [file_type(prolog)]),
 			     _,
 			     fail),
