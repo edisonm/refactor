@@ -1238,7 +1238,7 @@ rportray('$LIST,NL'(L, Offs), Opt) :-
     offset_pos(Offs, Pos), !,
     rportray_list_nl_comma(L, Pos, Opt).
 rportray('$LISTB,NL'(L), Opt) :- !,
-    offset_pos('$OUTPOS', Pos), !,
+    offset_pos('$OUTPOS'+1, Pos), !,
     rportray_list_nl_b(L, Pos, Opt).
 rportray('$LISTB,NL'(L, Offs), Opt) :-
     offset_pos(Offs, Pos), !,
