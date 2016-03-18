@@ -59,6 +59,8 @@
 :- use_module(library(ref_replacers)).
 :- use_module(library(clambda)).
 :- use_module(library(list_sequence)).
+:- use_module(library(qualify_meta_goal)).
+:- use_module(library(prolog_clause), []).
 
 :- meta_predicate
 	unfold_goal(0,+).
@@ -141,7 +143,7 @@ anonymize_term_singletons(Term, OptionL0 ) :-
 			\+ occurrences_of_var(Var, Term, 0 ),
 			Name = '_'
 		      ), [sentence(Sent), variable_names(Dict)|OptionL]).
-    
+
 
 anonymize_singletons(OptionL0 ) :-
     foldl(select_option_default,
@@ -245,19 +247,19 @@ replace_goal(Term, Into, Options) :-
 
 :- dynamic add_import/4.
 
-rgbmm_arg(IM, CM, _, Spec, Arg0, Arg) :-
+unfold_body_arg(IM, CM, _, Spec, Arg0, Arg) :-
     nonvar(Arg0),
     ( integer(Spec)
     ; Spec = (^)
     ), !,
     strip_module(IM:Arg0, NM, Arg1),
-    rgbmm(Arg1, Arg, NM, CM).
-rgbmm_arg(_, _, _, _, Arg, Arg).
+    unfold_body(Arg1, Arg, NM, CM).
+unfold_body_arg(_, _, _, _, Arg, Arg).
 
 :- use_module(library(mapargs)).
 
-rgbmm(M:Body0, Body, _, CM) :- !, rgbmm(Body0, Body, M, CM).
-rgbmm(Body0, Body, IM, CM) :-
+unfold_body(M:Body0, Body, _, CM) :- !, unfold_body(Body0, Body, M, CM).
+unfold_body(Body0, Body, IM, CM) :-
     ( CM == IM
     ->Body = Body0
     ; implementation_module(IM:Body0, IM1),
@@ -276,7 +278,7 @@ rgbmm(Body0, Body, IM, CM) :-
 	)
       ->functor(Body0, F, A),
 	functor(Body1, F, A),
-	mapargs(rgbmm_arg(IM, CM), Meta, Body0, Body1)
+	mapargs(unfold_body_arg(IM, CM), Meta, Body0, Body1)
       ; Body1 = Body0
       ),
       ( IM1 \= IM2
@@ -299,15 +301,50 @@ rsum(Module, UML) :-
 	      UM = '$@'(:- use_module(IA, '$C'((nl,write('\t     ')),'$LIST,NL'(IL))))
 	    ), UML).
 
+is_member(VarL, E) :-
+    member(V, VarL),
+    V == E, !.
+
+set_new_name(VNBody, VN, V) :-
+    ( member(Name1=V1, VNBody),
+      V1 == V
+    ->( ( Name = Name1
+	; between(2, infinite, Count),
+	  atomic_concat(Name1, Count, Name)
+	),
+	\+ member(Name=_, VN)
+      ->V = '$VAR'(Name)
+      )
+    ; true % Leave unnamed
+    ).
+
+match_clause_head_body((Head :- Body),   _:Head, Body) :- !.
+match_clause_head_body((M:Head :- Body), M:Head, Body) :- !.
+match_clause_head_body(Head, Head, true).
+
 % NOTE: Only works if exactly one clause match
 unfold_goal(MGoal, OptionL0) :-
-    findall(clause(MGoal, Body0), clause(MGoal, Body0), [clause(MGoal, Body0)]),
     MGoal = M:Goal,
     select_option(module(Module), OptionL0, OptionL, Module),
+    qualify_meta_goal(Goal, M, Module, Meta),
+    MMeta = M:Meta,
+    findall(clause(MMeta, Body1, CM, VNBody),
+	    ( clause(MMeta, _, Ref),
+	      clause_property(Ref, line_count(Line)),
+	      clause_property(Ref, file(File)),
+	      clause_property(Ref, module(CM)),
+	      prolog_clause:read_term_at_line(File, Line, CM, Clause, _, VNBody),
+	      match_clause_head_body(Clause, MMeta, Body1) % Raw Body before expansion
+	    ), [clause(MMeta, Body1, CM, VNBody)]),
     retractall(add_import(_, _, _, _)),
     replace_goal(Goal, '$BODY'(Body),
-		 rgbmm(Body0, Body, M, Module),
-		 [module(Module)|OptionL]),
+		 ( unfold_body(Body1, Body, CM, Module),
+		   term_variables(Body, VarL),
+		   term_variables(VN, VarS),
+		   exclude(is_member(VarS), VarL, NewVarL),
+		   maplist(set_new_name(VNBody, VN), NewVarL)
+		 ),
+		 [module(Module), variable_names(VN)|OptionL]),
     replace_sentence((:- use_module(Alias, L0)), [(:- use_module(Alias, '$LISTB,NL'(L)))],
 		     ( catch(absolute_file_name(Alias, IFile, [file_type(prolog)]),
 			     _,
