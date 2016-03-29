@@ -589,7 +589,7 @@ collect_decl_outside(M, FileL, ExcludeL, DOL, T) :-
 	      ; ( loc_declaration(H, EM, D, FromD),
 		  implementation_decl(D)
 		; loc_dynamic(H, EM, dynamic(Type, _, _), FromD),
-		  memberchk(Type, [retract, def])
+		  memberchk(Type, [retract, def, dec])
 		),
 		from_to_file(FromD, FileD),
 		\+ memberchk(FileD, FileL)
