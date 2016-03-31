@@ -663,7 +663,7 @@ collect_import_decls(M, FileL, ExcludeL, MDL, Tail) :-
 	      ( ( EM = M,
 		  % PEL \= REL,
 		  REL \= []
-		->Decl = EM:export('$LIST,NL'(REL)) % Explicit exports --EMM
+		->Decl = EM:export('$LIST,NL'(REL,'$OUTPOS'+1)) % Explicit exports --EMM
 		; fail
 		)
 	      ;	\+ ( loc_declaration(EA, _, use_module, UMFrom),
