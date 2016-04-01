@@ -178,12 +178,12 @@ add_modmeta_decl(M, PIFx) :-
 add_modexp_decl(M, PIFx) :-
     module_property(M, file(MFile)),
     replace_sentence((:- module(M, MEL)),
-		     (:- module(M, NMExL)),
+		     (:- module('$POS'('$1', M), NMExL)),
 		     ( subtract(PIFx, MEL, NExL),
 		       NExL \= [],
 		       ( MEL = []
-		       ->NMExL = '$LISTB,NL'(NExL)
-		       ; append(MEL, '$LIST,NL'(NExL), NMExL)
+		       ->NMExL = '$NLID'('$LISTB,NL'(NExL,'$1'+1),'$1')
+		       ; append(MEL, '$LIST,NL'(NExL,'$1'+1), NMExL)
 		       )
 		     ), [file(MFile)]).
 
@@ -347,7 +347,7 @@ del_use_module_ex(M, FileL) :-
 		     ),
 		     [files(FileL)]),
     replace_sentence((:- use_module(EA, IL)),
-		     (:- use_module(EA, NIL)),
+		     (:- use_module(EA, '$LISTB,NL'(NIL))),
 		     ( IL = [_|_],
 		       absolute_file_name(EA,
 					  ImplementFile,
@@ -424,10 +424,10 @@ add_use_module_ex_1(M, ImFile, AliasPIL) :-
 		    C \= 0
 		  ->true
 		  ; replace_sentence((:- use_module(A, L2)),
-				     (:- use_module(A, '$LISTB,NL'(L))),
+				     (:- $@(use_module('$POS'('$1', A), '$NLID'('$LISTB,NL'(L,'$1'+1),'$1')))),
 				     ( is_list(L2),
 				       subtract(L1, L2, L3),
-				       append(L2, '$LIST,NL'(L3), L)
+				       append(L2, '$LIST,NL'(L3,'$1'+1), L)
 				     ),
 				     [max_changes(1), changes(C), file(ImFile)])
 		  )
