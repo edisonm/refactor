@@ -399,24 +399,52 @@ add_umexdecl_each(ImFile, M, AliasPIG, Decl) :-
 
 add_use_module_ex_1(M, ImFile, AliasPIL) :-
     group_pairs_by_key(AliasPIL, AliasPIG),
-    findall(Decl, add_umexdecl_each(ImFile, M, AliasPIG, Decl), DeclL, Tail),
-    ( DeclL == Tail
+    findall(Decl, add_umexdecl_each(ImFile, M, AliasPIG, Decl), DeclL),
+    ( DeclL = []
     ->true
-    ; Tail = [],
-      replace_sentence((:- module(ImM, Ex)),
+    ; replace_sentence((:- module(ImM, Ex)),
 		       [(:- module(ImM, Ex))|DeclL],
 		       [max_changes(1), changes(C), file(ImFile)]),
       C \= 0
     ->true
     ; Term = (:- Decl),
-      Tail = [Term],
-      replace_sentence(Term, DeclL,
-		       memberchk(Decl, [use_module(_), use_module(_,_)]),
-		       [max_changes(1), changes(C), file(ImFile)]),
-      C \= 0
-    ->true
-    ; Tail = [],
-      replace_sentence([], DeclL, [max_changes(1), file(ImFile)])
+      findall(NDecl,
+	      ( member(NDecl, DeclL),
+		( NDecl = (:- use_module(A))
+		->( replace_sentence(NDecl, (:- use_module(A)),
+				     [max_changes(1), changes(C), file(ImFile)]),
+		    C \= 0
+		  ->true
+		  ; replace_sentence((:- use_module(A, _)), (:- use_module(A)),
+				     [max_changes(1), changes(C), file(ImFile)])
+		  )
+		; NDecl = (:- use_module(A, L1))
+		->( replace_sentence((:- use_module(A)), (:- use_module(A)),
+				     [max_changes(1), changes(C), file(ImFile)]),
+		    C \= 0
+		  ->true
+		  ; replace_sentence((:- use_module(A, L2)),
+				     (:- use_module(A, '$LISTB,NL'(L))),
+				     ( is_list(L2),
+				       subtract(L1, L2, L3),
+				       append(L2, '$LIST,NL'(L3), L)
+				     ),
+				     [max_changes(1), changes(C), file(ImFile)])
+		  )
+		),
+		C = 0
+	      ), DeclL2, Tail),
+      ( DeclL2 == Tail
+      ->true
+      ; Tail = [Term],
+	replace_sentence(Term, DeclL2,
+			 memberchk(Decl, [use_module(_), use_module(_,_)]),
+			 [max_changes(1), changes(C), file(ImFile)]),
+	C \= 0
+      ->true
+      ; Tail = [],
+	replace_sentence([], DeclL2, [max_changes(1), file(ImFile)])
+      )
     ).
 
 collect_to_reexport(M, FileL, PIL, ReexportL) :-
