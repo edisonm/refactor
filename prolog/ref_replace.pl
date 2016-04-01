@@ -1278,6 +1278,11 @@ rportray([E|T0], Opt) :- !,
 	write_term(T, Opt)
       )
     ).
+% Better formatting:
+rportray((:- Decl), Opt) :- !,
+    write(':- '),
+    merge_options([priority(1200)], Opt, Opt1),
+    write_term(Decl, Opt1).
 
 pos_value(Pos, Value) :-
     ( rportray_pos(Pos, Value)
