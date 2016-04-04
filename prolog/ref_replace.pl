@@ -622,9 +622,12 @@ apply_change(Text, M, subst(TermPos, Priority, Pattern, Term, Into),
     wr_options(OptionL),
     call_cleanup(
 	with_output_to(string(PasteText),
-	    print_expansion_0(Into, Pattern, Term, TermPos,
-			      [priority(Priority), module(M)|OptionL],
-			      Text, From, To)),
+	    with_context_vars(
+		print_expansion_0(Into, Pattern, Term, TermPos,
+				  [priority(Priority), module(M)|OptionL],
+				  Text, From, To),
+		[refactor_termpos],
+		[TermPos])),
 	retractall(rportray_pos(_, _))).
 
 wr_options([portray_goal(ref_replace:rportray),
@@ -1212,7 +1215,8 @@ rportray('$POS'(Name, Term), Opt) :-
     ( \+ rportray_pos(Name, _)
     ->assertz(rportray_pos(Name, Pos))
     ; refactor_message(warning, format("Position named ~w redefined", [Name])),
-      fail
+      retractall(rportray_pos(Name, _)),
+      assertz(rportray_pos(Name, Pos))      
     ),
     write_term(Term, Opt).
 rportray('$BODYB'(B), Opt) :- !,
