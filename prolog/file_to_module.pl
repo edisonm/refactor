@@ -375,21 +375,9 @@ add_use_module_ex(M, FileL) :-
     forall(member(ImFile-AliasPIL, FileAliasPIG),
 	   add_use_module_ex_1(M, ImFile, AliasPIL)).
 
-add_umexdecl_each(ImFile, M, AliasPIG, Decl) :-
-    ( member((IM:Alias)-PIL, AliasPIG),
-      module_property(IM, exports(ExL)),
-      ( member(F/A, ExL),
-	functor(H, F, A),
-	predicate_property(M:H, defined),
-	( module_to_import_db(F, A, OM, M, ImFile),
-	  OM \= IM,
-	  \+ predicate_property(IM:H, imported_from(OM))
-	; \+ predicate_property(M:H, imported_from(IM))
-	)
-      ->Decl = (:- use_module(Alias, PIL))
-      ; Decl = (:- use_module(Alias))
-      )
-    ).
+add_umexdecl_each(ImFile, M, AliasPIG, (:- Decl)) :-
+    member((IM:Alias)-PIL, AliasPIG),
+    get_use_module_decl(ImFile, M, IM, Alias, PIL, Decl).
 
 add_declarations(DeclL, ImFile) :-
     ( DeclL = []
@@ -718,17 +706,30 @@ collect_import_decls(M, FileL, ExcludeL, MDL, Tail) :-
 		     from_to_file(UMFrom, UFile),
 		     memberchk(UFile, FileL)
 		   ),
-		module_property(EM, exports(ExL)),
-		( EM \= M,
-		  member(F/A, ExL),
-		  functor(H, F, A),
-		  predicate_property(M:H, defined),
-		  \+ predicate_property(M:H, imported_from(EM))
-		->Decl = use_module(EA, REL)
-		; Decl = use_module(EA)
-		)
+		get_use_module_decl('', M, EM, EA, REL, Decl)
+	      
 	      )
 	    ), MDL, Tail).
+
+get_use_module_decl(ImFile, M, IM, EA, REL, Decl) :-
+    ( IM \= M,
+      module_property(IM, exports(ExL)),
+      member(F/A, ExL),
+      functor(H, F, A),
+      predicate_property(M:H, defined),
+      ( module_to_import_db(F, A, OM, M, ImFile),
+	OM \= IM,
+	\+ predicate_property(IM:H, imported_from(OM))
+      ; \+ ( predicate_property(M:H, imported_from(MM)),
+	     ( MM = IM
+	     ; predicate_property(IM:H, imported_from(MM)),
+	       predicate_property(IM:H, exported)
+	     )
+	   )
+      )
+    ->Decl = use_module(EA, REL)
+    ; Decl = use_module(EA)
+    ).
 
 black_list_um(swi(_)).		% Ignore internal SWI modules
 black_list_um(library(dialect/_)).
