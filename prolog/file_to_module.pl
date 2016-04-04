@@ -445,8 +445,8 @@ pretty_decl((:- module(M, L)),
 pretty_decl((:- reexport(A, L)),
 	    (:- $@(reexport('$POS'('$1'(Id), A),
 			    '$NLID'('$LISTB,NL'(L, '$1'(Id)+1), '$1'(Id))))), Id) :- !.
-pretty_decl((:- export(L)), (:- $@(export('$LIST,NL'(L)))), _) :- !.
-pretty_decl((:- M:export(L)), (:- $@(M:export('$LIST,NL'(L,'$OUTPOS'+1)))), _) :- !.
+pretty_decl((:- export(L)), (:- $@(export('$NLID'('$LIST,NL'(L)),'$OUTPOS'))), _) :- !.
+pretty_decl((:- M:export(L)), (:- $@(M:export('$NLID'('$LIST,NL'(L,'$OUTPOS'+1),'$OUTPOS'+1)))), _) :- !.
 pretty_decl(Decl, Decl, _).
 
 add_use_module_ex_1(M, ImFile, AliasPIL) :-
@@ -520,6 +520,7 @@ del_export_decl(M, ExFileL, DelExpDeclL) :-
 		     MExp,
 		     ( sequence_list(ExS, ExL, []),
 		       subtract(ExL, DelExpDeclL, ExNL),
+		       ExNL \= ExL,
 		       ( ExNL = []
 		       ->MExp = []
 		       ; MExp = MExDecl
