@@ -118,13 +118,8 @@ file_to_module(Alias, OptionL0 ) :-
 	     collect_dynamic_decls(M, FileL),
 	     collect_meta_decls(M, PIL)
 	   ), MDL, []),
-    findall(C, ( member(C, MDL),
-		 replace_sentence(C, C, [max_changes(1),
-					 changes(N),
-					 file(File)]),
-		 N = 0
-	       ), CL),
-    add_module_decl(CL, NewM, PIL1, File),
+    add_module_decl(NewM, PIL1, File),
+    add_declarations(MDL, File),
     decl_to_use_module(consult, M, PIL1, Alias, ReexportL),
     decl_to_use_module(include, M, PIL1, Alias, ReexportL),
     append(ExcludeL, PIFx, ExTL),
@@ -133,20 +128,19 @@ file_to_module(Alias, OptionL0 ) :-
     del_use_module_ex(M, FileL),
     forall(member(C, DelL), replace_sentence(C, [], [file(File)])).
 
-add_module_decl(CL, NewM, PIL1, File) :-
-    replace_sentence([Term],
-		     [Term@@(:- module('$BODY'((NewM, PIL2))))|CL],
+add_module_decl(NewM, PIL1, File) :-
+    pretty_decl((:- module(NewM, PIL2)), PDecl2),
+    replace_sentence(Term, PDecl2,
 		     ( Term = (:- export(ExS))
-		     ->refactor_context(pattern, [(:- export(ExP))]),
-		       sequence_list(ExS, ExL, []),
+		     ->sequence_list(ExS, ExL, []),
 		       subtract(PIL1, ExL, PILD),
-		       PIL2 = '$LISTB,NL'(['$PRIORITY'('$BODY'(ExP@@ExS),1200)|PILD])
+		       append(ExL, PILD, PIL2)
 		     ),
 		     [max_tries(1), changes(N), file(File)]),
     ( N = 0
-    ->replace_sentence([],
-		       [(:- module('$BODY'((NewM,
-					    '$LISTB,NL'(PIL1)))))|CL],
+    ->pretty_decl((:- module(NewM, PIL1)), PDecl1),
+      replace_sentence([],
+		       [PDecl1],
 		       [max_changes(1), file(File)])
     ; true
     ).
@@ -177,14 +171,11 @@ add_modmeta_decl(M, PIFx) :-
 
 add_modexp_decl(M, PIFx) :-
     module_property(M, file(MFile)),
-    replace_sentence((:- module(M, MEL)),
-		     (:- module('$POS'('$1', M), NMExL)),
+    pretty_decl((:- module(M, NMExL)), PDecl),
+    replace_sentence((:- module(M, MEL)), PDecl,
 		     ( subtract(PIFx, MEL, NExL),
 		       NExL \= [],
-		       ( MEL = []
-		       ->NMExL = '$NLID'('$LISTB,NL'(NExL,'$1'+1),'$1')
-		       ; append(MEL, '$LIST,NL'(NExL,'$1'+1), NMExL)
-		       )
+		       append(MEL, NExL, NMExL)
 		     ), [file(MFile)]).
 
 %% collect_fixable(M, FileL, ExcludeL, PIM) is det
@@ -286,8 +277,8 @@ add_use_module_cm(M, Alias, CM, PIL) :-
 		       ExL2 = []
 		     ),
 		     [module(CM)]),
-    replace_sentence((:- use_module(MainA, ExL)),
-		     (:- use_module(MainA, '$LISTB,NL'(ExL2))),
+    pretty_decl(:- use_module(MainA, ExL2), PDecl),
+    replace_sentence((:- use_module(MainA, ExL)), PDecl,
 		     ( absolute_file_name(MainA,
 					  MainF1,
 					  [file_type(prolog),
@@ -346,8 +337,8 @@ del_use_module_ex(M, FileL) :-
 		       NIL = []
 		     ),
 		     [files(FileL)]),
-    replace_sentence((:- use_module(EA, IL)),
-		     (:- use_module(EA, '$LISTB,NL'(NIL))),
+    pretty_decl((:- use_module(EA, NIL)), PDecl),
+    replace_sentence((:- use_module(EA, IL)), PDecl,
 		     ( IL = [_|_],
 		       absolute_file_name(EA,
 					  ImplementFile,
@@ -388,64 +379,92 @@ add_umexdecl_each(ImFile, M, AliasPIG, Decl) :-
     ( member((IM:Alias)-PIL, AliasPIG),
       module_property(IM, exports(ExL)),
       ( member(F/A, ExL),
-	module_to_import_db(F, A, OM, M, ImFile),
-	OM \= IM,
 	functor(H, F, A),
-	\+ predicate_property(IM:H, imported_from(OM))
+	predicate_property(M:H, defined),
+	( module_to_import_db(F, A, OM, M, ImFile),
+	  OM \= IM,
+	  \+ predicate_property(IM:H, imported_from(OM))
+	; \+ predicate_property(M:H, imported_from(IM))
+	)
       ->Decl = (:- use_module(Alias, PIL))
       ; Decl = (:- use_module(Alias))
       )
     ).
 
-add_use_module_ex_1(M, ImFile, AliasPIL) :-
-    group_pairs_by_key(AliasPIL, AliasPIG),
-    findall(Decl, add_umexdecl_each(ImFile, M, AliasPIG, Decl), DeclL),
+add_declarations(DeclL, ImFile) :-
     ( DeclL = []
     ->true
-    ; replace_sentence((:- module(ImM, Ex)),
-		       [(:- module(ImM, Ex))|DeclL],
-		       [max_changes(1), changes(C), file(ImFile)]),
-      C \= 0
-    ->true
-    ; Term = (:- Decl),
-      findall(NDecl,
+    ; findall(NDecl,
 	      ( member(NDecl, DeclL),
 		( NDecl = (:- use_module(A))
 		->( replace_sentence(NDecl, (:- use_module(A)),
 				     [max_changes(1), changes(C), file(ImFile)]),
 		    C \= 0
-		  ->true
+		  ->fail
 		  ; replace_sentence((:- use_module(A, _)), (:- use_module(A)),
-				     [max_changes(1), changes(C), file(ImFile)])
+				     [max_changes(1), changes(0), file(ImFile)])
 		  )
 		; NDecl = (:- use_module(A, L1))
 		->( replace_sentence((:- use_module(A)), (:- use_module(A)),
 				     [max_changes(1), changes(C), file(ImFile)]),
 		    C \= 0
-		  ->true
-		  ; replace_sentence((:- use_module(A, L2)),
-				     (:- $@(use_module('$POS'('$1', A), '$NLID'('$LISTB,NL'(L,'$1'+1),'$1')))),
+		  ->fail
+		  ; pretty_decl((:- use_module(A, L)), PDecl),
+		    replace_sentence((:- use_module(A, L2)), PDecl,
 				     ( is_list(L2),
 				       subtract(L1, L2, L3),
-				       append(L2, '$LIST,NL'(L3,'$1'+1), L)
+				       append(L2, '$LIST,NL'(L3,'$1'(1)+1), L)
 				     ),
-				     [max_changes(1), changes(C), file(ImFile)])
+				     [max_changes(1), changes(0), file(ImFile)])
 		  )
-		),
-		C = 0
-	      ), DeclL2, Tail),
-      ( DeclL2 == Tail
+		; true
+		)
+	      ), DeclL2),
+      ( DeclL2 = []
       ->true
-      ; Tail = [Term],
-	replace_sentence(Term, DeclL2,
-			 memberchk(Decl, [use_module(_), use_module(_,_)]),
-			 [max_changes(1), changes(C), file(ImFile)]),
-	C \= 0
-      ->true
-      ; Tail = [],
-	replace_sentence([], DeclL2, [max_changes(1), file(ImFile)])
+      ; foldl(pretty_decl, DeclL2, DeclL3, 1, _),
+	( Term = (:- Decl),
+	  append(DeclL3, [(:- Decl)], DeclL4),
+	  replace_sentence(Term, DeclL4,
+			   memberchk(Decl, [use_module(_), use_module(_,_)]),
+			   [max_changes(1), changes(C), file(ImFile)]),
+	  C \= 0
+	->true
+	; ( replace_sentence((:- module(ImM, Ex)),
+			     [(:- module(ImM, Ex))|DeclL3],
+			     [max_changes(1), changes(C), file(ImFile)]),
+	    C \= 0
+	  ->true
+	  ; replace_sentence([], DeclL3, [max_changes(1), file(ImFile)])
+	  )
+	)
       )
     ).
+
+
+pretty_decl(Decl, PDecl, Id, Next) :-
+    pretty_decl(Decl, PDecl, Id),
+    succ(Id, Next).
+
+pretty_decl(Decl, PDecl) :- pretty_decl(Decl, PDecl, 1).
+
+pretty_decl((:- use_module(A, L)),
+	    (:- $@(use_module('$POS'('$1'(Id), A),
+			      '$NLID'('$LISTB,NL'(L, '$1'(Id)+1), '$1'(Id))))), Id) :- !.
+pretty_decl((:- module(M, L)),
+	    (:- $@(module('$POS'('$1'(Id), M),
+			  '$NLID'('$LISTB,NL'(L, '$1'(Id)+1), '$1'(Id))))), Id) :- !.
+pretty_decl((:- reexport(A, L)),
+	    (:- $@(reexport('$POS'('$1'(Id), A),
+			    '$NLID'('$LISTB,NL'(L, '$1'(Id)+1), '$1'(Id))))), Id) :- !.
+pretty_decl((:- export(L)), (:- $@(export('$LIST,NL'(L)))), _) :- !.
+pretty_decl((:- M:export(L)), (:- $@(M:export('$LIST,NL'(L,'$OUTPOS'+1)))), _) :- !.
+pretty_decl(Decl, Decl, _).
+
+add_use_module_ex_1(M, ImFile, AliasPIL) :-
+    group_pairs_by_key(AliasPIL, AliasPIG),
+    findall(Decl, add_umexdecl_each(ImFile, M, AliasPIG, Decl), DeclL),
+    add_declarations(DeclL, ImFile).
 
 collect_to_reexport(M, FileL, PIL, ReexportL) :-
     module_property(M, exports(EL1)),
@@ -469,10 +488,10 @@ decl_to_use_module(Decl, M, PIL, Alias, ReexportL) :-
     ; ( PIL = ReexportL
       ->Into = (:- reexport(Alias))
       ; subtract(PIL, ReexportL, ExportL),
+	pretty_decl((:- reexport(Alias, ReexportL)), PDecl, 1),
 	( ExportL = []
-	->Into = (:- reexport(Alias, '$LISTB,NL'(ReexportL)))
-	; Into = [(:- use_module(Alias)),
-		  (:- reexport(Alias, '$LISTB,NL'(ReexportL)))]
+	->Into = PDecl
+	; Into = [(:- use_module(Alias)), PDecl]
 	)
       )
     ),
@@ -491,30 +510,31 @@ collect_export_decl_files(M, ExFileL) :-
 
 del_modexp_decl(M, DelExpDeclL) :-
     module_property(M, file(MFile)),
-    replace_sentence((:- module(M, MEL)),
-		     (:- module(M, '$LISTB,NL'(NL))),
+    pretty_decl((:- module(M, NL)), PDecl),
+    replace_sentence((:- module(M, MEL)), PDecl,
 		     ( subtract(MEL, DelExpDeclL, NL),
 		       NL \= MEL
 		     ), [file(MFile)]).
 
 del_export_decl(M, ExFileL, DelExpDeclL) :-
-    replace_sentence((:- export(ExS)),
-		     Exp,
+    pretty_decl((:- export(ExNL)), ExDecl),
+    replace_sentence((:- export(ExS)), Exp,
 		     ( sequence_list(ExS, ExL, []),
 		       subtract(ExL, DelExpDeclL, ExNL),
 		       ExNL \= ExL,
 		       ( ExNL = []
 		       ->Exp = []
-		       ; Exp = (:- export('$LIST,NL'(ExNL)))
+		       ; Exp = ExDecl
 		       )
 		     ), [module(M), files(ExFileL)]),
+    pretty_decl((:- M:export(ExNL)), MExDecl),
     replace_sentence((:- M:export(ExS)),
 		     MExp,
 		     ( sequence_list(ExS, ExL, []),
 		       subtract(ExL, DelExpDeclL, ExNL),
 		       ( ExNL = []
 		       ->MExp = []
-			 ; MExp = (:- M:export('$LIST,NL'(ExNL)))
+		       ; MExp = MExDecl
 		       )
 		     ), [files(ExFileL)]).
 
@@ -681,9 +701,9 @@ collect_import_decls(M, FileL, ExcludeL, MDL, Tail) :-
 	      current_module(EM, EF),
 	      smallest_alias(EF, EA),
 	      \+ black_list_um(EA),
-	      list_sequence(REL, RES),
 	      ( EM=M, REL \= []
-	      ->print_message(warning,
+	      ->list_sequence(REL, RES),
+		print_message(warning,
 			      format("Back imports is a bad sign: ~w",
 				     [(:- EM:export(RES))]))
 	      ; true
@@ -691,14 +711,22 @@ collect_import_decls(M, FileL, ExcludeL, MDL, Tail) :-
 	      ( ( EM = M,
 		  % PEL \= REL,
 		  REL \= []
-		->Decl = EM:export('$LIST,NL'(REL,'$OUTPOS'+1)) % Explicit exports --EMM
+		->Decl = EM:export(REL) % Explicit exports --EMM
 		; fail
 		)
 	      ;	\+ ( loc_declaration(EA, _, use_module, UMFrom),
 		     from_to_file(UMFrom, UFile),
 		     memberchk(UFile, FileL)
 		   ),
-		Decl = use_module(EA)
+		module_property(EM, exports(ExL)),
+		( EM \= M,
+		  member(F/A, ExL),
+		  functor(H, F, A),
+		  predicate_property(M:H, defined),
+		  \+ predicate_property(M:H, imported_from(EM))
+		->Decl = use_module(EA, REL)
+		; Decl = use_module(EA)
+		)
 	      )
 	    ), MDL, Tail).
 
