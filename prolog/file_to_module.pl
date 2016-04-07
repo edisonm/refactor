@@ -688,7 +688,7 @@ collect_import_decls(M, FileL, ExcludeL, MDL, Tail) :-
 			)
 		      ), REL),
 	      current_module(EM, EF),
-	      smallest_alias(EF, EA),
+	      library_alias(EF, EA),
 	      \+ black_list_um(EA),
 	      ( EM=M, REL \= []
 	      ->list_sequence(REL, RES),
