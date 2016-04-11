@@ -1624,6 +1624,7 @@ escape_term('$LIST,_'(_)).
 escape_term('$LIST,NL'(_)).
 escape_term('$LIST,NL'(_, _)).
 escape_term('$NLID'(_, _)).
+escape_term('$POS'(_, _)).
 escape_term('$LISTC.NL'(_)).
 escape_term('$LISTB,NL'(_)).
 escape_term('$LISTB,NL'(_, _)).
