@@ -123,7 +123,7 @@ file_to_module(Alias, OptionL0 ) :-
     decl_to_use_module(consult, M, PIL1, Alias, ReexportL),
     decl_to_use_module(include, M, PIL1, Alias, ReexportL),
     append(ExcludeL, PIFx, ExTL),
-    add_use_module(M, FileL, Alias, ExTL),
+    add_use_module(M, FileL, Alias, AddL, ExTL),
     add_use_module_ex(M, FileL),
     del_use_module_ex(M, FileL),
     forall(member(C, DelL), replace_sentence(C, [], [file(File)])).
@@ -172,10 +172,16 @@ add_modmeta_decl(M, PIFx) :-
 add_modexp_decl(M, PIFx) :-
     module_property(M, file(MFile)),
     pretty_decl((:- module(M, NMExL)), PDecl),
-    replace_sentence((:- module(M, MEL)), PDecl,
+    replace_sentence((:- module(M, MEL)),
+		     PDecl,
 		     ( subtract(PIFx, MEL, NExL),
 		       NExL \= [],
-		       append(MEL, NExL, NMExL)
+		       ( MEL = []
+		       ->pretty_decl((:- module(M, PIFx)), PDecl)
+		       ; append(MEL, '$LIST,NL'(NExL,'$1'+1), NMExL),
+			 PDecl = (:- $@(module('$POS'('$1', M),
+					       '$NLID'(NMExL$@MEL, '$1'))))
+		       )
 		     ), [file(MFile)]).
 
 %% collect_fixable(M, FileL, ExcludeL, PIM) is det
@@ -243,7 +249,7 @@ ren_qualification_decl(M, NewM, PIL, OptionL) :-
 			  [sentence((:- Decl))|OptionL])
 	   )).
 
-add_use_module(M, FileL, Alias, ExcludeL) :-
+add_use_module(M, FileL, Alias, AddL, ExcludeL) :-
     findall(CM-(F/A),
 	    ( ( module_to_import_db(F, A, M, CM, _File),
 		implemented_in_file(F, A, M, File),
@@ -257,14 +263,18 @@ add_use_module(M, FileL, Alias, ExcludeL) :-
     sort(CMPIU, CMPIL),
     group_pairs_by_key(CMPIL, CMPIG),
     forall(member(CM-PIL, CMPIG),
-	   add_use_module_cm(M, Alias, CM, PIL)).
+	   add_use_module_cm(M, Alias, AddL, CM, PIL)).
 
-add_use_module_cm(M, Alias, CM, PIL) :-
+add_use_module_cm(M, Alias, AddL, CM, PIL) :-
     module_property(CM, file(MFile)),
-    replace_sentence((:- module(CM, MEL)),
-		     [(:- module(CM, MEL)),
-		      (:- use_module(Alias))],
-		     [file(MFile)]),
+    reverse([(:- module(CM, _))|AddL], TopCL),
+    once(( member(Term, TopCL),
+	   replace_sentence(Term,
+			    [Term,
+			     (:- use_module(Alias))],
+			    [max_changes(1), changes(C), file(MFile)]),
+	   C \= 0
+	 )),
     module_property(M, file(MainF)),
     replace_sentence((:- use_module(MainA, ExL)),
 		     [],
