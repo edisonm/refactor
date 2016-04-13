@@ -40,6 +40,7 @@
 :- use_module(library(from_utils)).
 :- use_module(library(location_utils)).
 :- use_module(library(module_files)).
+:- use_module(library(pretty_decl)).
 
 %% module_to_import_db(F, A, M, CM, File)
 %
@@ -438,26 +439,6 @@ add_declarations(DeclL, ImFile) :-
 	)
       )
     ).
-
-
-pretty_decl(Decl, PDecl, Id, Next) :-
-    pretty_decl(Decl, PDecl, Id),
-    succ(Id, Next).
-
-pretty_decl(Decl, PDecl) :- pretty_decl(Decl, PDecl, 1).
-
-pretty_decl((:- use_module(A, L)),
-	    (:- $@(use_module('$POS'('$1'(Id), A),
-			      '$NLID'('$LISTB,NL'(L, '$1'(Id)+1), '$1'(Id))))), Id) :- !.
-pretty_decl((:- module(M, L)),
-	    (:- $@(module('$POS'('$1'(Id), M),
-			  '$NLID'('$LISTB,NL'(L, '$1'(Id)+1), '$1'(Id))))), Id) :- !.
-pretty_decl((:- reexport(A, L)),
-	    (:- $@(reexport('$POS'('$1'(Id), A),
-			    '$NLID'('$LISTB,NL'(L, '$1'(Id)+1), '$1'(Id))))), Id) :- !.
-pretty_decl((:- export(L)), (:- $@(export('$NLID'('$LIST,NL'(L)),'$OUTPOS'))), _) :- !.
-pretty_decl((:- M:export(L)), (:- $@(M:export('$NLID'('$LIST,NL'(L,'$OUTPOS'),'$OUTPOS'+1)))), _) :- !.
-pretty_decl(Decl, Decl, _).
 
 add_use_module_ex_1(M, ImFile, AliasPIL) :-
     group_pairs_by_key(AliasPIL, AliasPIG),
