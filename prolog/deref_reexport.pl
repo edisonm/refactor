@@ -17,16 +17,32 @@ deref_reexport(Alias, OptionL) :-
     ->print_message(information, format("~w does not have reexports", [Alias]))
     ; freeze(H, once((member(F/A, ExL), functor(H, F, A)))),
       collect_called_from(H, RM, _, _, OptionL),
-      findall(File/CM-(RM-F/A),
-	      ( called_from:called_from_db(H, RM, CM, _Caller, From),
+      findall(File/CM,
+	      ( called_from:called_from_db(_, RM, CM, _, From),
+		RM \= CM,
 		( RM = M
 		->true
 		; predicate_property(M:H, imported_from(RM))
 		),
-		from_to_file(From, File),
-		functor(H, F, A)
-	      ), FileRMPIL),
-      group_pairs_or_sort(FileRMPIL, FileRMPIG),
+		from_to_file(From, File)
+	      ), FileCMU),
+      sort(FileCMU, FileCML),
+      findall(File/CM-RMPIG,
+	      ( member(File/CM, FileCML),
+		findall((RM-F/A),
+			( called_from:called_from_db(H2, RM, CM, _, From),
+			  from_to_file(From, File),
+			  RM \= CM,
+			  ( RM = M
+			  ->true
+			  ; predicate_property(M:H, imported_from(RM))
+			  ),
+			  functor(H2, F, A),
+			  \+ file_to_module:declared_use_module(F, A, RM, CM, _, File)
+			), RMPIU),
+		sort(RMPIU, RMPIL),
+		group_pairs_by_key(RMPIL, RMPIG)
+	      ), FileRMPIG),
       forall(member(File/CM-RMPIL, FileRMPIG),
 	     update_use_module(AFile, M, RMPIL, File, CM))
     ).
