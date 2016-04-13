@@ -47,6 +47,6 @@ pretty_decl((:- module(M, L)),
 pretty_decl((:- reexport(A, L)),
 	    (:- $@(reexport('$POS'('$1'(Id), A),
 			    '$NLID'('$LISTB,NL'(L, '$1'(Id)+1), '$1'(Id))))), Id) :- !.
-pretty_decl((:- export(L)), (:- $@(export('$NLID'('$LIST,NL'(L)),'$OUTPOS'))), _) :- !.
+pretty_decl((:- export(L)), (:- $@(export('$NLID'('$LIST,NL'(L),'$OUTPOS')))), _) :- !.
 pretty_decl((:- M:export(L)), (:- $@(M:export('$NLID'('$LIST,NL'(L,'$OUTPOS'),'$OUTPOS'+1)))), _) :- !.
 pretty_decl(Decl, Decl, _).
