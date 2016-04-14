@@ -4,7 +4,6 @@
 :- use_module(library(from_utils)).
 :- use_module(library(infer_alias)).
 :- use_module(library(pretty_decl)).
-:- use_module(library(group_pairs_or_sort)).
 
 deref_reexport(Alias, OptionL) :-
     absolute_file_name(Alias, AFile, [file_type(prolog), access(read)]),
@@ -15,28 +14,14 @@ deref_reexport(Alias, OptionL) :-
 	   predicate_property(M:H, imported_from(_))
 	 )
     ->print_message(information, format("~w does not have reexports", [Alias]))
-    ; freeze(H, once((member(F/A, ExL), functor(H, F, A)))),
-      collect_called_from(H, RM, _, _, OptionL),
-      findall(File/CM,
-	      ( called_from:called_from_db(_, RM, CM, _, From),
-		RM \= CM,
-		( RM = M
-		->true
-		; predicate_property(M:H, imported_from(RM))
-		),
-		from_to_file(From, File)
-	      ), FileCMU),
+    ; freeze(H1, once((member(F/A, ExL), functor(H, F, A)))),
+      collect_called_from(H1, RM, _, _, OptionL),
+      findall(File/CM, called_from_w(_, M, RM, CM, File), FileCMU),
       sort(FileCMU, FileCML),
       findall(File/CM-RMPIG,
 	      ( member(File/CM, FileCML),
 		findall((RM-F/A),
-			( called_from:called_from_db(H2, RM, CM, _, From),
-			  from_to_file(From, File),
-			  RM \= CM,
-			  ( RM = M
-			  ->true
-			  ; predicate_property(M:H, imported_from(RM))
-			  ),
+			( called_from_w(H2, M, RM, CM, File),
 			  functor(H2, F, A),
 			  \+ file_to_module:declared_use_module(F, A, RM, CM, _, File)
 			), RMPIU),
@@ -46,6 +31,15 @@ deref_reexport(Alias, OptionL) :-
       forall(member(File/CM-RMPIL, FileRMPIG),
 	     update_use_module(AFile, M, RMPIL, File, CM))
     ).
+
+called_from_w(H, M, RM, CM, File) :-
+    called_from:called_from_db(H, RM, CM, _, From),
+    RM \= CM,
+    ( RM = M
+    ->true
+    ; predicate_property(M:H, imported_from(RM))
+    ),
+    from_to_file(From, File).
 
 update_use_module(AFile, M, RMPIL, File, CM) :-
     module_property(M, exports(ExL)),
