@@ -125,9 +125,9 @@ file_to_module(Alias, OptionL0 ) :-
     decl_to_use_module(include, M, PIL1, Alias, ReexportL),
     append(ExcludeL, PIFx, ExTL),
     add_use_module(M, FileL, Alias, AddL, ExTL),
-    add_use_module_ex(M, FileL),
+    add_use_module_ex(M, DelL, FileL),
     del_use_module_ex(M, FileL),
-    forall(member(C, DelL), replace_sentence(C, [], [file(File)])).
+    forall(member(C, DelL), replace_sentence(C, [], [files(FileL)])).
 
 add_module_decl(NewM, PIL1, File) :-
     pretty_decl((:- module(NewM, PIL2)), PDecl2),
@@ -365,7 +365,7 @@ del_use_module_ex(M, FileL) :-
 		     ),
 		     [files(FileL)]).
 
-add_use_module_ex(M, FileL) :-
+add_use_module_ex(M, DelL, FileL) :-
     findall(ImportingFile-((IM:EA)-(F/A)),
 	    [M, FileL, ImportingFile, IM, EA, F, A] +\
 	    ( module_to_import_db(F, A, IM, M, ImportingFile),
@@ -384,7 +384,7 @@ add_use_module_ex(M, FileL) :-
     sort(FileAliasPIU, FileAliasPIL),
     group_pairs_by_key(FileAliasPIL, FileAliasPIG),
     forall(member(ImFile-AliasPIL, FileAliasPIG),
-	   add_use_module_ex_1(M, ImFile, AliasPIL)).
+	   add_use_module_ex_1(M, DelL, ImFile, AliasPIL)).
 
 add_umexdecl_each(ImFile, M, AliasPIG, (:- Decl)) :-
     member((IM:Alias)-PIL, AliasPIG),
@@ -440,9 +440,11 @@ add_declarations(DeclL, ImFile) :-
       )
     ).
 
-add_use_module_ex_1(M, ImFile, AliasPIL) :-
+add_use_module_ex_1(M, DelL, ImFile, AliasPIL) :-
     group_pairs_by_key(AliasPIL, AliasPIG),
-    findall(Decl, add_umexdecl_each(ImFile, M, AliasPIG, Decl), DeclL),
+    findall(Decl, ( add_umexdecl_each(ImFile, M, AliasPIG, Decl),
+		    \+ memberchk(Decl, DelL)
+		  ), DeclL),
     add_declarations(DeclL, ImFile).
 
 collect_to_reexport(M, FileL, PIL, ReexportL) :-
