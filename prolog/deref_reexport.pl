@@ -14,7 +14,7 @@ deref_reexport(Alias, OptionL) :-
 	   predicate_property(M:H, imported_from(_))
 	 )
     ->print_message(information, format("~w does not have reexports", [Alias]))
-    ; freeze(H1, once((member(F/A, ExL), functor(H, F, A)))),
+    ; freeze(H1, once((member(F/A, ExL), functor(H1, F, A)))),
       collect_called_from(H1, RM, _, _, OptionL),
       findall(File/CM, called_from_w(_, M, RM, CM, File), FileCMU),
       sort(FileCMU, FileCML),
@@ -23,7 +23,10 @@ deref_reexport(Alias, OptionL) :-
 		findall((RM-F/A),
 			( called_from_w(H2, M, RM, CM, File),
 			  functor(H2, F, A),
-			  \+ file_to_module:declared_use_module(F, A, RM, CM, _, File)
+			  ( RM = M
+			  ->true
+			  ; \+ file_to_module:declared_use_module(F, A, RM, CM, _, File)
+			  )
 			), RMPIU),
 		sort(RMPIU, RMPIL),
 		group_pairs_by_key(RMPIL, RMPIG)
