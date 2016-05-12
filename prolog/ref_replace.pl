@@ -1229,7 +1229,7 @@ rportray('$LISTC'(CL), Opt) :- !,
     rportray_list(CL, rportray_clause_dot_nl, '', Opt1).
 rportray('$LISTC.NL'(CL), Opt) :- !,
     merge_options([priority(1200)], Opt, Opt1),
-    rportray_list(CL, rportray_clause, '.\n', Opt1).
+    rportray_list(CL, rportray_clause_dot_nl, '', Opt1).
 rportray('$LIST.NL'(L), Opt) :- !,
     merge_options([priority(1200)], Opt, Opt1),
     rportray_list(L, write_term_dot_nl, '', Opt1).
