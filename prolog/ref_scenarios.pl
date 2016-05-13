@@ -103,8 +103,7 @@ apply_var_renamer(Renamer, OptionL0 ) :-
 
 %% rename_variable(?Name0:atom, +Name:atom, +Options) is det.
 %
-% Rename a variable in a Term, provided that such variable doesn't exist in such
-% term.
+% Rename a variable in a Term, provided that the name is new in such term.
 
 rename_variable(Name0, Name, Options) :-
     apply_var_renamer([Name0, Name] +\ Name0^Name^true, Options).

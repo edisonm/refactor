@@ -87,14 +87,17 @@ get_term_info_fd(In, PatternL, TermL, OptionL0 ) :-
     is_list(PatternL), !,
     foldl(\ (H-D)^O0^O^select_option(H, O0, O, D),
 		[subterm_positions(TermPos)-TermPos,
-		 comments(Comments)-Comments
+		 comments(Comments)-Comments,
+		 variable_names(VN)-VN
 		], OptionL0, OptionT),
     PatternL = [_|PatternT],
+    length(PatternT, TN),
+    length(TA, TN),
     maplist([In, OptionT] +\
-	   _^T^P^C^get_term_info_each(In, OptionT, [T, P, C]), PatternT, TA, PA, CA),
-    maplist(append, [TA, PA, CA], TPCT, TPCH),
-    transverse_apply_2(get_term_info_each(In, OptionT), TPCH, TPCT,
-		       [TermL, TermPosL, CommentsL], [_, TermPosE, _]),
+	   T^P^V^C^get_term_info_each(In, OptionT, [T, P, V, C]), TA, PA, VA, CA),
+    maplist(append, [TA, PA, VA, CA], TPVCT, TPVCH),
+    transverse_apply_2(get_term_info_each(In, OptionT), TPVCH, TPVCT,
+		       [TermL, TermPosL, VN, CommentsL], [_, TermPosE, _, _]),
     maplist(subsumes_term, PatternL, TermL),
     append(CommentsL, Comments),
     TermPosL = [TermPosI|_],
@@ -136,9 +139,9 @@ transverse_apply_2(Apply, ListH, ListT0, ListL, EL) :-
     maplist(\ E^[E|L]^L^true, EL0, ListT0, ListT),
     transverse_apply(Apply, ListH, ListT, ListL, EL0, EL).
 
-get_term_info_each(In, Options, [T, P, C]) :-
+get_term_info_each(In, Options, [T, P, V, C]) :-
     '$set_source_module'(M, M),
-    read_term(In, T, [subterm_positions(P), comments(C), module(M)|Options]),
+    read_term(In, T, [subterm_positions(P), variable_names(V), comments(C), module(M)|Options]),
     T \== end_of_file.
 
 :- public read_terms/3.
