@@ -485,13 +485,14 @@ gen_module_command(Max, CP, M, File, SentPattern,
 fetch_and_expand(M, SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
 		 Linear, Bindings, Level, Term, Into, Expander, Command, In) :-
     repeat,
-      ( ref_fetch_term_info(SentPattern, Sent, OptionL, In)
+      ( ref_fetch_term_info(SentPattern, Sent, OptionL, In),
+	expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
+	make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
+	substitute_term_level(Level, M, Linear, 1200, Term, Into, Expander, TermPos, Command)
+      ->true
       ; !,
 	fail
-      ),
-      expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
-      make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
-      substitute_term_level(Level, M, Linear, 1200, Term, Into, Expander, TermPos, Command).
+      ).
 
 ref_fetch_term_info(SentPattern, Sent, OptionL, In) :-
     nonvar(SentPattern),
@@ -1116,7 +1117,7 @@ rportray_clause_dot_nl(Clause, OptL) :-
     write('.\n').
 
 rportray_clause(Clause, OptL) :-
-    rportray_clause(Clause, 4, OptL).
+    rportray_clause(Clause, 0, OptL).
 
 %% We can not use portray_clause/3 because it does not handle the hooks
 % portray_clause_(OptL, Clause) :-
@@ -1229,7 +1230,7 @@ rportray('$LISTC'(CL), Opt) :- !,
     rportray_list(CL, rportray_clause_dot_nl, '', Opt1).
 rportray('$LISTC.NL'(CL), Opt) :- !,
     merge_options([priority(1200)], Opt, Opt1),
-    rportray_list(CL, rportray_clause_dot_nl, '', Opt1).
+    rportray_list(CL, rportray_clause, '.\n', Opt1).
 rportray('$LIST.NL'(L), Opt) :- !,
     merge_options([priority(1200)], Opt, Opt1),
     rportray_list(L, write_term_dot_nl, '', Opt1).
