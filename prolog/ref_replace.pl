@@ -368,7 +368,9 @@ with_counters(Goal, OptionL0 ) :-
 			foldl(select_option_default,
 			      [changes(Count)-Count,
 			       tries(Tries)  -Tries],
-			      OptionL, _)
+			      OptionL, _),
+			print_message(informational,
+				      format("~w changes of ~w attempts", [Count, Tries]))
 		      ),
 		      [refactor_count,
 		       refactor_tries,
