@@ -78,9 +78,12 @@ apply_diff(Action, Index0, File) :-
 			 format(Stream, '~s', [Content0 ]),
 			 close(Stream)),
       TmpFile = true
-    ; read_file_to_string(File, Content0, []),
-      File0 = File,
-      TmpFile = fail
+    ; File0 = File,
+      TmpFile = fail,
+      ( access_file(File, read)
+      ->read_file_to_string(File, Content0, [])
+      ; Content0 = []
+      )
     ),
     ( Content0 \= Content
     ->do_file_change(Action, File0, File, Content)
