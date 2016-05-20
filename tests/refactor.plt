@@ -1026,8 +1026,10 @@ test(opfp) :-
 /* $exsl$
 --- exsl.pl (source)
 +++ exsl.pl (target)
-@@ -1,12 +1,12 @@
- :- module(exsl, [f/1]).
+@@ -7,14 +7,14 @@
+ p(c).
+ p(d).
+ 
 -% Hello world
 -% This comment belongs to f(a)
 -
@@ -1048,6 +1050,26 @@ test(opfp) :-
 
 test(exsl) :-
     execute_test(exsl, replace_sentence([f(a),f(b)],[f(b),f(a),f(d)])).
+
+/* $exsl2$
+--- exsl.pl (source)
++++ exsl.pl (target)
+@@ -1,11 +1,6 @@
+ :- module(exsl, [f/1]).
+ 
+-% proper merging:
+-
+-p(a).
+-p(b).
+-p(c).
+-p(d).
++p([a, b, c, d]).
+ 
+ % Hello world
+ % This comment belongs to f(a)
+*/
+test(exsl2) :-
+    execute_test_(exsl2, replace_sentence([p(A),p(B)],p(C),flatten([A,B],C)),[file(exsl),fixpoint(true)]).
 
 :- use_module(exst).
 

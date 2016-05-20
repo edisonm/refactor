@@ -487,14 +487,21 @@ gen_module_command(Max, CP, M, File, SentPattern,
 fetch_and_expand(M, SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
 		 Linear, Bindings, Level, Term, Into, Expander, Command, In) :-
     repeat,
-      ( ref_fetch_term_info(SentPattern, Sent, OptionL, In),
-	expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
-	make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
-	substitute_term_level(Level, M, Linear, 1200, Term, Into, Expander, TermPos, Command)
-      ->true
+      prolog_current_choice(CP),
+      ( ref_fetch_term_info(SentPattern, Sent, OptionL, In)
       ; !,
 	fail
-      ).
+      ),
+      expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
+      make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
+      S = solved(no),
+      ( true
+      ; arg(1, S, yes)
+      ->prolog_cut_to(CP),
+      	fail
+      ),
+      substitute_term_level(Level, M, Linear, 1200, Term, Into, Expander, TermPos, Command),
+      nb_setarg(1, S, yes).
 
 ref_fetch_term_info(SentPattern, Sent, OptionL, In) :-
     nonvar(SentPattern),

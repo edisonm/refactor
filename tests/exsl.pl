@@ -1,4 +1,12 @@
 :- module(exsl, [f/1]).
+
+% proper merging:
+
+p(a).
+p(b).
+p(c).
+p(d).
+
 % Hello world
 % This comment belongs to f(a)
 
