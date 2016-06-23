@@ -54,6 +54,7 @@
 :- use_module(library(fix_termpos)).
 :- use_module(library(gcb)).
 :- use_module(library(ref_changes)).
+:- use_module(library(ref_msgtype)).
 :- use_module(library(ref_context)).
 :- use_module(library(term_info)).
 :- use_module(library(clambda)).
@@ -369,7 +370,8 @@ with_counters(Goal, OptionL0 ) :-
 			      [changes(Count)-Count,
 			       tries(Tries)  -Tries],
 			      OptionL, _),
-			print_message(informational,
+			message_type(Type),
+			print_message(Type,
 				      format("~w changes of ~w attempts", [Count, Tries]))
 		      ),
 		      [refactor_count,
