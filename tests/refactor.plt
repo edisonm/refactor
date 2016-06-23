@@ -35,6 +35,7 @@ current_op(A,B,C) :-
     catch(current_op(A,B,C),_E, backtrace(20)).
 
 /* $ex1$
+diff -ruN ex1.pl -
 --- ex1.pl (source)
 +++ ex1.pl (target)
 @@ -1,6 +1,6 @@
@@ -53,6 +54,7 @@ test(ex1) :-
 :- use_module(ex2).
 
 /* $ex2$
+diff -ruN ex2.pl -
 --- ex2.pl (source)
 +++ ex2.pl (target)
 @@ -1,3 +1,3 @@
@@ -68,6 +70,7 @@ test(ex2) :-
 :- use_module(ex3).
 
 /* $ex3$
+diff -ruN ex3.pl -
 --- ex3.pl (source)
 +++ ex3.pl (target)
 @@ -1,3 +1,3 @@
@@ -84,6 +87,7 @@ test(ex3) :-
 :- use_module(ex4).
 
 /* $ex4$
+diff -ruN ex4.pl -
 --- ex4.pl (source)
 +++ ex4.pl (target)
 @@ -1,3 +1,3 @@
@@ -99,6 +103,7 @@ test(ex4) :-
 :- use_module(ex5).
 
 /* $ex5$
+diff -ruN ex5.pl -
 --- ex5.pl (source)
 +++ ex5.pl (target)
 @@ -1,7 +1,7 @@
@@ -122,6 +127,7 @@ test(ex5) :-
 :- use_module(ex6).
 
 /* $ex6$
+diff -ruN ex6.pl -
 --- ex6.pl (source)
 +++ ex6.pl (target)
 @@ -1,7 +1,7 @@
@@ -142,6 +148,7 @@ test(ex6) :-
 :- use_module(ex7).
 
 /* $ex7_1$
+diff -ruN ex7.pl -
 --- ex7.pl (source)
 +++ ex7.pl (target)
 @@ -1,3 +1,3 @@
@@ -161,6 +168,7 @@ test(ex7_1) :-
 % variable X
 
 /* $ex7_2$
+diff -ruN ex7.pl -
 --- ex7.pl (source)
 +++ ex7.pl (target)
 @@ -1,3 +1,3 @@
@@ -178,6 +186,7 @@ test(ex7_2) :-
 :- use_module(ex8).
 
 /* $ex8$
+diff -ruN ex8.pl -
 --- ex8.pl (source)
 +++ ex8.pl (target)
 @@ -1,5 +1,5 @@
@@ -196,6 +205,7 @@ test(ex8) :-
 :- use_module(ex9).
 
 /* $ex9$
+diff -ruN ex9.pl -
 --- ex9.pl (source)
 +++ ex9.pl (target)
 @@ -1,3 +1,3 @@
@@ -211,6 +221,7 @@ test(ex9) :-
 :- use_module(ex10).
 
 /* $ex10_1$
+diff -ruN ex10.pl -
 --- ex10.pl (source)
 +++ ex10.pl (target)
 @@ -1,3 +1,3 @@
@@ -226,6 +237,7 @@ test(ex10_1) :-
 		 [sentence(ex10(_, _))]).
 
 /* $ex10_2$
+diff -ruN ex10.pl -
 --- ex10.pl (source)
 +++ ex10.pl (target)
 @@ -1,3 +1,3 @@
@@ -242,6 +254,7 @@ test(ex10_2) :-
 :- use_module(ex11).
 
 /* $ex11$
+diff -ruN ex11.pl -
 --- ex11.pl (source)
 +++ ex11.pl (target)
 @@ -1,5 +1,5 @@
@@ -261,6 +274,7 @@ test(ex11) :-
 :- use_module(ex12).
 
 /* $ex12$
+diff -ruN ex12.pl -
 --- ex12.pl (source)
 +++ ex12.pl (target)
 @@ -1,12 +1,10 @@
@@ -284,6 +298,7 @@ test(ex12) :-
 :- use_module(ex13).
 
 /* $ex13$
+diff -ruN ex13.pl -
 --- ex13.pl (source)
 +++ ex13.pl (target)
 @@ -2,7 +2,7 @@
@@ -303,6 +318,7 @@ test(ex13) :-
 :- use_module(ex14).
 
 /* $ex14_1$
+diff -ruN ex14.pl -
 --- ex14.pl (source)
 +++ ex14.pl (target)
 @@ -1,24 +1,19 @@
@@ -344,6 +360,7 @@ test(ex14_1) :-
 		 replace_sentence((Head :- A=B, Body), (Head :- Body), (A=B)), []).
 
 /* $ex14_2$
+diff -ruN ex14.pl -
 --- ex14.pl (source)
 +++ ex14.pl (target)
 @@ -1,15 +1,12 @@
@@ -385,6 +402,7 @@ testx(ex14_2) :-
 :- use_module(ex15).
 
 /* $ex15$
+diff -ruN ex15.pl -
 --- ex15.pl (source)
 +++ ex15.pl (target)
 @@ -1,6 +1,6 @@
@@ -414,6 +432,7 @@ test(ex16) :-
 :- use_module(ex17).
 
 /* $ex17$
+diff -ruN ex17.pl -
 --- ex17.pl (source)
 +++ ex17.pl (target)
 @@ -1,8 +1,7 @@
@@ -434,6 +453,7 @@ test(ex17) :-
 :- use_module(ex18).
 
 /* $ex18$
+diff -ruN ex18.pl -
 --- ex18.pl (source)
 +++ ex18.pl (target)
 @@ -1,7 +1,6 @@
@@ -453,6 +473,7 @@ test(ex18) :-
 :- use_module(ex19).
 
 /* $ex19_1$
+diff -ruN ex19.pl -
 --- ex19.pl (source)
 +++ ex19.pl (target)
 @@ -1,6 +1,6 @@
@@ -469,6 +490,7 @@ test(ex19_1) :-
     execute_test(ex19, ex19_1, replace_sentence(ex19(C,D), ex19(C,D), C=D), []).
 
 /* $ex19_2$
+diff -ruN ex19.pl -
 --- ex19.pl (source)
 +++ ex19.pl (target)
 @@ -2,8 +2,8 @@
@@ -491,6 +513,7 @@ test(ex19_2) :-
 :- use_module(conjex).
 
 /* $conjex$
+diff -ruN conjex.pl -
 --- conjex.pl (source)
 +++ conjex.pl (target)
 @@ -1,13 +1,11 @@
@@ -515,6 +538,7 @@ test(conjex) :-
     execute_test(conjex, replace_conjunction(((a(A),b(B))), c(A-B))).
 
 /* $two_changes_1$
+diff -ruN conjex.pl -
 --- conjex.pl (source)
 +++ conjex.pl (target)
 @@ -1,15 +1,15 @@
@@ -538,6 +562,7 @@ test(conjex) :-
  d(_).
 */
 /* $two_changes_2$
+diff -ruN conjex.pl -
 --- conjex.pl (source)
 +++ conjex.pl (target)
 @@ -6,7 +6,7 @@
@@ -552,6 +577,7 @@ test(conjex) :-
 */
 
 /* $two_changes_12$
+diff -ruN conjex.pl -
 --- conjex.pl (source)
 +++ conjex.pl (target)
 @@ -1,15 +1,15 @@
@@ -602,6 +628,7 @@ test_two_changes :-
 :- use_module(ex21).
 
 /* $ex21$
+diff -ruN ex21.pl -
 --- ex21.pl (source)
 +++ ex21.pl (target)
 @@ -1,3 +1,3 @@
@@ -617,6 +644,7 @@ test(ex21) :-
 :- use_module(ex22).
 
 /* $ex22$
+diff -ruN ex22.pl -
 --- ex22.pl (source)
 +++ ex22.pl (target)
 @@ -1,4 +1,3 @@
@@ -632,6 +660,7 @@ test(ex22) :-
 :- use_module(ex23).
 
 /* $ex23$
+diff -ruN ex23.pl -
 --- ex23.pl (source)
 +++ ex23.pl (target)
 @@ -1,4 +1,4 @@
@@ -648,6 +677,7 @@ test(ex23) :-
 :- use_module(ex24).
 
 /* $ex24$
+diff -ruN ex24.pl -
 --- ex24.pl (source)
 +++ ex24.pl (target)
 @@ -1,4 +1,4 @@
@@ -664,6 +694,7 @@ test(ex24) :-
 :- use_module(ex26).
 
 /* $ex26$
+diff -ruN ex26.pl -
 --- ex26.pl (source)
 +++ ex26.pl (target)
 @@ -1,3 +1,3 @@
@@ -679,6 +710,7 @@ test(ex26) :-
 :- use_module(ex27).
 
 /* $ex27$
+diff -ruN ex27.pl -
 --- ex27.pl (source)
 +++ ex27.pl (target)
 @@ -6,8 +6,8 @@
@@ -698,6 +730,7 @@ test(ex27) :-
     execute_test(ex27, replace_term((A=V,Body), A@@Body, A=V)).
 
 /* $ex27_2$
+diff -ruN ex27.pl -
 --- ex27.pl (source)
 +++ ex27.pl (target)
 @@ -9,7 +9,6 @@
@@ -723,6 +756,7 @@ test(excomm_1) :-
     execute_test(excomm, excomm_1, replace_term(aaa, bbb), []).
 
 /* $excomm_2$
+diff -ruN excomm.pl -
 --- excomm.pl (source)
 +++ excomm.pl (target)
 @@ -10,8 +10,8 @@
@@ -742,6 +776,7 @@ test(excomm_2) :-
     execute_test(excomm, excomm_2, replace_term(p(A,B), p(B,A)), []).
 
 /* $excomm_3$
+diff -ruN excomm.pl -
 --- excomm.pl (source)
 +++ excomm.pl (target)
 @@ -17,4 +17,4 @@
@@ -758,6 +793,7 @@ test(excomm_3) :-
 :- use_module(exapp).
 
 /* $exapp_1$
+diff -ruN exapp.pl -
 --- exapp.pl (source)
 +++ exapp.pl (target)
 @@ -1,15 +1,13 @@
@@ -789,6 +825,7 @@ test(exapp_1) :-
 		 [linear_term(yes)]).
 
 /* $exapp_2$
+diff -ruN exapp.pl -
 --- exapp.pl (source)
 +++ exapp.pl (target)
 @@ -1,15 +1,14 @@
@@ -847,6 +884,7 @@ test(save_changes) :-
 :- use_module(exge).
 
 /* $exge$
+diff -ruN exge.pl -
 --- exge.pl (source)
 +++ exge.pl (target)
 @@ -7,12 +7,12 @@
@@ -872,6 +910,7 @@ test(exge) :-
     execute_test(exge, replace_goal(r,r(1))).
 
 /* $exdcg$
+diff -ruN exge.pl -
 --- exge.pl (source)
 +++ exge.pl (target)
 @@ -9,10 +9,10 @@
@@ -892,6 +931,7 @@ test(exdcg) :-
     execute_test(exge, exdcg, replace_goal(b(r,A,B),b(r,s,A,B)), []).
 
 /* $exnoload$
+diff -ruN exnoload.pl -
 --- exnoload.pl (source)
 +++ exnoload.pl (target)
 @@ -1,7 +1,7 @@
@@ -911,6 +951,7 @@ test(exnoload) :-
 		 [files(exnoload)]).
 
 /* $opex1_1$
+diff -ruN opex1.pl -
 --- opex1.pl (source)
 +++ opex1.pl (target)
 @@ -7,5 +7,5 @@
@@ -926,6 +967,7 @@ test(opex1_1) :-
     execute_test_(opex1_1, replace_goal(myis(A, B), p(A, B)), [files(opex1)]).
 
 /* $opex1_2$
+diff -ruN opex1.pl -
 --- opex1.pl (source)
 +++ opex1.pl (target)
 @@ -7,5 +7,5 @@
@@ -943,6 +985,7 @@ test(opex1_2) :-
 :- use_module(opex2).
 
 /* $opex2$
+diff -ruN opex2.pl -
 --- opex2.pl (source)
 +++ opex2.pl (target)
 @@ -7,5 +7,5 @@
@@ -960,6 +1003,7 @@ test(opex2) :-
 :- use_module(fpex).
 
 /* $fpex$
+diff -ruN fpex.pl -
 --- fpex.pl (source)
 +++ fpex.pl (target)
 @@ -1,9 +1,9 @@
@@ -980,6 +1024,7 @@ test(fpex) :-
 		 replace_term(((A,B);C), (A->B;C), true), [fixpoint(true)]).
 
 /* $eqname_1$
+diff -ruN eqname.pl -
 --- eqname.pl (source)
 +++ eqname.pl (target)
 @@ -1,4 +1,4 @@
@@ -994,6 +1039,7 @@ test(eqname_1) :-
     execute_test_(eqname_1, replace_term(A:B,A^B), [files(eqname)]).
 
 /* $eqname_2$
+diff -ruN eqname.pl -
 --- eqname.pl (source)
 +++ eqname.pl (target)
 @@ -1,4 +1,4 @@
@@ -1008,6 +1054,7 @@ test(eqname_2) :-
     execute_test_(eqname_2, replace_term((A:B),A*->B),[files(eqname)]).
 
 /* $opfp$
+diff -ruN opfp.pl -
 --- opfp.pl (source)
 +++ opfp.pl (target)
 @@ -1,4 +1,4 @@
@@ -1024,6 +1071,7 @@ test(opfp) :-
 :- use_module(exsl).
 
 /* $exsl$
+diff -ruN exsl.pl -
 --- exsl.pl (source)
 +++ exsl.pl (target)
 @@ -7,14 +7,14 @@
@@ -1052,6 +1100,7 @@ test(exsl) :-
     execute_test(exsl, replace_sentence([f(a),f(b)],[f(b),f(a),f(d)])).
 
 /* $exsl2$
+diff -ruN exsl.pl -
 --- exsl.pl (source)
 +++ exsl.pl (target)
 @@ -1,11 +1,6 @@
@@ -1074,6 +1123,7 @@ test(exsl2) :-
 :- use_module(exst).
 
 /* $exst$
+diff -ruN exst.pl -
 --- exst.pl (source)
 +++ exst.pl (target)
 @@ -1,3 +1,3 @@
@@ -1087,6 +1137,7 @@ test(exst) :-
     execute_test(exst, exst, replace_term(X, X-Y, (atom(X), string_upper(X, Y))), [sentence(p(_))]).
 
 /* $ref_body$
+diff -ruN ref_body.pl -
 --- ref_body.pl (source)
 +++ ref_body.pl (target)
 @@ -2,7 +2,9 @@
