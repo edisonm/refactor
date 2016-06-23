@@ -62,6 +62,7 @@ diff_file_change(File, AName, Changes) :-
 		    process(PID)]),
     with_output_to(SIn, format('~s', [Changes])),
     close(SIn),
+    format('diff -ruN ~s -~n', [Name]), % Help emacs24
     dump_output(Out),
     process_wait(PID, _Status),
     close(Out).
