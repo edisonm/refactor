@@ -459,11 +459,22 @@ collect_to_reexport(M, FileL, PIL, ReexportL) :-
 	    ), EL),
     intersection(PIL, EL, ReexportL).
 
+alias_location(Alias, M, Decl, IAlias-File) :-
+    ( extra_location(Alias, M, Decl, From),
+      from_to_file(From, File)
+    ->true
+    ; absolute_file_name(Alias, IFile, [file_type(prolog), access(read)]),
+      extra_location(IAlias, M, Decl, From),
+      from_to_file(From, File),
+      absolute_file_name(IAlias, IFile,
+			 [file_type(prolog), access(read),
+			  file_errors(fail), relative_to(File)]),
+      !
+    ).
+
 decl_to_use_module(Decl, M, PIL, Alias, ReexportL) :-
-    findall(DFile, ( extra_location(Alias, M, Decl, DFrom),
-		     from_to_file(DFrom, DFile)
-		   ), DFileU),
-    sort(DFileU, DFileL),
+    findall(DFile, alias_location(Alias, M, Decl, DFile), DAFileU),
+    sort(DAFileU, DAFileL),
     ( ReexportL = []
     ->Into = (:- use_module(Alias))
     ; ( PIL = ReexportL
@@ -476,8 +487,10 @@ decl_to_use_module(Decl, M, PIL, Alias, ReexportL) :-
 	)
       )
     ),
-    Patt =.. [Decl, Alias],
-    replace_sentence((:- Patt), Into, [files(DFileL)]).
+    Patt =.. [Decl, IAlias],
+    group_pairs_by_key(DAFileL, DAFileG),
+    forall(member(IAlias-DFileL, DAFileG),
+	   replace_sentence((:- Patt), Into, [files(DFileL)])).
 
 collect_export_decl_files(M, ExFileL) :-
     module_property(M, exports(Ex)),
