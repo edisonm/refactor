@@ -462,7 +462,7 @@ collect_to_reexport(M, FileL, PIL, ReexportL) :-
 alias_location(Alias, M, Decl, IAlias-File) :-
     ( extra_location(Alias, M, Decl, From),
       from_to_file(From, File)
-    ->true
+    ->IAlias = Alias
     ; absolute_file_name(Alias, IFile, [file_type(prolog), access(read)]),
       extra_location(IAlias, M, Decl, From),
       from_to_file(From, File),
