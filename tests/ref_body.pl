@@ -18,3 +18,6 @@ cleanup :-
     cleanup2(A).
 
 cleanup1(_).
+
+p :-
+    forall(q, (a, b, c)).

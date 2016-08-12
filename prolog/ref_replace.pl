@@ -274,7 +274,7 @@ do_goal_expansion(Term, TermPos) :-
     refactor_context(goal_args, ga(Pattern, Into, Expander)),
     '$set_source_module'(M, M),
     forall(substitute_term_norec(sub, M, Term, 999, Pattern,
-				 Into, Expander, TermPos, Command),
+				 Into, Expander, TermPos, TermPos, Command),
 	   assertz(command_db(Command))).
 
 :- public collect_file_commands/8.
@@ -299,8 +299,9 @@ collect_file_commands(CallerPattern, Pattern, Into, Expander, FileChk,
     ),
     call(FileChk, File),
     Callee = Term,
-    with_context_vars(forall(substitute_term_norec(sub_cw, M, Term, 999, Pattern,
-						   Into, Expander, TermPos, Command),
+    with_context_vars(forall(substitute_term_norec(sub_cw, M, Term, 999,
+						   Pattern, Into, Expander,
+						   TermPos, TermPos, Command),
 			     assertz(file_commands_db(File, M, Command))),
 		      [refactor_sent_pattern,
 		       refactor_sentence,
@@ -551,22 +552,22 @@ prolog:xref_open_source(File, Fd) :-
 substitute_term_level(goal, _, _, _, _, _, _, _, Cmd) :-
     retract(command_db(Cmd)).
 substitute_term_level(term, M, Sent, Priority, Term, Into, Expander, TermPos, Cmd) :-
-    substitute_term_rec(M, Sent, Priority, Term, Into, Expander, TermPos, Cmd).
+    substitute_term_rec(M, Sent, Priority, Term, Into, Expander, TermPos, TermPos, Cmd).
 substitute_term_level(sent, M, Sent, Priority, Term, Into, Expander, TermPos, Cmd) :-
-    substitute_term_norec(top, M, Sent, Priority, Term, Into, Expander, TermPos, Cmd).
+    substitute_term_norec(top, M, Sent, Priority, Term, Into, Expander, TermPos, TermPos, Cmd).
 substitute_term_level(head, M, Clause, Priority, Term, Into, Expander, TermPos, Cmd) :-
     substitute_term_head(norec, M, Clause, Priority, Term, Into, Expander, TermPos, Cmd).
 substitute_term_level(head_rec, M, Clause, Priority, Term, Into, Expander, TermPos, Cmd) :-
     substitute_term_head(rec, M, Clause, Priority, Term, Into, Expander, TermPos, Cmd).
 substitute_term_level(body, M, Clause, _, Term, Into, Expander, TermPos, Cmd) :-
-    substitute_term_body(norec, M, Clause, Term, Into, Expander, TermPos, Cmd).
+    substitute_term_body(norec, M, Clause, Term, Into, Expander, TermPos, TermPos, Cmd).
 substitute_term_level(body_rec, M, Clause, _, Term, Into, Expander, TermPos, Cmd) :-
-    substitute_term_body(rec, M, Clause, Term, Into, Expander, TermPos, Cmd).
+    substitute_term_body(rec, M, Clause, Term, Into, Expander, TermPos, TermPos, Cmd).
 
 substitute_term_body(Rec, M, (_ :- Body), Term, Into, Expander,
-		     term_position(_, _, _, _, [_, BodyPos]), Cmd) :-
+		     term_position(_, _, _, _, [_, BodyPos]), OutPos, Cmd) :-
     term_priority((_ :- Body), M, 2, Priority),
-    substitute_term(Rec, sub, M, Body, Priority, Term, Into, Expander, BodyPos, Cmd).
+    substitute_term(Rec, sub, M, Body, Priority, Term, Into, Expander, BodyPos, OutPos, Cmd).
 
 substitute_term_head(Rec, M, Clause, Priority, Term, Into, Expander, TermPos, Cmd) :-
     ( Clause = (Head :- _)
@@ -577,12 +578,12 @@ substitute_term_head(Rec, M, Clause, Priority, Term, Into, Expander, TermPos, Cm
       HPriority = Priority,
       HeadPos = TermPos
     ),
-    substitute_term(Rec, sub, M, Head, HPriority, Term, Into, Expander, HeadPos, Cmd).
+    substitute_term(Rec, sub, M, Head, HPriority, Term, Into, Expander, HeadPos, TermPos, Cmd).
 
-substitute_term(rec, _, M, Term, Priority, Pattern, Into, Expander, TermPos, Cmd) :-
-    substitute_term_rec(M, Term, Priority, Pattern, Into, Expander, TermPos, Cmd).
-substitute_term(norec, Level, M, Term, Priority, Pattern, Into, Expander, TermPos, Cmd) :-
-    substitute_term_norec(Level, M, Term, Priority, Pattern, Into, Expander, TermPos, Cmd).
+substitute_term(rec, _, M, Term, Priority, Pattern, Into, Expander, TermPos, OutPos, Cmd) :-
+    substitute_term_rec(M, Term, Priority, Pattern, Into, Expander, TermPos, OutPos, Cmd).
+substitute_term(norec, Level, M, Term, Priority, Pattern, Into, Expander, TermPos, OutPos, Cmd) :-
+    substitute_term_norec(Level, M, Term, Priority, Pattern, Into, Expander, TermPos, OutPos, Cmd).
 
 with_from(Goal, From) :-
     with_context_vars(Goal, [refactor_from], [From]).
@@ -744,7 +745,7 @@ top_term(Term, Term).
 %
 %	None-recursive version of substitute_term_rec//6.
 
-substitute_term_norec(Sub, M, Term, Priority, Pattern, Into, Expander, TermPos, Cmd) :-
+substitute_term_norec(Sub, M, Term, Priority, Pattern, Into, Expander, TermPos, OutPos, Cmd) :-
     ( refactor_context(sentence,     Sent),
       refactor_context(sent_pattern, SentPattern),
       subsumes_term(SentPattern-Pattern, Sent-Term),
@@ -752,7 +753,7 @@ substitute_term_norec(Sub, M, Term, Priority, Pattern, Into, Expander, TermPos, 
       with_context(Term, Pattern, Into, TermPos, Pattern1, Into1, Expander),
       greatest_common_binding(Pattern1, Into1, Pattern2, Into2, [[]], Unifier, [])
     ),
-    perform_substitution(Sub, Priority, M, Term, Term2, Pattern2, Into2, Unifier, TermPos, Cmd).
+    perform_substitution(Sub, Priority, M, Term, Term2, Pattern2, Into2, Unifier, TermPos, OutPos, Cmd).
 
 fix_subtermpos(Pattern, _, _, _) :-
     nonvar(Pattern),
@@ -768,20 +769,21 @@ fix_subtermpos(top,    Into, TermPos) :-
     ; fix_subtermpos(TermPos)
     ).
 
-%%	perform_substitution(+Priority, +SrcTerm, +Pattern, +Into, +Unifier, +TermPos)
+%%	perform_substitution(+Sub, +Priority, +M, +Term, +Term0, +Pattern, +Into, +BindingL, +TermPos, +OutPos, -Cmd)
 %
 %	Substitute occurences of Pattern with Into after calling
 %	expansion.
 %
-%	@param SrcTerm is the term as read from the source
+%	@param Term is the term as read from the source
 %	@param TermPos is the term layout of SrcTerm
+%	@param OutPos layout of the term that includes SrcTerm
 %	@param Priority is the environment operator priority
-%	@param Unifier contains bindings between Pattern and Into
 %
 perform_substitution(Sub, Priority, M, Term, Term0, Pattern0, Into0, BindingL,
-		     TermPos0, Cmd) :-
+		     TermPos0, OutPos0, Cmd) :-
     ( trim_fake_pos(TermPos0, TermPos, N)
-    ->trim_fake_args(N, Pattern0, Pattern),
+    ->substitute_value(TermPos0, TermPos, OutPos0, OutPos),
+      trim_fake_args(N, Pattern0, Pattern),
       trim_fake_args(N, Into0, Into1),
       trim_fake_args(N, Term0, Term1),
       trim_fake_args(N, Term,  Term2)
@@ -789,7 +791,8 @@ perform_substitution(Sub, Priority, M, Term, Term0, Pattern0, Into0, BindingL,
       Into1 = Into0,
       Term1 = Term0,
       Term2 = Term,
-      TermPos = TermPos0
+      TermPos = TermPos0,
+      OutPos = OutPos0
     ),
     copy_term(Term1, GTerm),
     unifier(Term1, Term2, Var1, Var2),
@@ -806,7 +809,7 @@ perform_substitution(Sub, Priority, M, Term, Term0, Pattern0, Into0, BindingL,
        apply it to the subterm positions being affected by the refactoring.
        The predicate performs destructive assignment (as in imperative
        languages), modifying term position once the predicate is called */
-    fix_subtermpos(Pattern, Into1, Sub, TermPos),
+    fix_subtermpos(Pattern, Into1, Sub, OutPos),
     with_context_vars(subst_term(TermPos, M, Pattern, GTerm, Priority, Term3),
 		      [refactor_bind], [BindingL]),
     shared_variables(Term3, Into1, V5), % after subst_term, in case some
@@ -1010,26 +1013,26 @@ subst_term(_, _, _, _, _, _).
 %	maintaining sharing with Expander.  Next,   we  can safely unify
 %	Pattern with the SrcTerm.
 
-substitute_term_rec(M, Term, Priority, Pattern, Into, Expander, TermPos, Cmd) :-
-    substitute_term_norec(sub, M, Term, Priority, Pattern, Into, Expander, TermPos, Cmd),
+substitute_term_rec(M, Term, Priority, Pattern, Into, Expander, TermPos, OutPos, Cmd) :-
+    substitute_term_norec(sub, M, Term, Priority, Pattern, Into, Expander, TermPos, OutPos, Cmd),
     !.
-substitute_term_rec(M, Term, _, Ref, Into, Expander, TermPos, Cmd) :-
-    substitute_term_into(TermPos, M, Term, Ref, Into, Expander, Cmd).
+substitute_term_rec(M, Term, _, Ref, Into, Expander, TermPos, _, Cmd) :-
+    substitute_term_into(TermPos, TermPos, M, Term, Ref, Into, Expander, Cmd).
 
-substitute_term_into(brace_term_position(_, _, Pos), M, {Term}, Ref, In, Ex, Cmd) :-
-    substitute_term_rec(M, Term, 1200, Ref, In, Ex, Pos, Cmd).
-substitute_term_into(term_position(_, _, _, _, PosL), M, Term, Ref, In, Ex, Cmd) :-
-    substitute_term_args(PosL, M, Term, Ref, In, Ex, Cmd).
-substitute_term_into(list_position(_, _, EP, TP), M, Term, Ref, In, Ex, Cmd) :-
-    substitute_term_list(EP, TP, M, Term, Ref, In, Ex, Cmd).
-substitute_term_into(map_position(_, _, _, _, PosL), M, Term, Ref, In, Ex, Cmd) :-
+substitute_term_into(brace_term_position(_, _, Pos), OutPos, M, {Term}, Ref, In, Ex, Cmd) :-
+    substitute_term_rec(M, Term, 1200, Ref, In, Ex, Pos, OutPos, Cmd).
+substitute_term_into(term_position(_, _, _, _, PosL), OutPos, M, Term, Ref, In, Ex, Cmd) :-
+    substitute_term_args(PosL, OutPos, M, Term, Ref, In, Ex, Cmd).
+substitute_term_into(list_position(_, _, EP, TP), OutPos, M, Term, Ref, In, Ex, Cmd) :-
+    substitute_term_list(EP, TP, OutPos, M, Term, Ref, In, Ex, Cmd).
+substitute_term_into(map_position(_, _, _, _, PosL), _, M, Term, Ref, In, Ex, Cmd) :-
     member(Pos, PosL),
-    substitute_term_pair(M, Term, Ref, In, Ex, Pos, Cmd).
+    substitute_term_pair(M, Term, Ref, In, Ex, Pos, Pos, Cmd).
 
 substitute_term_pair(M, Term, Ref, Into, Expander,
-		     key_value_position(_, _, Key, PosK, PosV), Cmd) :-
-    ( substitute_term_rec(M, Key, 999, Ref, Into, Expander, PosK, Cmd)
-    ; substitute_term_rec(M, Term.Key, 999, Ref, Into, Expander, PosV, Cmd)
+		     key_value_position(_, _, Key, PosK, PosV), OutPos, Cmd) :-
+    ( substitute_term_rec(M, Key, 999, Ref, Into, Expander, PosK, OutPos, Cmd)
+    ; substitute_term_rec(M, Term.Key, 999, Ref, Into, Expander, PosV, OutPos, Cmd)
     ).
 
 :- use_module(library(listing), []).
@@ -1061,20 +1064,20 @@ term_priority_gnd(Term, M, N, PrG) :-
     ; PrG=999		% term_priority((_, _), 1, Priority)
     ).
 
-substitute_term_args(PAs, M, Term, Ref, Into, Expander, Cmd) :-
+substitute_term_args(PAs, OutPos, M, Term, Ref, Into, Expander, Cmd) :-
     nth1(N, PAs, PA),
     arg(N, Term, Arg),
     term_priority(Term, M, N, Priority),
-    substitute_term_rec(M, Arg, Priority, Ref, Into, Expander, PA, Cmd).
+    substitute_term_rec(M, Arg, Priority, Ref, Into, Expander, PA, OutPos, Cmd).
 
-substitute_term_list([EP|EPs], TP, M, [Elem|Term], Ref, Into, Expander, Cmd) :-
+substitute_term_list([EP|EPs], TP, OutPos, M, [Elem|Term], Ref, Into, Expander, Cmd) :-
     ( term_priority([_|_], M, 1, Priority),
-      substitute_term_rec(M, Elem, Priority, Ref, Into, Expander, EP, Cmd)
-    ; substitute_term_list(EPs, TP, M, Term, Ref, Into, Expander, Cmd)
+      substitute_term_rec(M, Elem, Priority, Ref, Into, Expander, EP, OutPos, Cmd)
+    ; substitute_term_list(EPs, TP, OutPos, M, Term, Ref, Into, Expander, Cmd)
     ).
-substitute_term_list([], TP, M, Tail, Ref, Into, Expander, Cmd) :-
+substitute_term_list([], TP, OutPos, M, Tail, Ref, Into, Expander, Cmd) :-
     term_priority([_|_], M, 2, Priority),
-    substitute_term_rec(M, Tail, Priority, Ref, Into, Expander, TP, Cmd).
+    substitute_term_rec(M, Tail, Priority, Ref, Into, Expander, TP, OutPos, Cmd).
 
 :- multifile
     prolog:message//1,
@@ -1178,7 +1181,7 @@ rportray(@@('$sb'(TermPos, IFrom, ITo, _, _, _), Term), OptionL) :-
     print_subtext(ITo-To, Text).
 rportray('$@'(Into, '$sb'(ArgPos, _IFrom, _ITo, GTerm, GPriority, Pattern)), OptionL) :-
     !,
-    %% Use a different pattern to guide printing of Term
+    %% Use a different pattern to guide the printing of Term
     b_getval(refactor_text, Text),
     print_expansion_sb(Into, Pattern, GTerm, ArgPos, GPriority, OptionL, Text),
     !.
@@ -1492,7 +1495,7 @@ fix_position_if_braced(term_position(From, _, FFrom, FTo, _), M,
     ( \+ term_needs_braces(M:Term, GPriority),
       ( nonvar(Into),
 	term_needs_braces(M:Into, Priority)
-      ; term_needs_braces(M:Term, Priority)
+	% \+ term_needs_braces(M:Term, Priority)
       )
     ->Display=yes
     ),
@@ -1504,13 +1507,18 @@ comp_priority(M, GTerm, GPriority, Term, Priority) :-
     term_needs_braces(M:Term, Priority).
 
 % :- meta_predicate term_needs_braces(:, +).
+% If Term is a replacement, '$sb'/6, we assume that the substitution will nor
+% require braces (not sure if this is correct, but it works)
 term_needs_braces(M:Term, Pri) :-
-	callable(Term),
-	functor(Term, Name, Arity),
-	valid_op_type_arity(Type, Arity),
-	current_op(OpPri, Type, M:Name),
-	OpPri > Pri, !.
+    term_needs_braces_c(Term, M, Pri).
 
+term_needs_braces_c(Term, M, Pri) :-
+    callable(Term),
+    functor(Term, Name, Arity),
+    valid_op_type_arity(Type, Arity),
+    current_op(OpPri, Type, M:Name),
+    OpPri > Pri, !.
+    
 cond_display(yes, A) :- write(A).
 cond_display(no,  _).
 
@@ -1548,7 +1556,7 @@ print_expansion('$sb'(RefPos), _, Term, _, _, Text) :-
        ),
     !,
     print_subtext(RefPos, Text).
-print_expansion('$sb'(RefPos, _, _, GTerm, Priority, Into), _, Term, _, OptionL, Text) :-
+print_expansion('$sb'(RefPos, _IFrom, _ITo, GTerm, Priority, Into), _Pattern, Term, _RPos, OptionL, Text) :-
     nonvar(RefPos),
     \+ ( nonvar(Term),
 	 Term = '$sb'(_, _, _, _, _, _),
@@ -1607,7 +1615,6 @@ print_expansion_ne(Into, SPattern, Term1, _, OptionL, Text) :-
     SPattern='$sb'(RefPos, _, _, Term, _, Pattern),
     !,
     print_expansion_ne(Into, Pattern, Term, RefPos, OptionL, Text).
-    % print_expansion_sb(RefPos, GTerm, GPriority, Term, Pattern, OptionL, Text).
 print_expansion_ne(Into, Pattern, Term, RefPos, OptionL, Text) :-
     ( \+ escape_term(Into),
       print_expansion_pos(RefPos, Into, Pattern, Term, OptionL, Text)
