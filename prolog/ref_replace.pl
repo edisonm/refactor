@@ -573,6 +573,9 @@ substitute_term_head(Rec, M, Clause, Priority, Term, Into, Expander, TermPos, Cm
     ( Clause = (Head :- _)
     ->term_priority(Clause, M, 1, HPriority),
       term_position(_, _, _, _, [HeadPos, _]) = TermPos
+    ; Clause = (M:Head :- _)
+    ->term_priority(M:Head, M, 2, HPriority),
+      term_position(_, _, _, _, [term_position(_, _, _, _, [_, HeadPos]), _]) = TermPos
     ; Clause \= (:- _),
       Head = Clause,
       HPriority = Priority,
