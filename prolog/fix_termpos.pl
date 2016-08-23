@@ -98,7 +98,7 @@ fix_termouterpos(TermPos) :-
 %  ensures that the minimal required parenthesis enclosing a term are contained
 %  in its scope, widening the positions 1 and 2 of the given term position
 %  specifier. The current implementation is aware of comments and extra
-%  parenthesis, asserting such information in term_outerpos/4 facts.
+%  parenthesis, asserting such information in term_innerpos/4 facts.
 %
 %  @tbd This implementation have performance issues, needs optimization.
 %

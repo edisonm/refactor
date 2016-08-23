@@ -727,7 +727,7 @@ diff -ruN ex27.pl -
 */
 
 test(ex27) :-
-    execute_test(ex27, replace_term((A=V,Body), (A=V,Body)@@Body, A=V)).
+    execute_test(ex27, replace_term((ex27:- (A=V,Body)), (ex27 :- Body@@(A=V,Body)), A=V)).
 
 /* $ex27_2$
 diff -ruN ex27.pl -
@@ -1140,10 +1140,10 @@ test(exst) :-
 diff -ruN ref_body.pl -
 --- ref_body.pl (source)
 +++ ref_body.pl (target)
-@@ -2,7 +2,9 @@
- 
+@@ -3,7 +3,9 @@
  rb :-
      call_cleanup(call,
+ 		 % 1
 -		 cleanup).
 +		 ( cleanup1(a),
 +		   cleanup2(a)
@@ -1151,10 +1151,10 @@ diff -ruN ref_body.pl -
  
  call.
  
-@@ -10,7 +12,8 @@
- 
+@@ -12,7 +14,8 @@
  rb2 :-
      call,
+     /* 1 */
 -    cleanup,
 +    cleanup1(a),
 +    cleanup2(a),
@@ -1170,7 +1170,7 @@ test(ref_body) :-
 diff -ruN ref_body.pl -
 --- ref_body.pl (source)
 +++ ref_body.pl (target)
-@@ -20,4 +20,4 @@
+@@ -22,4 +22,4 @@
  cleanup1(_).
  
  p :-
@@ -1181,6 +1181,33 @@ diff -ruN ref_body.pl -
 test(ref_body2) :-
     rreset,
     execute_test_(ref_body2, replace_conjunction((a,b), b), [file(ref_body)]).
+
+/* $addlit$
+diff -ruN addlit.pl -
+--- addlit.pl (source)
++++ addlit.pl (target)
+@@ -5,11 +5,13 @@
+ p3(_).
+ 
+ q1(A) :-
+-    p1(A),
++    test1,
+     p2,
++    p1(A),
+     p3(A).
+ 
+ q1(A) :-
+     p3(A),
+-    p1(A),
+-    p2.
++    test1,
++    p2,
++    p1(A).
+*/
+
+test(addlit) :-
+    rreset,
+    execute_test_(addlit, replace_conjunction((p1(A), p2), (test1, p2, p1(A))), [file(addlit)]).
 
 :- comment_data:disable.
 

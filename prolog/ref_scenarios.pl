@@ -386,21 +386,41 @@ do_remove_call(Term, Call) :-
 :- meta_predicate replace_conjunction(?, ?, 0, +).
 replace_conjunction(Conj, Repl, Expander, Options) :-
     replace_last_literal_(Conj, Conj2, CLit, CBody),
-    replace_last_literal(Repl, Repl2, RLit, RBody),
+    replace_last_literal(Repl, Repl1, RLit, RBody),
+    add_body_hook_if_needed(Conj, Repl1, Repl2),
     copy_term(t(Conj2, CLit, CBody, Repl2, RLit, RBody), Term),
     replace(body_rec, Conj2, Repl2,
 	    ( bind_lit_body(Term, Conj2, CLit, CBody, RLit, RBody),
 	      Expander
 	    ), Options).
 
+add_body_hook_if_needed(Conj, Repl1, Repl) :-
+    ( var(Conj)
+    ; Conj \= (_, _)
+    ), !,
+    ( ( var(Repl1)
+      ; Repl1 \= (_, _)
+      )
+    ->Repl = Repl1
+    ; Repl = '$BODYB'(Repl1)
+    ).
+add_body_hook_if_needed((_, Conj), Repl1, Repl) :-
+    ( ( var(Repl1)
+      ; Repl1 \= (_, _)
+      )
+    ->Repl = Repl1
+    ; Repl1 = (RLit, Repl2),
+      Repl = (RLit, Repl3),
+      add_body_hook_if_needed(Conj, Repl2, Repl3)
+    ).
+
 replace_conjunction(Conj, Replacement, Options) :-
     replace_conjunction(Conj, Replacement, true, Options).
 
 replace_last_literal(Conj, Body, Conj, Body) :- var(Conj), !.
-replace_last_literal((A,Conj), '$BODYB'((A,Conj2)), Lit, Body) :- !,
+replace_last_literal((A, Conj), (A, Conj2), Lit, Body) :- !,
     replace_last_literal_(Conj, Conj2, Lit, Body).
 replace_last_literal(Conj, Body, Conj, Body).
-
 
 replace_last_literal_(Conj, Body, Conj, Body) :- var(Conj), !.
 replace_last_literal_((A,Conj), (A,Conj2), Lit, Body) :- !,
@@ -415,9 +435,9 @@ bind_lit_body(Term, Conj2, CLit, CBody, RLit, RBody) :-
       PRBody = PRLit
     ; subsumes_term(Conj2-(CLit, Rest), Conj2-CBody)
     ->CBody = (CLit, Rest),
-      RBody = (RLit, Rest) $@ CBody,
+      RBody = (RLit, Rest),
       PCBody = (PCLit, PRest),
-      PRBody = (PRLit, PRest) $@ PCBody
+      PRBody = (PRLit, PRest)
     ),
     Term = t(Conj, PCLit, PCBody, Repl, PRLit, PRBody),
     refactor_context(pattern, Conj),

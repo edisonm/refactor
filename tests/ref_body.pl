@@ -2,6 +2,7 @@
 
 rb :-
     call_cleanup(call,
+		 % 1
 		 cleanup).
 
 call.
@@ -10,6 +11,7 @@ done.
 
 rb2 :-
     call,
+    /* 1 */
     cleanup,
     done.
 

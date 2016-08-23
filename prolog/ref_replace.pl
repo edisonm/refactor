@@ -148,9 +148,8 @@
 % The term Into could contain certain hacks to control its behavior, as follows:
 %
 % * X @@ Y
-% Takes the surroundings of X (comments, etc.), and print Y surrounded with
-% them.  This is useful to preserve comments in X, if X is going to dissapear in
-% the transformed code.
+% Print the term X with the surroundings of Y (comments, etc.).  This is useful
+% to preserve comments in X, if X is going to dissapear in the transformed code.
 %
 % * X $@ Y
 % Print the term X following the format of Y.
@@ -656,8 +655,13 @@ wr_options([portray_goal(ref_replace:rportray),
 	    partial(true)]).
 
 print_expansion_0(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
-    ( nonvar(Into) ->
-      print_expansion_1(Into, Pattern, Term, TermPos, OptionL, Text, From, To)
+    arg(1, TermPos, OFrom),
+    arg(2, TermPos, OTo),
+    get_innerpos(OFrom, OTo, IFrom, ITo),
+    nb_setarg(1, TermPos, IFrom),
+    nb_setarg(2, TermPos, ITo),
+    ( nonvar(Into)
+    ->print_expansion_1(Into, Pattern, Term, TermPos, OptionL, Text, From, To)
     ; print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To)
     ).
 
@@ -1173,7 +1177,7 @@ rportray(\\(Term), OptionL) :-
     assertz(rportray_skip),
     write_term(Term, OptionL).
 % rportray('$sb'(_, _, _, _), _) :- !.
-rportray(@@('$sb'(TermPos, IFrom, ITo, _, _, _), Term), OptionL) :-
+rportray(@@(Term, '$sb'(TermPos, IFrom, ITo, _, _, _)), OptionL) :-
     \+ retract(rportray_skip),
     !,
     arg(1, TermPos, From),
@@ -1230,6 +1234,9 @@ rportray('$BODY'(B), Opt) :- !,
 rportray('$BODYB'(B, Offs), Opt) :-
     offset_pos(Offs, Pos), !,
     rportray_bodyb(B, Pos, Opt).
+rportray('$BODYB'(B), Opt) :- !,
+    offset_pos('$OUTPOS', Pos),
+    rportray_bodyb(B, Pos, Opt).
 rportray('$POS'(Name, Term), Opt) :-
     get_output_position(Pos),
     nonvar(Name),
@@ -1240,9 +1247,6 @@ rportray('$POS'(Name, Term), Opt) :-
       assertz(rportray_pos(Name, Pos))      
     ),
     write_term(Term, Opt).
-rportray('$BODYB'(B), Opt) :- !,
-    offset_pos('$OUTPOS', Pos),
-    rportray_bodyb(B, Pos, Opt).
 rportray('$LIST'(L, Sep), Opt) :- !,
     rportray_list(L, write_term, Sep, Opt).
 rportray('$LISTC'(CL), Opt) :- !,
@@ -1614,7 +1618,7 @@ print_expansion_ne(Into, Pattern, Term0, RefPos0, OptionL, Text) :-
 print_expansion_ne(Into, SPattern, Term1, _, OptionL, Text) :-
     nonvar(SPattern),
     nonvar(Term1),
-    Term1\='$sb'(_, _, _, _, _, _),	% is not a readed term, but a command
+    Term1\='$sb'(_, _, _, _, _, _), % is not a read term, but a command
     SPattern='$sb'(RefPos, _, _, Term, _, Pattern),
     !,
     print_expansion_ne(Into, Pattern, Term, RefPos, OptionL, Text).
@@ -1718,7 +1722,7 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT),
 	      arg(N, GTerm, GAr),
 	      normalize_pos(Pos, PosK)
 	    ), KPosValTU),
-				% 0 is the functor, priority 1200
+    /* 0 is the functor, priority 1200 */
     KPosValU = [(FFrom-FFTo)-v(0, FFrom-FFTo, NT, FP, FP)|KPosValTU],
     keysort(KPosValU, KPosValL),
     pairs_keys_values(KPosValL, PosKL, ValL),
