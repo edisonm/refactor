@@ -655,7 +655,6 @@ wr_options([portray_goal(ref_replace:rportray),
 	    partial(true)]).
 
 print_expansion_0(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
-<<<<<<< HEAD
     arg(1, TermPos, OFrom),
     arg(2, TermPos, OTo),
     get_innerpos(OFrom, OTo, IFrom, ITo),
@@ -663,10 +662,6 @@ print_expansion_0(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
     nb_setarg(2, TermPos, ITo),
     ( nonvar(Into)
     ->print_expansion_1(Into, Pattern, Term, TermPos, OptionL, Text, From, To)
-=======
-    ( nonvar(Into) ->
-      print_expansion_1(Into, Pattern, Term, TermPos, OptionL, Text, From, To)
->>>>>>> a5f9332dbc4b992784c34484096a8a9ce2be0393
     ; print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To)
     ).
 
@@ -1239,7 +1234,6 @@ rportray('$BODY'(B), Opt) :- !,
 rportray('$BODYB'(B, Offs), Opt) :-
     offset_pos(Offs, Pos), !,
     rportray_bodyb(B, Pos, Opt).
-<<<<<<< HEAD
 rportray('$BODYB'(B), Opt) :- !,
     offset_pos('$OUTPOS', Pos),
     rportray_bodyb(B, Pos, Opt).
@@ -1253,21 +1247,6 @@ rportray('$POS'(Name, Term), Opt) :-
       assertz(rportray_pos(Name, Pos))      
     ),
     write_term(Term, Opt).
-=======
-rportray('$POS'(Name, Term), Opt) :-
-    get_output_position(Pos),
-    nonvar(Name),
-    ( \+ rportray_pos(Name, _)
-    ->assertz(rportray_pos(Name, Pos))
-    ; refactor_message(warning, format("Position named ~w redefined", [Name])),
-      retractall(rportray_pos(Name, _)),
-      assertz(rportray_pos(Name, Pos))      
-    ),
-    write_term(Term, Opt).
-rportray('$BODYB'(B), Opt) :- !,
-    offset_pos('$OUTPOS', Pos),
-    rportray_bodyb(B, Pos, Opt).
->>>>>>> a5f9332dbc4b992784c34484096a8a9ce2be0393
 rportray('$LIST'(L, Sep), Opt) :- !,
     rportray_list(L, write_term, Sep, Opt).
 rportray('$LISTC'(CL), Opt) :- !,
