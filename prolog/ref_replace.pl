@@ -78,7 +78,7 @@
 
 :- meta_predicate
     replace(+,?,?,0,-),
-    apply_commands(?, ?, 2),
+    apply_commands(?, +, +, +, 2),
     with_styles(0, +),
     collect_file_commands(+,+,+,:,1,+,+,+),
     with_pattern_into_termpos(0, ?, ?, +),
@@ -329,7 +329,8 @@ do_replace_goal_cw(IM:Term, Into, Expander, OptionL0) :-
     option_allchk(OptionL0, OptionL1, AllChk),
     foldl(select_option_default,
 		[caller(Caller)-Caller,
-		 fixpoint(FixPoint)-none],
+		 fixpoint(FixPoint)-none,
+		 vars_preffix(Preffix)-'V'],
 		OptionL1, OptionL2),
     index_change(Index),
     fixpoint_loop(FixPoint,
@@ -344,8 +345,8 @@ do_replace_goal_cw(IM:Term, Into, Expander, OptionL0) :-
 		  retract(file_commands_db(File, M, Command)),
 		  UFileMCommands),
 	  sort(UFileMCommands, FileMCommands),
-	  maplist([Index] +\ (F-(M-C))
-		 ^apply_commands(Index, F, [M, C] +\ M^C^true),
+	  maplist([Index, Preffix] +\ (F-(M-C))
+		 ^apply_commands(Index, F, [], Preffix, [M, C] +\ M^C^true),
 		  FileMCommands)
 	)).
 
@@ -405,7 +406,9 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
 	   expand(Expand)-DExpand,
 	   expanded(Expanded)-Expanded,
 	   fixpoint(FixPoint)-none,
-	   max_changes(Max)-Max
+	   max_changes(Max)-Max,
+	   variable_names(VNL)-VNL,
+	   vars_preffix(Preffix)-'V'
 	  ],
 	  OptionL0, OptionL1),
     ( option(clause(CRef), OptionL1)
@@ -416,6 +419,7 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
     ),
     OptionL = [syntax_errors(SE),
 	       subterm_positions(TermPos),
+	       variable_names(VNL),
 	       comments(Comments)|OptionL2],
     setup_call_cleanup(
 	( '$set_source_module'(OldM, OldM),
@@ -425,9 +429,10 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
 	    ( index_change(Index),
 	      call(FileMGen),
 	      prolog_current_choice(CP),
-	      fetch_sentence_file(Index, FixPoint, Max, CP, M, File, SentPattern,
-				  OptionL, Expand, TermPos, Expanded, LinearTerm,
-				  Linear, Bindings, Level, Term, Into, Expander)
+	      fetch_sentence_file(Index, FixPoint, Max, CP, M, File,
+				  SentPattern, OptionL, Expand, TermPos, VNL,
+				  Preffix, Expanded, LinearTerm, Linear,
+				  Bindings, Level, Term, Into, Expander)
 	    ),
 	    [refactor_sent_pattern,
 	     refactor_sentence,
@@ -464,19 +469,18 @@ fixpoint_loop(true, Goal) :-
       ).
 
 fetch_sentence_file(Index, FixPoint, Max, CP, M, File, SentPattern, OptionL,
-		    Expand, TermPos, Expanded, LinearTerm, Linear, Bindings,
-		    Level, Term, Into, Expander) :-
+		    Expand, TermPos, VNL, Preffix, Expanded, LinearTerm,
+		    Linear, Bindings, Level, Term, Into, Expander) :-
     fixpoint_loop(FixPoint,
-		  apply_commands(Index, File,
+		  apply_commands(Index, File, VNL, Preffix,
 				 gen_module_command(Max, CP, M, File, SentPattern,
 						    OptionL, Expand, TermPos, Expanded,
 						    LinearTerm, Linear, Bindings, Level,
 						    Term, Into, Expander))).
 
-gen_module_command(Max, CP, M, File, SentPattern,
-		   OptionL, Expand, TermPos, Expanded,
-		   LinearTerm, Linear, Bindings, Level,
-		   Term, Into, Expander, M, Command) :-
+gen_module_command(Max, CP, M, File, SentPattern, OptionL, Expand, TermPos,
+		   Expanded, LinearTerm, Linear, Bindings, Level, Term, Into,
+		   Expander, M, Command) :-
     with_source_file(File,
 		     fetch_and_expand(M, SentPattern, OptionL, Expand, TermPos,
 				      Expanded, LinearTerm, Linear, Bindings,
@@ -601,7 +605,7 @@ with_context_vars(Goal, NameL, ValueL) :-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % This is weird due to the operators
-apply_commands(Index, File, GenMCommand) :-
+apply_commands(Index, File, VNL, Preffix, GenMCommand) :-
     ( pending_change(_, File, Text) -> true
     ; exists_file(File)
     ->read_file_to_string(File, Text, [])
@@ -612,7 +616,7 @@ apply_commands(Index, File, GenMCommand) :-
 	with_context_vars(
 	    forall(
 		call(GenMCommand, M, Command),
-		( apply_change(Text, M, Command, FromToPText),
+		( apply_change(Text, M, VNL, Preffix, Command, FromToPText),
 		  string_concat_to(Text, FromToPText,
 			      IPosText, Pos-NewText0 ),
 		  nb_setarg(1, IPosText, Pos),
@@ -636,14 +640,39 @@ string_concat_to(RText, t(From, To, PasteText), Pos-Text0, To-Text) :-
     string_concat(Text0, Text1, Text2),
     string_concat(Text2, PasteText, Text).
 
-apply_change(Text, M, subst(TermPos, Priority, Pattern, Term, Into),
+gen_new_variable_name(VNL, Preffix, Count, Name) :-
+    atom_concat(Preffix, Count, Name),
+    \+ member(Name=_, VNL), !.
+gen_new_variable_name(VNL, Preffix, Count1, Name) :-
+    succ(Count1, Count),
+    gen_new_variable_name(VNL, Preffix, Count, Name).
+
+gen_new_variable_names([], _, _, _, _, VNL, VNL).
+gen_new_variable_names([Var|VarL], Preffix, Count1, Pattern, Into, VNL1, VNL) :-
+    ( occurrences_of_var(Var, Pattern, N),
+      N > 1
+    ->VNL2 = VNL1
+    ; ( occurrences_of_var(Var, Into, 1)
+      ->Count = Count1,
+	Name = '_'
+      ; gen_new_variable_name(VNL1, Preffix, Count1, Name),
+	succ(Count1, Count)
+      ),
+      VNL2 = [Name=Var|VNL1]
+    ),
+    gen_new_variable_names(VarL, Preffix, Count, Pattern, Into, VNL2, VNL).
+
+apply_change(Text, M, VNL1, Preffix, subst(TermPos, Priority, Pattern, Term, Into, VarL),
 	     t(From, To, PasteText)) :-
     wr_options(OptionL),
+    gen_new_variable_names(VarL, Preffix, 1, Pattern, Into, VNL1, VNL),
     call_cleanup(
 	with_output_to(string(PasteText),
 	    with_context_vars(
 		print_expansion_0(Into, Pattern, Term, TermPos,
-				  [priority(Priority), module(M)|OptionL],
+				  [priority(Priority), module(M),
+				   variable_names(VNL)
+				  |OptionL],
 				  Text, From, To),
 		[refactor_termpos],
 		[TermPos])),
@@ -828,18 +857,9 @@ perform_substitution(Sub, Priority, M, Term, Term0, Pattern0, Into0, BindingL,
     maplist(subst_unif(M, Term3, TermPos, GTerm), UL2),
     maplist(subst_fvar(M, Term1, TermPos, GTerm), UL1),
     special_term(Sub, Pattern, Into1, Into),
-    set_singletons(Pattern, Into),
+    term_variables(Into, VarL),
     !,
-    Cmd =subst(TermPos, Priority, Pattern, GTerm, Into).
-
-set_singletons(Pattern, Into) :-
-    term_variables(Into,    IVars),
-    partition([Pattern, Into] +\ Var
-	     ^( occurrences_of_var(Var, Pattern, N),
-		N =< 1,
-		occurrences_of_var(Var, Into, 1)
-	      ), IVars, Sing, _Mult),
-    maplist(=('$VAR'('_')), Sing).
+    Cmd =subst(TermPos, Priority, Pattern, GTerm, Into, VarL).
 
 % remove fake arguments that would be added by dcg
 trim_fake_pos(term_position(F, T, FF, FT, PosL0 ), Pos, N) :-

@@ -1209,6 +1209,25 @@ test(addlit) :-
     rreset,
     execute_test_(addlit, replace_conjunction((p1(A), p2), (test1, p2, p1(A))), [file(addlit)]).
 
+/* $newvars$
+diff -ruN newvars.pl -
+--- newvars.pl (source)
++++ newvars.pl (target)
+@@ -1,2 +1,2 @@
+ 
+-p(a(_N), R) :- R = g(f(a), "b").
++p(_N, A1, R) :- R = g(f(_N), A1, A2, A2, _, "b").
+*/
+
+test(newvars) :-
+    execute_test_(newvars, replace_sentence((H1 :- B1), (H2 :- B2),
+					    (H1 = p(a(X), B),
+					     H2 = p(X, Y, B),
+					     B1 = (R = g(_, "b")),
+					     B2 = (R = g(f(X), Y, A, A, _D, "b"))
+					    )),
+		  [file(newvars), vars_preffix('A')]).
+
 :- comment_data:disable.
 
 :- end_tests(refactor).
