@@ -58,6 +58,7 @@
 :- use_module(library(ref_context)).
 :- use_module(library(term_info)).
 :- use_module(library(clambda)).
+:- use_module(library(mapnlist)).
 :- use_module(library(mklinear)).
 :- use_module(library(substitute)).
 :- use_module(library(subpos_utils)).
@@ -1715,13 +1716,12 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT),
 	\+ current_op(_, _, M:FP)
       )
     ), !,
-    findall(PosK-v(N, Pos, Arg, PAr, GAr),
-	    ( nth1(N, PosT, Pos),
-	      arg(N, Into, Arg),
+    mapnlist([Into, Pattern, GTerm] +\ N^Pos^(PosK-v(N, Pos, Arg, PAr, GAr))^
+	    ( arg(N, Into, Arg),
 	      arg(N, Pattern, PAr),
 	      arg(N, GTerm, GAr),
 	      normalize_pos(Pos, PosK)
-	    ), KPosValTU),
+	    ), 1, PosT, KPosValTU),
     /* 0 is the functor, priority 1200 */
     KPosValU = [(FFrom-FFTo)-v(0, FFrom-FFTo, NT, FP, FP)|KPosValTU],
     keysort(KPosValU, KPosValL),
