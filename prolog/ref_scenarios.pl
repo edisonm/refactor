@@ -129,6 +129,8 @@ remove_underscore_multi(OptionL1) :-
     apply_var_renamer([Dict, Sent] +\ Name1^Name
 		     ^( member(Name1=Var, Dict),
 			atom_concat('_', Name, Name1),
+			atom_codes(Name, [C|_]),
+			char_type(C, csymf),
 			occurrences_of_var(Var, Sent, N),
 			N > 1,
 			( member(Name=_, Dict)
