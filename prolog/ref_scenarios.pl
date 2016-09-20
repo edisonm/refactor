@@ -46,6 +46,7 @@
 	   rename_predicate/3,
 	   rename_functor/3,
 	   remove_useless_exports/1,
+	   remove_underscore_multi/1,
 	   replace_conjunction/3,
 	   replace_conjunction/4,
 	   remove_call/2,
@@ -108,16 +109,34 @@ apply_var_renamer(Renamer, OptionL0 ) :-
 rename_variable(Name0, Name, Options) :-
     apply_var_renamer([Name0, Name] +\ Name0^Name^true, Options).
 
-underscore_singletons(OptionL0 ) :-
+underscore_singletons(OptionL1) :-
     foldl(select_option_default,
 	  [sentence(Sent)-Sent,
 	   variable_names(Dict)-Dict],
-	  OptionL0, OptionL),
-    apply_var_renamer([Dict, Sent] +\ Name0^Name
+	  OptionL1, OptionL),
+    apply_var_renamer([Dict, Sent] +\ Name1^Name
 		     ^( member(Name0=Var, Dict),
 			\+ atom_concat('_', _, Name0),
 			occurrences_of_var(Var, Sent, 1),
-			atom_concat('_', Name0, Name)
+			atom_concat('_', Name1, Name)
+		      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+
+remove_underscore_multi(OptionL1) :-
+    foldl(select_option_default,
+	  [sentence(Sent)-Sent,
+	   variable_names(Dict)-Dict],
+	  OptionL1, OptionL),
+    apply_var_renamer([Dict, Sent] +\ Name1^Name
+		     ^( member(Name1=Var, Dict),
+			atom_concat('_', Name, Name1),
+			occurrences_of_var(Var, Sent, N),
+			N > 1,
+			( member(Name=_, Dict)
+			->refactor_message("Cannot rename ~w to ~w since it already exists",
+					   [Name1, Name]),
+			  fail
+			; true
+			)
 		      ), [sentence(Sent), variable_names(Dict)|OptionL]).
 
 anonymize_all_singletons(OptionL0 ) :-
