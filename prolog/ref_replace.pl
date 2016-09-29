@@ -651,11 +651,7 @@ gen_new_variable_name(VNL, Preffix, Count1, Name) :-
 
 gen_new_variable_names([], _, _, _, _, _, VNL, VNL).
 gen_new_variable_names([Var|VarL], Preffix, Count1, Sent, Pattern, Into, VNL1, VNL) :-
-    ( occurrences_of_var(Var, Pattern, N),
-      N > 1
-    ->Count = Count1,
-      VNL3 = VNL1
-    ; ( occurrences_of_var(Var, Sent, SN),
+    ( ( occurrences_of_var(Var, Sent, SN),
 	occurrences_of_var(Var, Pattern, PN),
 	occurrences_of_var(Var, Into, IN),
 	SN-PN+IN =:= 1,
@@ -684,7 +680,7 @@ gen_new_variable_names([Var|VarL], Preffix, Count1, Sent, Pattern, Into, VNL1, V
 apply_change(Text, M, Preffix, subst(TermPos, Priority, Sent, Pattern, Term, VNL1, Into, VarL),
 	     t(From, To, PasteText)) :-
     wr_options(OptionL),
-    gen_new_variable_names(VarL, Preffix, 1, Sent, Pattern, Into, VNL1, VNL),
+    gen_new_variable_names(VarL, Preffix, 1, Sent, Term, Into, VNL1, VNL),
     call_cleanup(
 	with_output_to(string(PasteText),
 	    with_context_vars(
