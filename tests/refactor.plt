@@ -5,6 +5,7 @@
 :- use_module(library(refactor)).
 :- use_module(library(call_in_dir)).
 :- use_module(library(comment_data)).
+:- use_module(library(substitute)).
 
 :- comment_data:enable.
 
@@ -98,7 +99,7 @@ diff -ruN ex4.pl -
 */
 
 test(ex4) :-
-    execute_test(ex4, replace_sentence(ex4(A, B), ex4_(A, B), (A=f(a)))).
+    execute_test(ex4, replace_sentence(ex4(_A, B), ex4_(X, B), (X=f(a)))).
 
 :- use_module(ex5).
 
@@ -233,7 +234,7 @@ diff -ruN ex10.pl -
 
 test(ex10_1) :-
     execute_test(ex10, ex10_1,
-		 replace_term(g(A), g(B,A), ((A=a(B),B='$VAR'('C')))),
+		 replace_term(g(_A), g(B,X), ((X=a(B),B='$VAR'('C')))),
 		 [sentence(ex10(_, _))]).
 
 /* $ex10_2$
@@ -313,7 +314,7 @@ diff -ruN ex13.pl -
 */
 
 test(ex13) :-
-    execute_test(ex13, replace_term(T, T, (nonvar(T), T=q(_B,A),A=a))).
+    execute_test(ex13, replace_term(T, T1$@T, (nonvar(T), T=q(_B,A),var(A),substitute_value(A, a, T, T1)))).
 
 :- use_module(ex14).
 
@@ -331,7 +332,7 @@ diff -ruN ex14.pl -
  
 -ex14((A, B), _C) :-
 -    A = B,
-+ex14((A, A), _C) :-
++ex14((B, B), _C) :-
      true.
  
 -ex14(A, B) :-
@@ -343,9 +344,9 @@ diff -ruN ex14.pl -
 -    f(A, 'b') = f(a, B),
 -    \+ A,
 -    \+ B.
-+ex14(a, 'b') :-
++ex14(a, b) :-
 +    \+ a,
-+    \+ 'b'.
++    \+ b.
  
 -ex14(A, B) :-
 -    B = [x|T],
@@ -357,7 +358,7 @@ diff -ruN ex14.pl -
 
 test(ex14_1) :-
     execute_test(ex14, ex14_1,
-		 replace_sentence((Head :- A=B, Body), (Head :- Body), (A=B)), []).
+		 replace_sentence((Head :- A=B, Body), (Head1$@Head :- Body1$@Body), (unifiable(A,B,L),substitute_values(L,Head-Body,Head1-Body1))), []).
 
 /* $ex14_2$
 diff -ruN ex14.pl -
@@ -419,7 +420,7 @@ diff -ruN ex15.pl -
 */
 
 test(ex15) :-
-    execute_test(ex15, replace_sentence(ex15(L,A), [ex15(L)], (A=a))).
+    execute_test(ex15, replace_sentence(ex15(L,A), [ex15(L1$@L)], (substitute_value(A, a, L, L1)))).
 
 :- use_module(ex16).
 
@@ -468,7 +469,7 @@ diff -ruN ex18.pl -
 */
 
 test(ex18) :-
-    execute_test(ex18, replace_sentence((H:-A=B,p(C)), (H:-p(C)), A=B)).
+    execute_test(ex18, replace_sentence((H:-A=B,p(C)), (H1:-p(C1)), substitute_value(A,B,H-C,H1-C1))).
 
 :- use_module(ex19).
 
@@ -487,7 +488,7 @@ diff -ruN ex19.pl -
 */
 
 test(ex19_1) :-
-    execute_test(ex19, ex19_1, replace_sentence(ex19(C,D), ex19(C,D), C=D), []).
+    execute_test(ex19, ex19_1, replace_sentence(ex19(_C,D), ex19(D,D)), []).
 
 /* $ex19_2$
 diff -ruN ex19.pl -
@@ -508,7 +509,9 @@ diff -ruN ex19.pl -
 */
 
 test(ex19_2) :-
-    execute_test(ex19, ex19_2, replace_sentence(ex19(A,B,C), ex19(A, B), B=C), []).
+    execute_test(ex19, ex19_2,
+		 replace_sentence(ex19(A, B, C), ex19(AS$@A, C),
+				  substitute_value(B, C, A, AS)), []).
 
 :- use_module(conjex).
 
@@ -727,7 +730,8 @@ diff -ruN ex27.pl -
 */
 
 test(ex27) :-
-    execute_test(ex27, replace_term((ex27:- (A=V,Body)), (ex27 :- Body@@(A=V,Body)), A=V)).
+    execute_test(ex27, replace_term((ex27:- (A=V,Body)), (ex27 :- (Body1@@Body)@@(A=V,Body)),
+				    substitute_value(A, V, Body, Body1))).
 
 /* $ex27_2$
 diff -ruN ex27.pl -
@@ -804,7 +808,7 @@ diff -ruN exapp.pl -
 +    L=[a/* 0 */  /* 1 */  /* 2 */].
  exls(L) :-
 -    append([a], [f(B) /* 1 */] /*2*/, L).
-+    L=[a, f(B) /*2*/].
++    L=[a, f(B) /* 1 */ /*2*/].
  exls(L) :-
 -    append([a], [f(b)], L).
 +    L=[a, f(b)].
@@ -816,7 +820,7 @@ diff -ruN exapp.pl -
  exapp(A1-A2, T, C) :-
 -    append([ [ _, [ A1 ] ] ], [ [ _, [ A2 ] ], [ _, [ T ] ] ],
 -	   C).
-+    C=[[_, [A1]], [_, [A2]], [_, [T]]].
++    C=[[_, [A1]],  [ _, [ A2 ] ], [ _, [ T ] ] ].
 */
 
 test(exapp_1) :-
