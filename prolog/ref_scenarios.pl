@@ -90,17 +90,16 @@ being_used(M, F/A) :-
 :- meta_predicate apply_var_renamer(2, +).
 apply_var_renamer(Renamer, OptionL0 ) :-
     foldl(select_option_default,
-	  [sentence(Sent)-Sent,
-	   variable_names(Dict)-Dict],
+	  [variable_names(Dict)-Dict],
 	  OptionL0, OptionL),
-    replace_sentence(Sent, Sent,
-		     ( findall(Name0='$VAR'(Name),
-			       ( call(Renamer, Name0, Name),
-				 \+ memberchk(Name=_, Dict)
-			       ), ARenameL),
-		       intersection(ARenameL, Dict, AppliedL),
-		       AppliedL \= []
-		     ), [sentence(Sent), variable_names(Dict)|OptionL]).
+    replace_term(Var, '$VAR'(Name),
+		 ( var(Var),
+		   member(Name1 = Var1, Dict),
+		   Var1==Var
+		 ->call(Renamer, Name1, Name),
+		   \+ memberchk(Name=_, Dict)
+		 ),
+		 [variable_names(Dict)|OptionL]).
 
 %% rename_variable(?Name0:atom, +Name:atom, +Options) is det.
 %
