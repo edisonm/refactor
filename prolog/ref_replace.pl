@@ -80,7 +80,6 @@
     replace(+,?,?,0,-),
     apply_commands(?, +, 2),
     with_styles(0, +),
-    collect_file_commands(+,+,+,:,1,+,+,+),
     with_pattern_into_termpos(0, ?, ?, +),
     with_from(0, ?),
     with_context(?, ?, ?, ?, ?, ?, 0),
@@ -108,10 +107,6 @@
 % * goal
 % Look for terms that match a given goal.  This is implemented using the source
 % reader
-%
-% * goal_cw
-% Look for terms that match a given goal.  This is implemented using the code
-% walker
 %
 % * term
 % Look for sub-terms in a given read term recursivelly.
@@ -279,83 +274,11 @@ do_goal_expansion(Term, TermPos) :-
 		      [refactor_variable_names],
 		      [VNL]).
 
-:- public collect_file_commands/8.
-
-%%	collect_file_commands(+CallerPattern, +Pattern, +Into, :Expander,
-%%			      +FileChk, +Callee, +Caller, +Location)
-%
-%	Called from prolog_walk_code/1 on a call  from Caller to Callee.
-%	The parameters Sentence to Expander are provided by the on_trace
-%	closure  passed  to  prolog_walk_code/1.    Callee,  Caller  and
-%	From are added by prolog_walk_code/1.
-
-collect_file_commands(CallerPattern, Preffix, Pattern, Into, Expander, FileChk,
-		      M:Callee, Caller, From) :-
-    subsumes_term(CallerPattern-Pattern, Caller-Callee),
-    ( From = clause_term_position(ClauseRef, TermPos)
-    ->clause_property(ClauseRef, file(File))
-    ; From = file_term_position(File, TermPos)
-    ->true
-    ; print_message(error, acheck(refactor(Callee, From))),
-      fail
-    ),
-    call(FileChk, File),
-    Callee = Term,
-    with_context_vars(forall(substitute_term_norec(sub_cw, M, Term, 999,
-						   Pattern, Into, Expander,
-						   TermPos, TermPos, Command),
-			     assertz(file_commands_db(File, M, Command))),
-		      [refactor_sent_pattern,
-		       refactor_sentence,
-		       refactor_comments,
-		       refactor_subpos,
-		       refactor_file,
-		       refactor_goal_args,
-		       refactor_preffix,
-		       refactor_variable_names
-		      ],
-		     [CallerPattern,
-		      Caller,
-		      [], % TODO: Fill the gap
-		      TermPos,
-		      File,
-		      ga(Term, Into, Expander),
-		      Preffix,
-		      []]).
-
-do_replace(goal_cw, IM:Term, Into, Expander, OptionL) :- !,
-    do_replace_goal_cw(IM:Term, Into, Expander, OptionL).
 do_replace(Level, Term, Into, Expander, OptionL) :-
     setup_call_cleanup(
 	prepare_level(Level, Ref),
 	apply_ec_term_level(Level, Term, Into, Expander, OptionL),
 	cleanup_level(Level, Ref)).
-
-do_replace_goal_cw(IM:Term, Into, Expander, OptionL0) :-
-    option_allchk(OptionL0, OptionL1, AllChk),
-    foldl(select_option_default,
-		[caller(Caller)-Caller,
-		 fixpoint(FixPoint)-none,
-		 vars_preffix(Preffix)-'V'],
-		OptionL1, OptionL2),
-    index_change(Index),
-    fixpoint_loop(FixPoint,
-	( prolog_walk_code(
-	    [ trace_reference(IM:Term),
-	      infer_meta_predicates(false),
-	      evaluate(false),
-	      on_trace(collect_file_commands(Caller, Preffix, Term, Into,
-					     Expander, AllChk))
-	    | OptionL2
-	    ]),
-	  findall(File-(M-Command),
-		  retract(file_commands_db(File, M, Command)),
-		  UFileMCommands),
-	  sort(UFileMCommands, FileMCommands),
-	  maplist([Index] +\ (F-(M-C))
-		 ^apply_commands(Index, F, [M, C] +\ M^C^true),
-		  FileMCommands)
-	)).
 
 prepare_level(goal, Ref) :- !,
     asserta((system:goal_expansion(G, P, _, _) :-
@@ -970,28 +893,6 @@ is_eq(VNL, Var1L, Var2) :-
        ),
     !.
 
-choose1(UL3, V=_) :-
-    member(V2=_, UL3),
-    V2 == V,
-    !.
-
-unif_eq(V=V).
-
-singleton(L, V1=V2) :-
-    var(V1),
-    var(V2),
-    ( occurrences_of_var(V1, L, 1)
-    ; occurrences_of_var(V2, L, 1)
-    ).
-
-singleton_r(L, _=V2) :-
-    var(V2),
-    occurrences_of_var(V2, L, 1).
-
-unifier(Term1, Term2, Var1, Var2) :-
-    term_variables(Term1, Var1),
-    copy_term(Term1-Var1, Term2-Var2).
-
 eq(A, B, A=B).
 
 get_position_gterm(M, Term, Pos, GTerm, T, GPos, G, GPriority) :-
@@ -1005,40 +906,10 @@ get_position_gterm(M, Term, Pos, GTerm, T, GPos, G, GPriority) :-
       subterm_location(L, G, GTerm)
     ).
 
-substitute_2(V0=T0, sub(Term0, BL0), sub(Term, BL)) :-
-    substitute_value(T0, V1, Term0, Term1),
-    ( Term0 == Term1
-    ->greatest_common_binding(Term0, T0, Term, T, [[]], BL0, BL1),
-      ( BL1==BL0
-      ->BL = BL1
-      ; BL1 = [V0=T|BL]
-      )
-    ; Term = Term1,
-      BL0 = [V0=V1|BL]
-    ).
-
 get_innerpos(From, To, IFrom, ITo) :-
     term_innerpos(From, To, IFrom, ITo),
     !.
 get_innerpos(From, To, From, To).
-
-subst_unif(M, Term, Pos, GTerm, V=T) :-
-    ( ( (var(T) ; nonvar(T), T \= '$sb'(_, _, _, _, _, _)),
-	get_position_gterm(M, Term, Pos, GTerm, T, GPos, G, P),
-	GPos \= none
-      ->arg(1, Pos, From),
-	arg(2, Pos, To),
-	get_innerpos(From, To, IFrom, ITo),
-	ignore(V='$sb'(GPos, IFrom, ITo, G, P, T))
-      ; get_position_gterm(M, Term, Pos, GTerm, V, GPos, G, P),
-	GPos \= none
-      ->arg(1, Pos, From),
-	arg(2, Pos, To),
-	get_innerpos(From, To, IFrom, ITo),
-	ignore(V='$sb'(GPos, IFrom, ITo, G, P, T))
-      )
-    ; V=T
-    ).
 
 subst_args(N, M, Term, GTerm, CTerm, [ArgPos|SubPos]) :-
     arg(N, Term,  Arg),

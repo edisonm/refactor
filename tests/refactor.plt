@@ -1002,7 +1002,7 @@ diff -ruN opex2.pl -
 */
 test(opex2) :-
     execute_test(opex2, opex2,
-		 replace(goal_cw,_:myis(A, B), myis2(A, B), true), []).
+		 replace(goal, myis(A, B), myis2(A, B), true), []).
 
 :- use_module(fpex).
 
