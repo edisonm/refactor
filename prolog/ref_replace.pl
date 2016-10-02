@@ -48,7 +48,6 @@
 :- use_module(library(codesio)).
 :- use_module(library(lists)).
 :- use_module(library(option)).
-:- use_module(library(prolog_codewalk)).
 :- use_module(library(prolog_source), []). % expand/4
 :- use_module(library(readutil)).
 :- use_module(library(fix_termpos)).
