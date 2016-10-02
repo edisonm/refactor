@@ -626,13 +626,20 @@ gen_new_variable_names([Var|VarL], Preffix, Count1, Sent, Pattern, Into, VNL1, V
 	; Count = Count1,
 	  VNL = ['_'=Var|VNL2]
 	)
-      ; member(Name=Var1, VNL1),
+      ; member(Name1=Var1, VNL1),
 	Var1 == Var,
-	Name \= '_'
-      ->VNL = VNL2,
-	Count = Count1
-      ; occurrences_of_var(Var, Sent, SN), % Some how this happen if we where
-                                          % unable to get a non empty VNL1
+	Name1 \= '_'
+      ->( atom_concat('_', Name2, Name1)
+	->( member(Name2=_, VNL1)
+	  ->gen_new_variable_name(VNL1, Name2, 1, Name)
+	  ; Name = Name2
+	  ),
+	  VNL = [Name=Var|VNL2],
+	  Count = Count1
+	; VNL = VNL2,
+	  Count = Count1
+	)
+      ; occurrences_of_var(Var, Sent, SN),
 	SN > 1
       ->VNL = VNL2,
 	Count = Count1
@@ -767,6 +774,7 @@ trim_hack(Term, Trim) :-
 
 do_trim_hack('$@'(Term, _), Term).
 do_trim_hack('@@'(Term, _), Term).
+do_trim_hack(\\(Term), Term).
 do_trim_hack('$NOOP'(_), '').
 
 gen_new_variable_names(Sent, Term, Into, VNL) :-

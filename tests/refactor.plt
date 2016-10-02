@@ -1220,7 +1220,7 @@ diff -ruN newvars.pl -
 @@ -1,2 +1,2 @@
  
 -p(a(_N), R) :- R = g(f(a), "b").
-+p(_N, A1, R) :- R = g(f(_N), A1, A2, A2, _, "b").
++p(N, A1, R) :- R = g(f(N), A1, A2, A2, _, "b").
 */
 
 test(newvars) :-
@@ -1231,6 +1231,22 @@ test(newvars) :-
 					     B2 = (R = g(f(X), Y, A, A, _D, "b"))
 					    )),
 		  [file(newvars), vars_preffix('A')]).
+
+/* $autovn$
+diff -ruN autovn.pl -
+--- autovn.pl (source)
++++ autovn.pl (target)
+@@ -1,3 +1,3 @@
+ :- module(autovn, [f/6]).
+ 
+-f(X, X, _, _, _Y, _Z, V1/V1).
++f(_X, V2, V2, _, Y, Y, _Z, V1/V1).
+*/
+
+test(autovn) :-
+    execute_test_(autovn, replace_sentence(f(A1, _A2, A3, A4, A5, A6, A7),
+					   f(A1, A3, A3, A4, A5, A5, A6, A7)),
+		  [file(autovn)]).
 
 :- comment_data:disable.
 
