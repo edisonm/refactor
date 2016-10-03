@@ -639,10 +639,6 @@ gen_new_variable_names([Var|VarL], Preffix, Count1, Sent, Pattern, Into, VNL1, V
 	; VNL = VNL2,
 	  Count = Count1
 	)
-      ; occurrences_of_var(Var, Sent, SN),
-	SN > 1
-      ->VNL = VNL2,
-	Count = Count1
       ;	gen_new_variable_name(VNL1, Preffix, Count1, Name),
 	succ(Count1, Count),
 	VNL = [Name=Var|VNL2]
@@ -792,17 +788,21 @@ substitute_term_norec(Sub, M, Term, Priority, Pattern, Into, Expander, TermPos, 
     ( refactor_context(sentence,     Sent),
       refactor_context(sent_pattern, SentPattern),
       subsumes_term(SentPattern-Pattern, Sent-Term),
-      copy_term(t(Sent, Term), t(Sent2, Term2)),
+      copy_term(Sent, Sent2),
       with_context(Term, TermPos, Pattern, Into, Pattern1, Into1, Expander),
-      gen_new_variable_names(Sent, Term, Into, VNL),
-      ( Sent-Term=@=Sent2-Term2
+      ( Sent=@=Sent2
       ->true
       ; refactor_context(file, File),
-	print_message(error,
-		      refactor_message(file_term_position(File, TermPos),
-				       format("Bindings in the term being refactorized are not allowed since they are ambiguous.", []))),
-	fail
+	refactor_context(options, OptionL),
+	option(show_left_bindings(Show), OptionL, false),
+	( Show = true
+	->print_message(warning,
+			refactor_message(file_term_position(File, TermPos),
+					 format("Bindings occurs: ~w \\=@= ~w.", [Sent2, Sent])))
+	; true
+	)
       ),
+      gen_new_variable_names(Sent, Term, Into, VNL),
       greatest_common_binding(Pattern1, Into1, Pattern2, Into2, [[]], Unifier, [])
     ),
     perform_substitution(Sub, Priority, M, Term, VNL, Pattern2, Into2, Unifier, TermPos, OutPos, Cmd).
