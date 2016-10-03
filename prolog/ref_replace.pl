@@ -81,7 +81,7 @@
     with_styles(0, +),
     with_pattern_into_termpos(0, ?, ?, +),
     with_from(0, ?),
-    with_context(?, ?, ?, ?, ?, ?, 0),
+    with_context(?, ?, ?, ?, ?, ?, ?, ?, 0),
     with_context_vars(0, +, +),
     fixpoint_loop(+, 0).
 
@@ -624,7 +624,7 @@ gen_new_variable_names([Var|VarL], Preffix, Count1, Sent, Pattern, Into, VNL1, V
 	    Count = Count1
 	  )
 	; Count = Count1,
-	  VNL = ['_'=Var|VNL2]
+	  VNL = ['_'=Var|VNL2] % Required if Var is a new variable in Into
 	)
       ; member(Name1=Var1, VNL1),
 	Var1 == Var,
@@ -701,7 +701,7 @@ refactor_message(Type, Message) :-
     nb_getval(refactor_termpos, TermPos),
     print_message(Type, refactor_message(file_term_position(File, TermPos), Message)).
 
-with_context(Term, TermPos, Pattern0, Into0, Pattern, Into, Goal) :-
+with_context(Sent, Term, TermPos, Pattern0, Into0, Pattern, Into, VNL, Goal) :-
     copy_term(Pattern0-Into0, Pattern-Into1),
     refactor_context(sentence, Sent),
     refactor_context(sent_pattern, Sent),
@@ -710,40 +710,49 @@ with_context(Term, TermPos, Pattern0, Into0, Pattern, Into, Goal) :-
     term_variables(Pattern, Vars), % Variable bindings in Pattern
     %% Apply changes to Pattern/Into and bind Vars:
     copy_term(t(Pattern, Into1, Vars), t(Pattern0, Into0, Vars0)),
+    gen_new_variable_names(Sent, Term, Into0, VNL),
     pairs_keys_values(Pairs, Vars0, Vars),
-    map_subterms(Pairs, Into0, Into1, Into).
+    map_subterms(Pairs-VNL, Into0, Into1, Into).
 
-map_subterms(Pairs, T0, T1, T) :-
+map_subterms(Pairs-VNL, T0, T1, T) :-
     ( member(X0-X, Pairs),
       X==T1
     ; member(X0-X, Pairs),
-      same_term(X0, T0) % ===/2
+      same_term(X0, T0)		% ===/2
     ),
-    !,
-    (T0==T1 -> T = X0 ; T = X).
-map_subterms(Pairs, T0, T1, T) :-
+    ( T0==T1
+    ->T = X0
+    ; \+ ( member(_=V1, VNL),
+	   sub_term(V2, X0),
+	   var(V2),
+	   V2==V1
+	 ),
+      T = X
+    ),
+    !.
+map_subterms(PVNL, T0, T1, T) :-
     compound(T0), !,
-    map_compound(Pairs, T0, T1, T).
+    map_compound(PVNL, T0, T1, T).
 map_subterms(_, T, _, T).
 
-map_compound(Pairs,		% Special case: preserve Goal
+map_compound(PVNL,		% Special case: preserve Goal
 	     '$G'(T0, G),
 	     '$G'(T1, _),
 	     '$G'(T,  G)) :- !,
-    map_subterms(Pairs, T0, T1, T).
-map_compound(Pairs,		% Special case: preserve Goal
+    map_subterms(PVNL, T0, T1, T).
+map_compound(PVNL,		% Special case: preserve Goal
 	     '$C'(G, T0),
 	     '$C'(_, T1),
 	     '$C'(G, T )) :- !,
-    map_subterms(Pairs, T0, T1, T).
-map_compound(Pairs, T0, T1, T) :-
+    map_subterms(PVNL, T0, T1, T).
+map_compound(PVNL, T0, T1, T) :-
     functor(T0, F, N),
     functor(T1, F, N),
     functor(T,  F, N),
     T0 =.. [F|Args0],
     T1 =.. [F|Args1],
     T  =.. [F|Args],
-    maplist(map_subterms(Pairs), Args0, Args1, Args).
+    maplist(map_subterms(PVNL), Args0, Args1, Args).
 
 special_term(top,    Pattern, Term, '$LISTC'(List)) :-
     nonvar(Pattern),
@@ -789,7 +798,7 @@ substitute_term_norec(Sub, M, Term, Priority, Pattern, Into, Expander, TermPos, 
       refactor_context(sent_pattern, SentPattern),
       subsumes_term(SentPattern-Pattern, Sent-Term),
       copy_term(Sent, Sent2),
-      with_context(Term, TermPos, Pattern, Into, Pattern1, Into1, Expander),
+      with_context(Sent, Term, TermPos, Pattern, Into, Pattern1, Into1, VNL, Expander),
       ( Sent=@=Sent2
       ->true
       ; refactor_context(file, File),
@@ -802,7 +811,6 @@ substitute_term_norec(Sub, M, Term, Priority, Pattern, Into, Expander, TermPos, 
 	; true
 	)
       ),
-      gen_new_variable_names(Sent, Term, Into, VNL),
       greatest_common_binding(Pattern1, Into1, Pattern2, Into2, [[]], Unifier, [])
     ),
     perform_substitution(Sub, Priority, M, Term, VNL, Pattern2, Into2, Unifier, TermPos, OutPos, Cmd).
