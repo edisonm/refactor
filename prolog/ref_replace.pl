@@ -433,6 +433,22 @@ binding_varname(VNL, Var=Term) -->
     ; []
     ).
 
+complete_with_singletons(Term, VNL1, VNL) :-
+    term_variables(Term, VarL),
+    foldl(add_if_singleton(Term), VarL, VNL1, VNL).
+
+add_if_singleton(Term, Var, VNL1, VNL) :-
+    ( is_unnamed_singleton(Term, Var, VNL1)
+    ->VNL = ['_'=Var|VNL1]
+    ; VNL = VNL1
+    ).
+
+is_unnamed_singleton(Term, Var, VNL) :-
+    occurrences_of_var(Var, Term, 1),
+    \+ ( member(_=Var1, VNL),
+	 Var==Var1
+       ).
+
 fetch_and_expand(M, SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
 		 Linear, VNL, Bindings, Level, Term, Into, Expander, Command, In) :-
     repeat,
@@ -444,7 +460,8 @@ fetch_and_expand(M, SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
       b_setval('$variable_names', VNL),
       expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
       make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
-      foldl(binding_varname(VNL), Bindings, RVNL, VNL),
+      foldl(binding_varname(VNL), Bindings, BVNL, VNL),
+      complete_with_singletons(Linear, BVNL, RVNL),
       S = solved(no),
       ( true
       ; arg(1, S, yes)
@@ -593,6 +610,7 @@ gen_new_variable_name(VNL, Preffix, Count1, Name) :-
 will_occurs(Var, Sent, Pattern, Into, VNL, T) :-
     findall(N,
 	    ( member(Name=Var1, VNL),
+	      Name \= '_',
 	      Var==Var1
 	    ->member(Name=Var2, VNL),
 	      will_occurs(Var2, Sent, Pattern, Into, N)
@@ -624,7 +642,7 @@ gen_new_variable_names([Var|VarL], Preffix, Count1, Sent, Pattern, Into, VNL1, V
 	    Count = Count1
 	  )
 	; Count = Count1,
-	  VNL = ['_'=Var|VNL2] % Required if Var is a new variable in Into
+	  VNL = ['_'=Var|VNL2]	% Required if Var is a new variable in Into
 	)
       ; member(Name1=Var1, VNL1),
 	Var1 == Var,
@@ -706,30 +724,37 @@ with_context(Sent, Term, TermPos, Pattern0, Into0, Pattern, Into, VNL, Goal) :-
     refactor_context(sentence, Sent),
     refactor_context(sent_pattern, Sent),
     Pattern0 = Term,
+    copy_term(Term-Into0, Term2-Into2),
     with_pattern_into_termpos(Goal, Pattern, Into1, TermPos), % Allow changes in Pattern1/Into1
-    term_variables(Pattern, Vars), % Variable bindings in Pattern
+    term_variables(Pattern, Vars1), % Variable bindings in Pattern
     %% Apply changes to Pattern/Into and bind Vars:
-    copy_term(t(Pattern, Into1, Vars), t(Pattern0, Into0, Vars0)),
+    % gtrace,
+    copy_term(t(Pattern, Into1, Vars1), t(Pattern0, Into0, Vars0)),
+    copy_term(t(Pattern, Into1, Vars1), t(Term2,    Into2, Vars2)),
     gen_new_variable_names(Sent, Term, Into0, VNL),
-    pairs_keys_values(Pairs, Vars0, Vars),
-    map_subterms(Pairs-VNL, Into0, Into1, Into).
+    pairs_keys_values(Pairs01, Vars0, Vars1),
+    pairs_keys_values(Triplets, Pairs01, Vars2),
+    map_subterms(Triplets-VNL, Into0, Into1, Into).
 
 map_subterms(Pairs-VNL, T0, T1, T) :-
-    ( member(X0-X, Pairs),
-      X==T1
-    ; member(X0-X, Pairs),
+    ( member(X0-X1-X2, Pairs),
+      X1 == T1
+    ; member(X0-X1-X2, Pairs),
       same_term(X0, T0)		% ===/2
     ),
-    ( T0==T1
+    ( T0 == T1
     ->T = X0
     ; \+ ( member(_=V1, VNL),
 	   sub_term(V2, X0),
 	   var(V2),
-	   V2==V1
-	 ),
-      T = X
-    ),
-    !.
+	   V2 == V1
+	 )
+    ->( X1 =@= X2,
+	\+ same_term(X0, T0)
+      ->T = X0
+      ; T = X1
+      )
+    ), !.
 map_subterms(PVNL, T0, T1, T) :-
     compound(T0), !,
     map_compound(PVNL, T0, T1, T).
@@ -745,6 +770,20 @@ map_compound(PVNL,		% Special case: preserve Goal
 	     '$C'(_, T1),
 	     '$C'(G, T )) :- !,
     map_subterms(PVNL, T0, T1, T).
+map_compound(PVNL,
+	     '$@'(X0, Y0),
+	     '$@'(X1, Y1),
+	     '$@'(X,  Y)) :- !,
+	map_subterms(PVNL, X0, X1, X),
+	PVNL=Pairs-_,
+	map_subterms(Pairs-[], Y0, Y1, Y).
+map_compound(PVNL,
+	     '@@'(X0, Y0),
+	     '@@'(X1, Y1),
+	     '@@'(X,  Y)) :- !,
+	map_subterms(PVNL, X0, X1, X),
+	PVNL=Pairs-_,
+	map_subterms(Pairs-[], Y0, Y1, Y).
 map_compound(PVNL, T0, T1, T) :-
     functor(T0, F, N),
     functor(T1, F, N),

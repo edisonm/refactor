@@ -807,8 +807,8 @@ diff -ruN exapp.pl -
 -    append([a], /* 0 */ [ /* 1 */ ] /* 2 */, L).
 +    L=[a/* 0 */  /* 1 */  /* 2 */].
  exls(L) :-
--    append([a], [f(B) /* 1 */] /*2*/, L).
-+    L=[a, f(B) /* 1 */ /*2*/].
+-    append([a], [f(_B) /* 1 */] /*2*/, L).
++    L=[a, f(_B) /* 1 */ /*2*/].
  exls(L) :-
 -    append([a], [f(b)], L).
 +    L=[a, f(b)].
@@ -839,8 +839,8 @@ diff -ruN exapp.pl -
 -    append([a], /* 0 */ [ /* 1 */ ] /* 2 */, L).
 +    L=[a/* 0 */  /* 2 */].
  exls(L) :-
--    append([a], [f(B) /* 1 */] /*2*/, L).
-+    L=[a, f(B) /* 1 */ /*2*/].
+-    append([a], [f(_B) /* 1 */] /*2*/, L).
++    L=[a, f(_B) /* 1 */ /*2*/].
  exls(L) :-
 -    append([a], [f(b)], L).
 +    L=[a, f(b)].

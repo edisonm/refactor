@@ -3,7 +3,7 @@
 exls(L) :-
     append([a], /* 0 */ [ /* 1 */ ] /* 2 */, L).
 exls(L) :-
-    append([a], [f(B) /* 1 */] /*2*/, L).
+    append([a], [f(_B) /* 1 */] /*2*/, L).
 exls(L) :-
     append([a], [f(b)], L).
 
