@@ -1236,16 +1236,70 @@ test(newvars) :-
 diff -ruN autovn.pl -
 --- autovn.pl (source)
 +++ autovn.pl (target)
-@@ -1,3 +1,3 @@
+@@ -1,5 +1,5 @@
  :- module(autovn, [f/6]).
  
 -f(X, X, _, _, _Y, _Z, V1/V1).
 +f(_X, V2, V2, _, Y, Y, _Z, V1/V1).
+ 
+ p(g( _), _Y).
 */
 
 test(autovn) :-
+    rreset,
     execute_test_(autovn, replace_sentence(f(A1, _A2, A3, A4, A5, A6, A7),
 					   f(A1, A3, A3, A4, A5, A5, A6, A7)),
+		  [file(autovn)]).
+
+/* $autovn2$
+diff -ruN autovn.pl -
+--- autovn.pl (source)
++++ autovn.pl (target)
+@@ -2,4 +2,4 @@
+ 
+ f(X, X, _, _, _Y, _Z, V1/V1).
+ 
+-p(g( _), _Y).
++p(g( _), f(_)).
+*/
+
+test(autovn2) :-
+    rreset,
+    execute_test_(autovn2, replace_sentence(p(C,X), p(C,X), (X=f(_A))),
+		  [file(autovn)]).
+
+/* $autovn3$
+diff -ruN autovn.pl -
+--- autovn.pl (source)
++++ autovn.pl (target)
+@@ -2,4 +2,4 @@
+ 
+ f(X, X, _, _, _Y, _Z, V1/V1).
+ 
+-p(g( _), _Y).
++p(g( V1), V1).
+*/
+
+test(autovn3) :-
+    rreset,
+    execute_test_(autovn3, replace_sentence(p(g(A),_B), p(g(A),A)),
+		  [file(autovn)]).
+
+/* $autovn4$
+diff -ruN autovn.pl -
+--- autovn.pl (source)
++++ autovn.pl (target)
+@@ -2,4 +2,4 @@
+ 
+ f(X, X, _, _, _Y, _Z, V1/V1).
+ 
+-p(g( _), _Y).
++p(g( V1), t(V1)).
+*/
+
+test(autovn4) :-
+    rreset,
+    execute_test_(autovn4, replace_sentence(p(g(A),_B), p(g(A),t(A))),
 		  [file(autovn)]).
 
 :- comment_data:disable.

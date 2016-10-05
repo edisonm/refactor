@@ -728,20 +728,20 @@ with_context(Sent, Term, TermPos, Pattern0, Into0, Pattern, Into, VNL, Goal) :-
     with_pattern_into_termpos(Goal, Pattern, Into1, TermPos), % Allow changes in Pattern1/Into1
     term_variables(Pattern, Vars1), % Variable bindings in Pattern
     %% Apply changes to Pattern/Into and bind Vars:
-    % gtrace,
     copy_term(t(Pattern, Into1, Vars1), t(Pattern0, Into0, Vars0)),
     copy_term(t(Pattern, Into1, Vars1), t(Term2,    Into2, Vars2)),
     gen_new_variable_names(Sent, Term, Into0, VNL),
     pairs_keys_values(Pairs01, Vars0, Vars1),
     pairs_keys_values(Triplets, Pairs01, Vars2),
-    map_subterms(Triplets-VNL, Into0, Into1, Into).
+    map_subterms(p(Triplets, VNL, Into1, Into2), Into0, Into1, Into).
 
-map_subterms(Pairs-VNL, T0, T1, T) :-
+map_subterms(Params, T0, T1, T) :-
+    Params = p(Pairs, VNL, Into1, Into2),
     ( member(X0-X1-X2, Pairs),
       X1 == T1
     ; member(X0-X1-X2, Pairs),
       same_term(X0, T0)		% ===/2
-    ),
+    ), !,
     ( T0 == T1
     ->T = X0
     ; \+ ( member(_=V1, VNL),
@@ -750,48 +750,54 @@ map_subterms(Pairs-VNL, T0, T1, T) :-
 	   V2 == V1
 	 )
     ->( X1 =@= X2,
-	\+ same_term(X0, T0)
+	\+ same_term(X0, T0),
+	occurrences_of_var(X1, Into1, N),
+	occurrences_of_var(X2, Into2, N)
       ->T = X0
       ; T = X1
       )
-    ), !.
-map_subterms(PVNL, T0, T1, T) :-
-    compound(T0), !,
-    map_compound(PVNL, T0, T1, T).
-map_subterms(_, T, _, T).
+    ; map_subterms_2(Params, T0, T1, T)
+    ).
+map_subterms(Params, T0, T1, T) :-
+    map_subterms_2(Params, T0, T1, T).
 
-map_compound(PVNL,		% Special case: preserve Goal
+map_subterms_2(Params, T0, T1, T) :-
+    compound(T0), !,
+    map_compound(Params, T0, T1, T).
+map_subterms_2(_, T, _, T).
+
+map_compound(Params,		% Special case: preserve Goal
 	     '$G'(T0, G),
 	     '$G'(T1, _),
 	     '$G'(T,  G)) :- !,
-    map_subterms(PVNL, T0, T1, T).
-map_compound(PVNL,		% Special case: preserve Goal
+    map_subterms(Params, T0, T1, T).
+map_compound(Params,		% Special case: preserve Goal
 	     '$C'(G, T0),
 	     '$C'(_, T1),
 	     '$C'(G, T )) :- !,
-    map_subterms(PVNL, T0, T1, T).
-map_compound(PVNL,
+    map_subterms(Params, T0, T1, T).
+map_compound(Params,
 	     '$@'(X0, Y0),
 	     '$@'(X1, Y1),
 	     '$@'(X,  Y)) :- !,
-	map_subterms(PVNL, X0, X1, X),
-	PVNL=Pairs-_,
-	map_subterms(Pairs-[], Y0, Y1, Y).
-map_compound(PVNL,
+	map_subterms(Params, X0, X1, X),
+	Params=p(Pairs, _, Into1, Into2),
+	map_subterms(p(Pairs, [], Into1, Into2), Y0, Y1, Y).
+map_compound(Params,
 	     '@@'(X0, Y0),
 	     '@@'(X1, Y1),
 	     '@@'(X,  Y)) :- !,
-	map_subterms(PVNL, X0, X1, X),
-	PVNL=Pairs-_,
-	map_subterms(Pairs-[], Y0, Y1, Y).
-map_compound(PVNL, T0, T1, T) :-
+	map_subterms(Params, X0, X1, X),
+	Params=p(Pairs, _, Into1, Into2),
+	map_subterms(p(Pairs, [], Into1, Into2), Y0, Y1, Y).
+map_compound(Params, T0, T1, T) :-
     functor(T0, F, N),
     functor(T1, F, N),
     functor(T,  F, N),
     T0 =.. [F|Args0],
     T1 =.. [F|Args1],
     T  =.. [F|Args],
-    maplist(map_subterms(PVNL), Args0, Args1, Args).
+    maplist(map_subterms(Params), Args0, Args1, Args).
 
 special_term(top,    Pattern, Term, '$LISTC'(List)) :-
     nonvar(Pattern),
@@ -1583,10 +1589,15 @@ with_str_hook(Command, StrHook) :-
 
 %% print_expansion(?Into:term, ?Pattern:term, ?Term:Term, RefPos, Priority:integer, OptionL:list, Text:string) is det
 %
-print_expansion(Var, _, _, RefPos, _, Text) :-
+print_expansion(Var, _, _, RefPos, OptionL, Text) :-
     var(Var),
     !,
-    print_subtext(RefPos, Text).
+    option(variable_names(VNL), OptionL, []),
+    ( member(Name=Var1, VNL),
+      Var1==Var
+    ->write(Name)
+    ; print_subtext(RefPos, Text)
+    ).
 print_expansion('$sb'(RefPos), _, Term, _, _, Text) :-
     \+ ( nonvar(Term),
 	 Term = '$sb'(_)
@@ -1604,10 +1615,6 @@ print_expansion('$sb'(RefPos, _IFrom, _ITo, GTerm, Priority, Into), _Pattern, Te
 print_expansion(Into, Pattern, Term, RefPos, OptionL, Text) :-
     print_expansion_ne(Into, Pattern, Term, RefPos, OptionL, Text).
 
-print_expansion_ne(Var, _, _, RefPos, _, Text) :-
-    var(Var),
-    !,
-    print_subtext(RefPos, Text).
 print_expansion_ne('$G'(Into, Goal), Pattern, Term, RefPos, OptionL, Text) :-
     \+ ( nonvar(Term),
 	 Term = '$G'(_, _)
