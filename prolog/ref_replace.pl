@@ -433,21 +433,15 @@ binding_varname(VNL, Var=Term) -->
     ; []
     ).
 
-complete_with_singletons(Term, VNL1, VNL) :-
-    term_variables(Term, VarL),
-    foldl(add_if_singleton(Term), VarL, VNL1, VNL).
-
-add_if_singleton(Term, Var, VNL1, VNL) :-
-    ( is_unnamed_singleton(Term, Var, VNL1)
-    ->VNL = ['_'=Var|VNL1]
-    ; VNL = VNL1
-    ).
-
-is_unnamed_singleton(Term, Var, VNL) :-
+is_unnamed_singleton(Term, VNL, Var) :-
     occurrences_of_var(Var, Term, 1),
     \+ ( member(_=Var1, VNL),
 	 Var==Var1
        ).
+
+collect_singletons(Term, VNL, SVarL) :-
+    term_variables(Term, VarL),
+    include(is_unnamed_singleton(Term, VNL), VarL, SVarL).
 
 fetch_and_expand(M, SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
 		 Linear, VNL, Bindings, Level, Term, Into, Expander, Command, In) :-
@@ -460,14 +454,15 @@ fetch_and_expand(M, SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
       b_setval('$variable_names', VNL),
       expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
       make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
-      foldl(binding_varname(VNL), Bindings, BVNL, VNL),
-      complete_with_singletons(Linear, BVNL, RVNL),
+      foldl(binding_varname(VNL), Bindings, RVNL, VNL),
+      collect_singletons(Linear, RVNL, SVarL),
       S = solved(no),
       ( true
       ; arg(1, S, yes)
       ->prolog_cut_to(CP),
 	fail
       ),
+      b_setval(refactor_singletons, SVarL),
       b_setval(refactor_variable_names, RVNL),
       substitute_term_level(Level, M, Linear, 1200, Term,
 			    Into, Expander, TermPos, Command),
@@ -624,12 +619,11 @@ will_occurs(Var, Sent, Pattern, Into, N) :-
     occurrences_of_var(Var, Into, IN),
     N is SN-PN+IN.
 
-gen_new_variable_names([], _, _, _, _, _, _, []).
-gen_new_variable_names([Var|VarL], Preffix, Count1, Sent, Pattern, Into, VNL1, VNL) :-
+gen_new_variable_names([], _, _, _, _, _, _, _, _, []).
+gen_new_variable_names([Var|VarL], [Name1|NameL], SVarL, Preffix, Count1, Sent, Pattern, Into, VNL1, VNL) :-
     ( ( will_occurs(Var, Sent, Pattern, Into, VNL1, N),
 	N =:= 1
-      ->( member(Name1=Var1, VNL1),
-	  Var1 == Var
+      ->( nonvar(Name1)
 	->( atom_concat('_', _, Name1)
 	  ->VNL=VNL2,
 	    Count = Count1
@@ -642,11 +636,13 @@ gen_new_variable_names([Var|VarL], Preffix, Count1, Sent, Pattern, Into, VNL1, V
 	    Count = Count1
 	  )
 	; Count = Count1,
-	  VNL = ['_'=Var|VNL2]	% Required if Var is a new variable in Into
+	  ( member(Var1, SVarL),
+	    Var1 == Var
+	  ->VNL = VNL2
+	  ; VNL = ['_'=Var|VNL2] % Required if Var is a new variable in Into
+	  )
 	)
-      ; member(Name1=Var1, VNL1),
-	Var1 == Var,
-	Name1 \= '_'
+      ; nonvar(Name1)
       ->( atom_concat('_', Name2, Name1)
 	->( member(Name2=_, VNL1)
 	  ->gen_new_variable_name(VNL1, Name2, 1, Name)
@@ -662,7 +658,7 @@ gen_new_variable_names([Var|VarL], Preffix, Count1, Sent, Pattern, Into, VNL1, V
 	VNL = [Name=Var|VNL2]
       )
     ),
-    gen_new_variable_names(VarL, Preffix, Count, Sent, Pattern, Into, VNL1, VNL2).
+    gen_new_variable_names(VarL, NameL, SVarL, Preffix, Count, Sent, Pattern, Into, VNL1, VNL2).
 
 apply_change(Text, M, subst(TermPos, Priority, Pattern, Term, VNL, Into),
 	     t(From, To, PasteText)) :-
@@ -827,12 +823,19 @@ do_trim_hack('@@'(Term, _), Term).
 do_trim_hack(\\(Term), Term).
 do_trim_hack('$NOOP'(_), '').
 
+match_vars_with_names(VNL1, Var, Name) :-
+    ignore(( member(Name=Var1, VNL1),
+	     Var == Var1
+	   )).
+
 gen_new_variable_names(Sent, Term, Into, VNL) :-
     term_variables(Into, VarL),
     refactor_context(preffix, Preffix),
     b_getval(refactor_variable_names, VNL1),
+    b_getval(refactor_singletons, SVarL),
+    maplist(match_vars_with_names(VNL1), VarL, NameL),
     trim_hacks(Into, TInto),
-    gen_new_variable_names(VarL, Preffix, 1, Sent, Term, TInto, VNL1, VNL).
+    gen_new_variable_names(VarL, NameL, SVarL, Preffix, 1, Sent, Term, TInto, VNL1, VNL).
 
 %%	substitute_term_norec(+Sub, +Term, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
 %
