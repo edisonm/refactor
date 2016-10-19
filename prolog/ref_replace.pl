@@ -729,14 +729,20 @@ with_context(Sent, Term, TermPos, Pattern0, Into0, Pattern, Into, VNL, Goal) :-
     gen_new_variable_names(Sent, Term, Into0, VNL),
     pairs_keys_values(Pairs01, Vars0, Vars1),
     pairs_keys_values(Triplets, Pairs01, Vars2),
-    map_subterms(p(Triplets, VNL, Into1, Into2), Into0, Into1, Into).
+    map_subterms(p(Triplets, Pattern0, Pattern, Term2, VNL, Into1, Into2), Into0, Into1, Into).
 
 map_subterms(Params, T0, T1, T) :-
-    Params = p(Pairs, VNL, Into1, Into2),
+    Params = p(Pairs, P0, P1, P2, VNL, Into1, Into2),
     ( member(X0-X1-X2, Pairs),
       X1 == T1
     ; member(X0-X1-X2, Pairs),
       same_term(X0, T0)		% ===/2
+    ; sub_term(P0, P1, P2, X0, X1, X2),
+      X0 \== [], % Special case: ignore []
+      same_term(X0, T0)		% ===/2
+    ; sub_term(P0, P1, P2, X0, X1, X2),
+      X0 \== [], % Special case: ignore []
+      X1 == T1
     ), !,
     ( T0 == T1
     ->T = X0
@@ -756,6 +762,17 @@ map_subterms(Params, T0, T1, T) :-
     ).
 map_subterms(Params, T0, T1, T) :-
     map_subterms_2(Params, T0, T1, T).
+
+sub_term(P0, P1, P2, P0, P1, P2).
+sub_term(P0, P1, P2, X0, X1, X2) :-
+    compound(P0),
+    functor(P0, F, N),
+    functor(P1, F, N),
+    functor(P2, F, N),
+    arg(I, P0, A0),
+    arg(I, P1, A1),
+    arg(I, P2, A2),
+    sub_term(A0, A1, A2, X0, X1, X2).
 
 map_subterms_2(Params, T0, T1, T) :-
     compound(T0), !,
@@ -777,15 +794,15 @@ map_compound(Params,
 	     '$@'(X1, Y1),
 	     '$@'(X,  Y)) :- !,
 	map_subterms(Params, X0, X1, X),
-	Params=p(Pairs, _, Into1, Into2),
-	map_subterms(p(Pairs, [], Into1, Into2), Y0, Y1, Y).
+	Params=p(Pairs, P0, P1, P2, _, Into1, Into2),
+	map_subterms(p(Pairs, P0, P1, P2, [], Into1, Into2), Y0, Y1, Y).
 map_compound(Params,
 	     '@@'(X0, Y0),
 	     '@@'(X1, Y1),
 	     '@@'(X,  Y)) :- !,
 	map_subterms(Params, X0, X1, X),
-	Params=p(Pairs, _, Into1, Into2),
-	map_subterms(p(Pairs, [], Into1, Into2), Y0, Y1, Y).
+	Params=p(Pairs, P0, P1, P2, _, Into1, Into2),
+	map_subterms(p(Pairs, P0, P1, P2, [], Into1, Into2), Y0, Y1, Y).
 map_compound(Params, T0, T1, T) :-
     functor(T0, F, N),
     functor(T1, F, N),
@@ -1814,7 +1831,10 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, O
       term_write_sep_list_inner_rec(ATail, write_term, ', ', OptionL2),
       display_subtext(Text, To2, To)
     ),
-    (comp_priority(M, GTerm, Priority, Into, Priority) ->write(')') ; true).
+    ( comp_priority(M, GTerm, Priority, Into, Priority)
+    ->write(')')
+    ; true
+    ).
 print_expansion_pos(brace_term_position(From, To, TermPos), {Into}, {Pattern},
 		    {GTerm}, OptionL, Text) :-
     arg(1, TermPos, AFrom),

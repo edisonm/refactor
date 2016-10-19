@@ -344,9 +344,9 @@ diff -ruN ex14.pl -
 -    f(A, 'b') = f(a, B),
 -    \+ A,
 -    \+ B.
-+ex14(a, b) :-
++ex14(a, 'b') :-
 +    \+ a,
-+    \+ b.
++    \+ 'b'.
  
 -ex14(A, B) :-
 -    B = [x|T],
@@ -820,7 +820,7 @@ diff -ruN exapp.pl -
  exapp(A1-A2, T, C) :-
 -    append([ [ _, [ A1 ] ] ], [ [ _, [ A2 ] ], [ _, [ T ] ] ],
 -	   C).
-+    C=[[_, [A1]],  [ _, [ A2 ] ], [ _, [ T ] ] ].
++    C=[[ _, [ A1 ] ],  [ _, [ A2 ] ], [ _, [ T ] ] ].
 */
 
 test(exapp_1) :-
@@ -1301,6 +1301,26 @@ test(autovn4) :-
     rreset,
     execute_test_(autovn4, replace_sentence(p(g(A),_B), p(g(A),t(A))),
 		  [file(autovn)]).
+
+/* $list1$
+diff -ruN list1.pl -
+--- list1.pl (source)
++++ list1.pl (target)
+@@ -1,2 +1,2 @@
+-p([[A, B]]) :-
+-  A = [B].
++p([[[B], B]]) :-
++  true.
+*/
+test(list1) :-
+    rreset,
+    execute_test_(list1,
+		  replace_sentence((H1 :- B1), (H2 :- B2),
+				   ( B1 = (A=B),
+				     occurrences_of_var(A, (H1 :- B1), 2),
+				     substitute_values([(A=B)=true, A=B],
+						       (H1:-B1),(H2:-B2)))),
+		  [file(list1)]).
 
 :- comment_data:disable.
 
