@@ -119,7 +119,13 @@ get_term_info_fd(In, Pattern, Term, Options0 ) :-
       ( Term == end_of_file ->
 	!,
 	fail
-      ; subsumes_term(Pattern, Term)
+      ; ( member(ModDecl, [(:- module(CM, _)), (:- module(CM, _, _))]),
+	  subsumes_term(ModDecl, Term),
+	  Term = ModDecl
+	->'$set_source_module'(_, CM)
+	; true
+	),
+	subsumes_term(Pattern, Term)
       ).
 
 should_set_line(posline(Pos, Line), Options, [term_position(Pos)|Options]) :-
