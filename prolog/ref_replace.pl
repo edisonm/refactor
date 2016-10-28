@@ -149,7 +149,7 @@
 % * X $@ Y
 % Print the term X following the format of Y.
 %
-% $@(X)
+% * $@(X)
 % Use write_term for X (this will ignore automatic formatting folowing the pattern)
 %
 % * '$G'(Into, Goal)
@@ -710,6 +710,11 @@ with_pattern_into_termpos(Goal, Pattern, Into, TermPos) :-
 		       refactor_termpos],
 		      [Pattern, Into, TermPos]).
 
+%% refactor_message(+Type, +Message) is det.
+% 
+% Print a message but first showing the location of the source code being
+% refactorized. Intended to be used in the expander of a refactoring call.
+%
 refactor_message(Type, Message) :-
     refactor_context(file, File),
     nb_getval(refactor_termpos, TermPos),
