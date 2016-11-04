@@ -619,27 +619,27 @@ will_occurs(Var, Sent, Pattern, Into, N) :-
     occurrences_of_var(Var, Into, IN),
     N is SN-PN+IN.
 
-gen_new_variable_names([], _, _, _, _, _, _, _, _, []).
+gen_new_variable_names([], _, _, _, _, _, _, _, VNL, VNL).
 gen_new_variable_names([Var|VarL], [Name1|NameL], SVarL, Preffix, Count1, Sent, Pattern, Into, VNL1, VNL) :-
     ( ( will_occurs(Var, Sent, Pattern, Into, VNL1, N),
 	N =:= 1
       ->( nonvar(Name1)
 	->( atom_concat('_', _, Name1)
-	  ->VNL=VNL2,
+	  ->VNL2=VNL1,
 	    Count = Count1
 	  ; atom_concat('_', Name1, Name2),
 	    ( member(Name2=_, VNL1)
 	    ->gen_new_variable_name(VNL1, Name2, 1, Name)
 	    ; Name = Name2
 	    ),
-	    VNL = [Name=Var|VNL2],
+	    VNL2 = [Name=Var|VNL1],
 	    Count = Count1
 	  )
 	; Count = Count1,
 	  ( member(Var1, SVarL),
 	    Var1 == Var
-	  ->VNL = VNL2
-	  ; VNL = ['_'=Var|VNL2] % Required if Var is a new variable in Into
+	  ->VNL2 = VNL1
+	  ; VNL2 = ['_'=Var|VNL1] % Required if Var is a new variable in Into
 	  )
 	)
       ; nonvar(Name1)
@@ -648,17 +648,17 @@ gen_new_variable_names([Var|VarL], [Name1|NameL], SVarL, Preffix, Count1, Sent, 
 	  ->gen_new_variable_name(VNL1, Name2, 1, Name)
 	  ; Name = Name2
 	  ),
-	  VNL = [Name=Var|VNL2],
+	  VNL2 = [Name=Var|VNL1],
 	  Count = Count1
-	; VNL = VNL2,
+	; VNL2 = VNL1,
 	  Count = Count1
 	)
       ;	gen_new_variable_name(VNL1, Preffix, Count1, Name),
 	succ(Count1, Count),
-	VNL = [Name=Var|VNL2]
+	VNL2 = [Name=Var|VNL1]
       )
     ),
-    gen_new_variable_names(VarL, NameL, SVarL, Preffix, Count, Sent, Pattern, Into, VNL1, VNL2).
+    gen_new_variable_names(VarL, NameL, SVarL, Preffix, Count, Sent, Pattern, Into, VNL2, VNL).
 
 apply_change(Text, M, subst(TermPos, Priority, Pattern, Term, VNL, Into),
 	     t(From, To, PasteText)) :-
@@ -857,7 +857,8 @@ gen_new_variable_names(Sent, Term, Into, VNL) :-
     b_getval(refactor_singletons, SVarL),
     maplist(match_vars_with_names(VNL1), VarL, NameL),
     trim_hacks(Into, TInto),
-    gen_new_variable_names(VarL, NameL, SVarL, Preffix, 1, Sent, Term, TInto, VNL1, VNL).
+    gen_new_variable_names(VarL, NameL, SVarL, Preffix, 1, Sent, Term, TInto, VNL1, VNL2),
+    once(append(VNL, VNL1, VNL2)).
 
 %%	substitute_term_norec(+Sub, +Term, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
 %
