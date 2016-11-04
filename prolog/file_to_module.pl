@@ -119,7 +119,6 @@ file_to_module(Alias, OptionL0 ) :-
 	     collect_dynamic_decls(M, FileL),
 	     collect_meta_decls(M, PIL)
 	   ), MDL, []),
-    add_module_decl(NewM, PIL1, File),
     add_declarations(MDL, File),
     decl_to_use_module(consult, M, PIL1, Alias, ReexportL),
     decl_to_use_module(include, M, PIL1, Alias, ReexportL),
@@ -127,6 +126,7 @@ file_to_module(Alias, OptionL0 ) :-
     add_use_module(M, FileL, Alias, AddL, ExTL),
     add_use_module_ex(M, DelL, FileL),
     del_use_module_ex(M, FileL),
+    add_module_decl(NewM, PIL1, File),
     forall(member(C, DelL), replace_sentence(C, [], [files(FileL)])).
 
 add_module_decl(NewM, PIL1, File) :-
