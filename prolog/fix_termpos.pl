@@ -129,6 +129,10 @@ fix_subtermpos_rec(brace_term_position(From, _, Arg)) :-
     b_getval(refactor_text, Text),
     succ(From, From1),
     fix_termpos_from_left(Text, Arg, From1, _).
+fix_subtermpos_rec(parentheses_term_position(From, _, Arg)) :-
+    b_getval(refactor_text, Text),
+    succ(From, From1),
+    fix_termpos_from_left(Text, Arg, From1, _).
 % Note: don't assume that a list is between brackets [], because this is also
 % used to process list of clauses:
 fix_subtermpos_rec(list_position(From, To, Elms, Tail)) :-

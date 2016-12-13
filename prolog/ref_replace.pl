@@ -523,24 +523,34 @@ substitute_term_level(body, M, Clause, _, Term, Into, Expander, TermPos, Cmd) :-
 substitute_term_level(body_rec, M, Clause, _, Term, Into, Expander, TermPos, Cmd) :-
     substitute_term_body(rec, M, Clause, Term, Into, Expander, TermPos, TermPos, Cmd).
 
+substitute_term_body(Rec, M, Clause, Term, Into, Expander,
+		     parentheses_term_position(_, _, TermPos), OutPos, Cmd) :- !,
+    substitute_term_body(Rec, M, Clause, Term, Into, Expander, TermPos, OutPos, Cmd).
 substitute_term_body(Rec, M, (_ :- Body), Term, Into, Expander,
 		     term_position(_, _, _, _, [_, BodyPos]), OutPos, Cmd) :-
     term_priority((_ :- Body), M, 2, Priority),
     substitute_term(Rec, sub, M, Body, Priority, Term, Into, Expander, BodyPos, OutPos, Cmd).
 
+substitute_term_head(Rec, M, Clause, Priority, Term, Into, Expander,
+		     parentheses_term_position(_, _, TermPos), Cmd) :- !,
+    substitute_term_head(Rec, M, Clause, Priority, Term, Into, Expander, TermPos, Cmd).
 substitute_term_head(Rec, M, Clause, Priority, Term, Into, Expander, TermPos, Cmd) :-
     ( Clause = (Head :- _)
     ->term_priority(Clause, M, 1, HPriority),
       term_position(_, _, _, _, [HeadPos, _]) = TermPos
     ; Clause = (M:Head :- _)
     ->term_priority(M:Head, M, 2, HPriority),
-      term_position(_, _, _, _, [term_position(_, _, _, _, [_, HeadPos]), _]) = TermPos
+      term_position(_, _, _, _, [MHPos, _]) = TermPos,
+      mhead_pos(MHPos, HeadPos)
     ; Clause \= (:- _),
       Head = Clause,
       HPriority = Priority,
       HeadPos = TermPos
     ),
     substitute_term(Rec, sub, M, Head, HPriority, Term, Into, Expander, HeadPos, TermPos, Cmd).
+
+mhead_pos(parentheses_term_position(_, _, Pos), HPos) :- !, mhead_pos(Pos, HPos).
+mhead_pos(term_position(_, _, _, _, [_, HPos]), HPos).
 
 substitute_term(rec,   _,     M, Term, Priority, Pattern, Into, Expander, TermPos, OutPos, Cmd) :-
     substitute_term_rec(M, Term, Priority, Pattern, Into, Expander, TermPos, OutPos, Cmd).
@@ -1055,6 +1065,8 @@ subst_term(term_position(_, _, _, _, CP), M, Term, GTerm, _, CTerm) :-
     subst_args(1, M, Term, GTerm, CTerm, CP).
 subst_term(brace_term_position(_, _, CP), M, {Term}, {GTerm}, _, {CTerm}) :- !,
     subst_term(CP, M, Term, GTerm, 999, CTerm).
+subst_term(parentheses_term_position(_, _, Pos), M, Term, GTerm, GP, CTerm) :- !,
+    subst_term(Pos, M, Term, GTerm, GP, CTerm).
 subst_term(list_position(_, To, Elms, Tail), M, Term, GTerm, _, CTerm) :- !,
     subst_list(Elms, M, To, Tail, Term, GTerm, CTerm).
 subst_term(_, _, _, _, _, _).
@@ -1082,6 +1094,8 @@ substitute_term_rec(M, Term, _, Ref, Into, Expander, TermPos, _, Cmd) :-
     substitute_term_into(TermPos, TermPos, M, Term, Ref, Into, Expander, Cmd).
 
 substitute_term_into(brace_term_position(_, _, Pos), OutPos, M, {Term}, Ref, In, Ex, Cmd) :-
+    substitute_term_rec(M, Term, 1200, Ref, In, Ex, Pos, OutPos, Cmd).
+substitute_term_into(parentheses_term_position(_, _, Pos), OutPos, M, Term, Ref, In, Ex, Cmd) :-
     substitute_term_rec(M, Term, 1200, Ref, In, Ex, Pos, OutPos, Cmd).
 substitute_term_into(term_position(_, _, _, _, PosL), OutPos, M, Term, Ref, In, Ex, Cmd) :-
     substitute_term_args(PosL, OutPos, M, Term, Ref, In, Ex, Cmd).
@@ -1848,6 +1862,13 @@ print_expansion_pos(brace_term_position(From, To, TermPos), {Into}, {Pattern},
     display_subtext(Text, From, AFrom),
     option(module(M), OptionL),
     print_expansion_arg(M, {Into}, OptionL, Text, ATo-To, v(1, TermPos, Into, Pattern, GTerm)).
+print_expansion_pos(parentheses_term_position(From, To, TermPos), Into, Pattern,
+		    GTerm, OptionL1, Text) :-
+    arg(1, TermPos, AFrom),
+    arg(2, TermPos, ATo),
+    display_subtext(Text, From, AFrom),
+    merge_options([priority(1200)], OptionL1, OptionL),
+    print_expansion_elem(OptionL, Text, ATo-To, TermPos, Into, Pattern-GTerm).
 print_expansion_pos(TermPos, Into, _Pattern, GTerm, _, Text) :-
     Into==GTerm,
     arg(1, TermPos, From),
