@@ -688,7 +688,7 @@ diff -ruN ex24.pl -
  
  ex24(A) :-
 -    A = /****/ key_components/4+ (/*1*/ ( hidden ), ( kbmask([+, +, -, -]) ) /*2*/).
-+    A = /****/ key_components/4+ (/*1*/ help, (/*1*/ ( hidden ), ( kbmask([+, +, -, -]) ) /*2*/) /*2*/).
++    A = /****/ key_components/4+ (/*1*/ ( help ), (/*1*/ ( hidden ), ( kbmask([+, +, -, -]) ) /*2*/) /*2*/).
 */
 
 test(ex24) :-
