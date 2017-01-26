@@ -1336,7 +1336,7 @@ rportray('$LIST,NL'(L), Opt) :- !,
 rportray('$LIST,NL'(L, Offs), Opt) :-
     offset_pos(Offs, Pos), !,
     rportray_list_nl_comma(L, Pos, Opt).
-rportray('$NLID'(Term, Offs), Opt) :-
+rportray('$NL'(Term, Offs), Opt) :-
     offset_pos(Offs, Pos), !,
     nl,
     line_pos(Pos),
@@ -1729,7 +1729,7 @@ escape_term('$LIST,'(_)).
 escape_term('$LIST,_'(_)).
 escape_term('$LIST,NL'(_)).
 escape_term('$LIST,NL'(_, _)).
-escape_term('$NLID'(_, _)).
+escape_term('$NL'(_, _)).
 escape_term('$POS'(_, _)).
 escape_term('$LISTC.NL'(_)).
 escape_term('$LISTB,NL'(_)).
