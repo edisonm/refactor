@@ -1,8 +1,8 @@
 :- module(ref_context,
-	  [refactor_context/2
-	  ]).
+          [refactor_context/2
+          ]).
 
-%%	refactor_context(?Name, ?Value) is nondet.
+%%      refactor_context(?Name, ?Value) is nondet.
 
 refactor_context(variable_names, VarNames) :-
     b_getval(refactor_variable_names, VarNames).

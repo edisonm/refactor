@@ -1,9 +1,9 @@
 :- module(i18n_trans, [translate/4,
-		       translate/5,
-		       translate_po/4,
-		       rename_id/4,
-		       replace_entry_po/4,
-		       i18n_refactor/4]).
+                       translate/5,
+                       translate_po/4,
+                       rename_id/4,
+                       replace_entry_po/4,
+                       i18n_refactor/4]).
 
 :- use_module(library(ref_changes)).
 :- use_module(library(ref_scenarios)).
@@ -18,12 +18,12 @@ translate(M, Lang, TermEngl, TermLang, OptionL) :-
 
 translate(M, Lang, EnglLangL, OptionL) :-
     forall(member(Engl-Lang, EnglLangL),
-	   translate_po(M, Lang, Engl, Lang)),
+           translate_po(M, Lang, Engl, Lang)),
     replace_term(TermLang, TermEngl,
-		 ( member(TermEngl-Lang, EnglLangL),
-		   TermLang=@=Lang,
-		   TermLang=Lang
-		 ), [module(M)|OptionL]).
+                 ( member(TermEngl-Lang, EnglLangL),
+                   TermLang=@=Lang,
+                   TermLang=Lang
+                 ), [module(M)|OptionL]).
 
 translate_po(M, Lang, TermEngl, TermLang) :-
     i18n_refactor(update_po_entry(Lang), M, TermLang, TermEngl).
@@ -41,11 +41,11 @@ rename_id(M, OldTerm, NewTerm, OptionL) :-
 replace_entry_po(M, MsgId0, MsgId, StrReplacer) :-
     freeze(MsgStr0, call(StrReplacer, MsgStr0, MsgStr)),
     findall(PoFile-Codes,
-	    ( current_po_file(M, '??', PoFile),
-	      read_po_file(PoFile, Entries0),
-	      replace_entry(M, MsgId0, MsgStr0, MsgId, MsgStr, Entries0, Entries),
-	      parse_po_entries(Entries, Codes, [])
-	    ), FileCodes),
+            ( current_po_file(M, '??', PoFile),
+              read_po_file(PoFile, Entries0),
+              replace_entry(M, MsgId0, MsgStr0, MsgId, MsgStr, Entries0, Entries),
+              parse_po_entries(Entries, Codes, [])
+            ), FileCodes),
     save_changes(FileCodes).
 
 :- meta_predicate i18n_refactor(3,+,+,+).
@@ -68,9 +68,9 @@ update_po_entry(Lang, M, MsgId0, MsgId, MsgStr) :-
 
 rename_id_lang(MsgId0, MsgId, M) :-
     findall(PoFile-Codes,
-	    ( current_po_file(M, '??', PoFile),
-	      rename_id_po_file(PoFile, MsgId0, MsgId, M, Codes)
-	    ), FileCodes),
+            ( current_po_file(M, '??', PoFile),
+              rename_id_po_file(PoFile, MsgId0, MsgId, M, Codes)
+            ), FileCodes),
     save_changes(FileCodes).
 
 rename_id_po_file(PoFile, MsgId0, MsgId, M, Codes) :-
@@ -96,4 +96,4 @@ replace_entry(M, MsgId0, MsgStr0, MsgId, MsgStr, Entries0, Entries) :-
       Entry =  entry([], [], Ref, [], MsgId, MsgStr),
       append(Entries0, [Entry], Entries)
     ; Entries = Entries0
-    ).	
+    ).  

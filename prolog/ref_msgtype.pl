@@ -28,8 +28,8 @@
 */
 
 :- module(ref_msgtype,
-	  [rstats_db/0,
-	   message_type/1]).
+          [rstats_db/0,
+           message_type/1]).
 
 :- dynamic
     rstats_db/0.

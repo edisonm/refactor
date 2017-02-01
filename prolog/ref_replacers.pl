@@ -1,11 +1,11 @@
 :- module(ref_replacers,
-	  [replace_term/4,
-	   replace_head/4,
-	   replace_body/4,
-	   replace_goal/4,
-	   replace_sentence/4,
-	   replace/4
-	  ]).
+          [replace_term/4,
+           replace_head/4,
+           replace_body/4,
+           replace_goal/4,
+           replace_sentence/4,
+           replace/4
+          ]).
 
 :- use_module(library(ref_replace)).
 

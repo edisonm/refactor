@@ -28,12 +28,12 @@
 */
 
 :- module(ref_command,
-	  [apply_command/1,
-	   pending_command/2,
-	   save_command/1,
-	   undo_command/2,
-	   reset_commands/0
-	  ]).
+          [apply_command/1,
+           pending_command/2,
+           save_command/1,
+           undo_command/2,
+           reset_commands/0
+          ]).
 
 :- dynamic
     pending_command/2.

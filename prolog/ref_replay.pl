@@ -1,22 +1,22 @@
 :- module(ref_replay,
-	  [rcommit/0,
-	   rlist/0,
-	   rlist/1,
-	   rrewind/0,
-	   rrewind/1,
-	   rreset/0,
-	   rundo/0,
-	   rdelete/1,
-	   rstats/0,
-	   rnostats/0,
-	   apply_command_q/1
-	  ]).
+          [rcommit/0,
+           rlist/0,
+           rlist/1,
+           rrewind/0,
+           rrewind/1,
+           rreset/0,
+           rundo/0,
+           rdelete/1,
+           rstats/0,
+           rnostats/0,
+           apply_command_q/1
+          ]).
 
 :- use_module(library(ref_shell)).
 :- use_module(library(ref_changes),
-	      [reset_changes/0,
-	       pending_change/1,
-	       undo_changes/1]).
+              [reset_changes/0,
+               pending_change/1,
+               undo_changes/1]).
 :- use_module(library(ref_msgtype)).
 :- use_module(library(ref_command)).
 
@@ -40,7 +40,7 @@ rcommit :-
 
 rlist :-
     \+ ( rlist(_),
-	 fail
+         fail
        ).
 
 rlist(Index) :-
@@ -53,10 +53,10 @@ rrewind :-
 
 rrewind(Index) :-
     findall(Command, ( pending_command(Index0, Command),
-		       Index0 > Index,
-		       rdrop(Index0, _)
-		     ),
-	    CommandR),
+                       Index0 > Index,
+                       rdrop(Index0, _)
+                     ),
+            CommandR),
     reverse(CommandR, CommandL),
     maplist(apply_command, CommandL).
 

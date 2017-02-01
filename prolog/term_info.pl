@@ -28,10 +28,10 @@
 */
 
 :- module(term_info,
-	  [ get_term_info/6,
-	    with_source_file/2,
-	    fetch_term_info/4
-	  ]).
+          [ get_term_info/6,
+            with_source_file/2,
+            fetch_term_info/4
+          ]).
 
 :- use_module(library(apply)).
 :- use_module(library(prolog_source)).
@@ -50,7 +50,7 @@ get_term_info(M, Pattern, Term, AllChk, File, Options) :-
     get_term_info_file(Pattern, Term, File, Options).
 
 fix_exception(error(Error, stream(_,  Line, Row, Pos)), File,
-	      error(Error, file(File, Line, Row, Pos))) :- !.
+              error(Error, file(File, Line, Row, Pos))) :- !.
 fix_exception(E, _, E).
 
 ti_open_source(Path, In) :-
@@ -62,22 +62,22 @@ with_source_file(File, Goal) :-
     prolog_canonical_source(File, Path),
     print_message(informational, format("Reading ~w", Path)),
     catch(setup_call_cleanup(ti_open_source(Path, In),
-			     call(Goal, In),
-			     prolog_close_source(In)),
-	  E0, ( fix_exception(E0, Path, E),
-		print_message(error, E),
-		fail
-	      )).
+                             call(Goal, In),
+                             prolog_close_source(In)),
+          E0, ( fix_exception(E0, Path, E),
+                print_message(error, E),
+                fail
+              )).
 
 fetch_term_info(Pattern, Term, Options, In) :-
     ( ( option(line(Line), Options),
-	nonvar(Line)
+        nonvar(Line)
       ->seek(In, 0, bof, _),
-	prolog_source:seek_to_line(In, Line),
-	once(get_term_info_fd(In, Pattern, Term, Options))
+        prolog_source:seek_to_line(In, Line),
+        once(get_term_info_fd(In, Pattern, Term, Options))
       ; get_term_info_fd(In, Pattern, Term, Options)
       )
-    ; fail			% dont close In up to the next iteration
+    ; fail                      % dont close In up to the next iteration
     ).
 
 get_term_info_file(Pattern, Term, File, Options) :-
@@ -86,28 +86,28 @@ get_term_info_file(Pattern, Term, File, Options) :-
 get_term_info_fd(In, PatternL, TermL, OptionL0 ) :-
     is_list(PatternL), !,
     foldl(\ (H-D)^O0^O^select_option(H, O0, O, D),
-		[subterm_positions(TermPos)-TermPos,
-		 comments(Comments)-Comments,
-		 variable_names(VN)-VN
-		], OptionL0, OptionT),
+                [subterm_positions(TermPos)-TermPos,
+                 comments(Comments)-Comments,
+                 variable_names(VN)-VN
+                ], OptionL0, OptionT),
     PatternL = [_|PatternT],
     length(PatternT, TN),
     length(TA, TN),
     maplist([In, OptionT] +\
-	   T^P^V^C^get_term_info_each(In, OptionT, [T, P, V, C]), TA, PA, VA, CA),
+           T^P^V^C^get_term_info_each(In, OptionT, [T, P, V, C]), TA, PA, VA, CA),
     maplist(append, [TA, PA, VA, CA], TPVCT, TPVCH),
     transverse_apply_2(get_term_info_each(In, OptionT), TPVCH, TPVCT,
-		       [TermL, TermPosL, VNL, CommentsL], [_, TermPosE, _, _]),
+                       [TermL, TermPosL, VNL, CommentsL], [_, TermPosE, _, _]),
     maplist(subsumes_term, PatternL, TermL),
     append(CommentsL, Comments),
     append(VNL, VN),
     TermPosL = [TermPosI|_],
     arg(2, TermPosE, To),
     findall(From, ( Comments = [StreamPos-_|_],
-		    stream_position_data(char_count, StreamPos, From)
-		  ; arg(1, TermPosI,  From)
-		  ),
-	    FromL),
+                    stream_position_data(char_count, StreamPos, From)
+                  ; arg(1, TermPosI,  From)
+                  ),
+            FromL),
     min_list(FromL, From),
     TermPos = list_position(From, To, TermPosL, none).
 get_term_info_fd(In, Pattern, Term, Options0 ) :-
@@ -117,15 +117,15 @@ get_term_info_fd(In, Pattern, Term, Options0 ) :-
       read_term(In, Term, [module(M)|Options]),
       set_line(SetLine),
       ( Term == end_of_file ->
-	!,
-	fail
+        !,
+        fail
       ; ( member(ModDecl, [(:- module(CM, _)), (:- module(CM, _, _))]),
-	  subsumes_term(ModDecl, Term),
-	  Term = ModDecl
-	->'$set_source_module'(_, CM)
-	; true
-	),
-	subsumes_term(Pattern, Term)
+          subsumes_term(ModDecl, Term),
+          Term = ModDecl
+        ->'$set_source_module'(_, CM)
+        ; true
+        ),
+        subsumes_term(Pattern, Term)
       ).
 
 should_set_line(posline(Pos, Line), Options, [term_position(Pos)|Options]) :-

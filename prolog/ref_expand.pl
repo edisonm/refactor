@@ -34,11 +34,11 @@
 term_expansion((:- comm_commands(M)), ClauseL) :-
     module_property(M, exports(PIL)),
     findall(Clause,
-	    ( member(F/A, PIL),
-	      functor(H, F, A),
-	      ( Clause = (:- export(F/A))
-	      ; predicate_property(M:H, meta_predicate Meta),
-		Clause = (:- meta_predicate Meta)
-	      ; Clause = (H :- apply_command_q(M:H))
-	      )
-	    ), ClauseL).
+            ( member(F/A, PIL),
+              functor(H, F, A),
+              ( Clause = (:- export(F/A))
+              ; predicate_property(M:H, meta_predicate Meta),
+                Clause = (:- meta_predicate Meta)
+              ; Clause = (H :- apply_command_q(M:H))
+              )
+            ), ClauseL).

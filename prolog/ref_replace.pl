@@ -28,10 +28,10 @@
 */
 
 :- module(ref_replace, [replace/5,
-			refactor_message/2,
-			op(100,xfy,($@)),
-			op(100,xfy,(@@))
-		       ]).
+                        refactor_message/2,
+                        op(100,xfy,($@)),
+                        op(100,xfy,(@@))
+                       ]).
 
 /** <module> Basic Term Expansion operations
 
@@ -68,7 +68,7 @@
     command_db/1.
 
 :- multifile
-    prolog:xref_open_source/2.	% +SourceId, -Stream
+    prolog:xref_open_source/2.  % +SourceId, -Stream
 
 :- dynamic
     rportray_pos/2,
@@ -225,12 +225,12 @@
 is_(A, B) :- A is B.
 
 goal_expansion(A is B, (catch(is_(A, B), E, (print_message(error, E),
-					     backtrace(100))))).
+                                             backtrace(100))))).
 
 replace(Level, Term, Into, Expander, OptionL) :-
     %% At this point we are not interested in styles
     with_styles(with_counters(do_replace(Level, Term, Into, Expander, OptionL),
-			      OptionL), [-singleton]).
+                              OptionL), [-singleton]).
 
 curr_style(Style, CurrStyle) :-
     arg(1, Style, Name),
@@ -242,8 +242,8 @@ curr_style(Style, CurrStyle) :-
 with_styles(Goal, StyleL) :-
     maplist(curr_style, StyleL, OldStyleL),
     setup_call_cleanup(maplist(style_check, StyleL),
-		       Goal,
-		       maplist(style_check, OldStyleL)).
+                       Goal,
+                       maplist(style_check, OldStyleL)).
 
 % Note: To avoid that this hook be applied more than once, we record the
 % positions already refactorized in ref_position/3.
@@ -269,19 +269,19 @@ do_goal_expansion(Term, TermPos) :-
     '$current_source_module'(M),
     b_getval('$variable_names', VNL),
     with_context_vars(forall(substitute_term_norec(sub, M, Term, 999, Pattern, Into, Expander, TermPos, TermPos, Command),
-			     assertz(command_db(Command))),
-		      [refactor_variable_names],
-		      [VNL]).
+                             assertz(command_db(Command))),
+                      [refactor_variable_names],
+                      [VNL]).
 
 do_replace(Level, Term, Into, Expander, OptionL) :-
     setup_call_cleanup(
-	prepare_level(Level, Ref),
-	apply_ec_term_level(Level, Term, Into, Expander, OptionL),
-	cleanup_level(Level, Ref)).
+        prepare_level(Level, Ref),
+        apply_ec_term_level(Level, Term, Into, Expander, OptionL),
+        cleanup_level(Level, Ref)).
 
 prepare_level(goal, Ref) :- !,
     asserta((system:goal_expansion(G, P, _, _) :-
-	    once(do_goal_expansion(G, P)),fail), Ref).
+            once(do_goal_expansion(G, P)),fail), Ref).
 prepare_level(_, _).
 
 cleanup_level(goal, Ref) :- !,
@@ -295,26 +295,26 @@ apply_ec_term_level(Level, Term, Into, Expander, OptionL) :-
 :- meta_predicate with_counters(0, +).
 with_counters(Goal, OptionL0 ) :-
     foldl(select_option_default,
-	  [max_tries(MaxTries)-MaxTries],
-	  OptionL0, OptionL),
+          [max_tries(MaxTries)-MaxTries],
+          OptionL0, OptionL),
     with_context_vars(( Goal,
-			b_getval(refactor_count, Count),
-			b_getval(refactor_tries, Tries),
-			foldl(select_option_default,
-			      [changes(Count)-Count,
-			       tries(Tries)  -Tries],
-			      OptionL, _),
-			message_type(Type),
-			print_message(Type,
-				      format("~w changes of ~w attempts", [Count, Tries]))
-		      ),
-		      [refactor_count,
-		       refactor_tries,
-		       refactor_max_tries],
-		      [0,
-		       0,
-		       MaxTries]
-		     ).
+                        b_getval(refactor_count, Count),
+                        b_getval(refactor_tries, Tries),
+                        foldl(select_option_default,
+                              [changes(Count)-Count,
+                               tries(Tries)  -Tries],
+                              OptionL, _),
+                        message_type(Type),
+                        print_message(Type,
+                                      format("~w changes of ~w attempts", [Count, Tries]))
+                      ),
+                      [refactor_count,
+                       refactor_tries,
+                       refactor_max_tries],
+                      [0,
+                       0,
+                       MaxTries]
+                     ).
 
 :- public clause_file_module/3.
 
@@ -326,20 +326,20 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
     (Level = goal -> DExpand=yes ; DExpand = no),
     (Level = sent -> SentPattern = Term ; true), % speed up
     foldl(select_option_default,
-	  [syntax_errors(SE)-error,
-	   subterm_positions(TermPos)-TermPos,
-	   module(M)-M,
-	   linear_term(LinearTerm)-no,
-	   sentence(SentPattern)-SentPattern,
-	   comments(Comments)-Comments,
-	   expand(Expand)-DExpand,
-	   expanded(Expanded)-Expanded,
-	   fixpoint(FixPoint)-none,
-	   max_changes(Max)-Max,
-	   variable_names(VNL)-VNL,
-	   vars_preffix(Preffix)-'V'
-	  ],
-	  OptionL0, OptionL1),
+          [syntax_errors(SE)-error,
+           subterm_positions(TermPos)-TermPos,
+           module(M)-M,
+           linear_term(LinearTerm)-no,
+           sentence(SentPattern)-SentPattern,
+           comments(Comments)-Comments,
+           expand(Expand)-DExpand,
+           expanded(Expanded)-Expanded,
+           fixpoint(FixPoint)-none,
+           max_changes(Max)-Max,
+           variable_names(VNL)-VNL,
+           vars_preffix(Preffix)-'V'
+          ],
+          OptionL0, OptionL1),
     ( option(clause(CRef), OptionL1)
     ->FileMGen = clause_file_module(CRef, File, M),
       clause_property(CRef, line_count(Line)),
@@ -347,45 +347,45 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
     ; option_allchk(M, File, FileMGen-OptionL1, true-OptionL2)
     ),
     OptionL = [syntax_errors(SE),
-	       subterm_positions(TermPos),
-	       variable_names(VNL),
-	       comments(Comments)|OptionL2],
+               subterm_positions(TermPos),
+               variable_names(VNL),
+               comments(Comments)|OptionL2],
     setup_call_cleanup(
-	( '$set_source_module'(OldM, OldM),
-	  freeze(M, '$set_source_module'(_, M))
-	),
-	with_context_vars(
-	    ( index_change(Index),
-	      call(FileMGen),
-	      prolog_current_choice(CP),
-	      fetch_sentence_file(Index, FixPoint, Max, CP, M, File,
-				  SentPattern, OptionL, Expand, TermPos, VNL,
-				  Expanded, LinearTerm, Linear,
-				  Bindings, Level, Term, Into, Expander)
-	    ),
-	    [refactor_sent_pattern,
-	     refactor_sentence,
-	     refactor_expanded,
-	     refactor_options,
-	     refactor_comments,
-	     refactor_bindings,
-	     refactor_subpos,
-	     refactor_file,
-	     refactor_preffix,
-	     refactor_goal_args,
-	     refactor_modified],
-	    [SentPattern,
-	     Linear,
-	     Expanded,
-	     OptionL,
-	     Comments,
-	     Bindings,
-	     TermPos,
-	     File,
-	     Preffix,
-	     ga(Term, Into, Expander),
-	     false]),
-	'$set_source_module'(_, OldM)).
+        ( '$set_source_module'(OldM, OldM),
+          freeze(M, '$set_source_module'(_, M))
+        ),
+        with_context_vars(
+            ( index_change(Index),
+              call(FileMGen),
+              prolog_current_choice(CP),
+              fetch_sentence_file(Index, FixPoint, Max, CP, M, File,
+                                  SentPattern, OptionL, Expand, TermPos, VNL,
+                                  Expanded, LinearTerm, Linear,
+                                  Bindings, Level, Term, Into, Expander)
+            ),
+            [refactor_sent_pattern,
+             refactor_sentence,
+             refactor_expanded,
+             refactor_options,
+             refactor_comments,
+             refactor_bindings,
+             refactor_subpos,
+             refactor_file,
+             refactor_preffix,
+             refactor_goal_args,
+             refactor_modified],
+            [SentPattern,
+             Linear,
+             Expanded,
+             OptionL,
+             Comments,
+             Bindings,
+             TermPos,
+             File,
+             Preffix,
+             ga(Term, Into, Expander),
+             false]),
+        '$set_source_module'(_, OldM)).
 
 fixpoint_loop(none, Goal) :- ignore(Goal).
 fixpoint_loop(true, Goal) :-
@@ -395,39 +395,39 @@ fixpoint_loop(true, Goal) :-
       ( b_getval(refactor_modified, false)
       ->!
       ; print_message(informational,
-		      format("Restarting expansion", [])),
-	fail
+                      format("Restarting expansion", [])),
+        fail
       ).
 
 fetch_sentence_file(Index, FixPoint, Max, CP, M, File, SentPattern, OptionL,
-		    Expand, TermPos, VNL, Expanded, LinearTerm,
-		    Linear, Bindings, Level, Term, Into, Expander) :-
+                    Expand, TermPos, VNL, Expanded, LinearTerm,
+                    Linear, Bindings, Level, Term, Into, Expander) :-
     fixpoint_loop(FixPoint,
-		  apply_commands(Index, File,
-				 gen_module_command(Max, CP, M, File, SentPattern,
-						    OptionL, Expand, TermPos, Expanded,
-						    LinearTerm, Linear, VNL, Bindings,
-						    Level, Term, Into, Expander))).
+                  apply_commands(Index, File,
+                                 gen_module_command(Max, CP, M, File, SentPattern,
+                                                    OptionL, Expand, TermPos, Expanded,
+                                                    LinearTerm, Linear, VNL, Bindings,
+                                                    Level, Term, Into, Expander))).
 
 gen_module_command(Max, CP, M, File, SentPattern, OptionL, Expand, TermPos,
-		   Expanded, LinearTerm, Linear, VNL, Bindings, Level, Term,
-		   Into, Expander, M, Command) :-
+                   Expanded, LinearTerm, Linear, VNL, Bindings, Level, Term,
+                   Into, Expander, M, Command) :-
     with_source_file(File,
-		     fetch_and_expand(M, SentPattern, OptionL, Expand, TermPos,
-				      Expanded, LinearTerm, Linear, VNL, Bindings,
-				      Level, Term, Into, Expander, Command)),
+                     fetch_and_expand(M, SentPattern, OptionL, Expand, TermPos,
+                                      Expanded, LinearTerm, Linear, VNL, Bindings,
+                                      Level, Term, Into, Expander, Command)),
     b_getval(refactor_count, Count),
     succ(Count, Count1),
     nb_setval(refactor_count, Count1),
     ( nonvar(Max),
       Count1 >= Max
-    ->prolog_cut_to(CP)		% End non-deterministic loop
+    ->prolog_cut_to(CP)         % End non-deterministic loop
     ; true
     ).
 
 binding_varname(VNL, Var=Term) -->
     ( { member(Name=Var1, VNL),
-	Var1==Term
+        Var1==Term
       }
     ->[Name=Var]
     ; []
@@ -436,7 +436,7 @@ binding_varname(VNL, Var=Term) -->
 is_unnamed_singleton(Term, VNL, Var) :-
     occurrences_of_var(Var, Term, 1),
     \+ ( member(_=Var1, VNL),
-	 Var==Var1
+         Var==Var1
        ).
 
 collect_singletons(Term, VNL, SVarL) :-
@@ -444,12 +444,12 @@ collect_singletons(Term, VNL, SVarL) :-
     include(is_unnamed_singleton(Term, VNL), VarL, SVarL).
 
 fetch_and_expand(M, SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
-		 Linear, VNL, Bindings, Level, Term, Into, Expander, Command, In) :-
+                 Linear, VNL, Bindings, Level, Term, Into, Expander, Command, In) :-
     repeat,
       prolog_current_choice(CP),
       ( ref_fetch_term_info(SentPattern, Sent, OptionL, In)
       ; !,
-	fail
+        fail
       ),
       b_setval('$variable_names', VNL),
       expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
@@ -460,12 +460,12 @@ fetch_and_expand(M, SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
       ( true
       ; arg(1, S, yes)
       ->prolog_cut_to(CP),
-	fail
+        fail
       ),
       b_setval(refactor_singletons, SVarL),
       b_setval(refactor_variable_names, RVNL),
       substitute_term_level(Level, M, Linear, 1200, Term,
-			    Into, Expander, TermPos, Command),
+                            Into, Expander, TermPos, Command),
       nb_setarg(1, S, yes).
 
 ref_fetch_term_info(SentPattern, Sent, OptionL, In) :-
@@ -504,7 +504,7 @@ prolog:xref_open_source(File, Fd) :-
     ( pending_change(_, File, Text)
     ->true
     ; read_file_to_string(File, Text, [])
-    ),				 % NOTE: update_state/2 have the side effect
+    ),                           % NOTE: update_state/2 have the side effect
     open_codes_stream(Text, Fd), % of modify refactor_text
     b_setval(refactor_text, Text).
 
@@ -524,15 +524,15 @@ substitute_term_level(body_rec, M, Clause, _, Term, Into, Expander, TermPos, Cmd
     substitute_term_body(rec, M, Clause, Term, Into, Expander, TermPos, TermPos, Cmd).
 
 substitute_term_body(Rec, M, Clause, Term, Into, Expander,
-		     parentheses_term_position(_, _, TermPos), OutPos, Cmd) :- !,
+                     parentheses_term_position(_, _, TermPos), OutPos, Cmd) :- !,
     substitute_term_body(Rec, M, Clause, Term, Into, Expander, TermPos, OutPos, Cmd).
 substitute_term_body(Rec, M, (_ :- Body), Term, Into, Expander,
-		     term_position(_, _, _, _, [_, BodyPos]), OutPos, Cmd) :-
+                     term_position(_, _, _, _, [_, BodyPos]), OutPos, Cmd) :-
     term_priority((_ :- Body), M, 2, Priority),
     substitute_term(Rec, sub, M, Body, Priority, Term, Into, Expander, BodyPos, OutPos, Cmd).
 
 substitute_term_head(Rec, M, Clause, Priority, Term, Into, Expander,
-		     parentheses_term_position(_, _, TermPos), Cmd) :- !,
+                     parentheses_term_position(_, _, TermPos), Cmd) :- !,
     substitute_term_head(Rec, M, Clause, Priority, Term, Into, Expander, TermPos, Cmd).
 substitute_term_head(Rec, M, Clause, Priority, Term, Into, Expander, TermPos, Cmd) :-
     ( Clause = (Head :- _)
@@ -562,8 +562,8 @@ with_from(Goal, From) :-
 
 with_context_vars(Goal, NameL, ValueL) :-
     setup_call_cleanup(maplist(b_setval, NameL, ValueL),
-		       Goal,
-		       maplist(nb_delete, NameL)).
+                       Goal,
+                       maplist(nb_delete, NameL)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% ANCILLARY PREDICATES:
@@ -577,27 +577,27 @@ apply_commands(Index, File, GenMCommand) :-
     ; Text = ""
     ),
     setup_call_cleanup(
-	IPosText = 0-"",
-	with_context_vars(
-	    forall(
-		call(GenMCommand, M, Command),
-		( apply_change(Text, M, Command, FromToPText),
-		  string_concat_to(Text, FromToPText,
-			      IPosText, Pos-NewText0 ),
-		  nb_setarg(1, IPosText, Pos),
-		  nb_setarg(2, IPosText, NewText0 )
-		)),
-	    [refactor_text, refactor_file],
-	    [Text, File]),
-	    ( IPosText = Pos-NewText0,
-	      sub_string(Text, Pos, _, 0, TText),
-	      string_concat(NewText0, TText, NewText),
-	      save_change(Index, File-NewText),
-	      ( Text \= NewText
-	      ->nb_setval(refactor_modified, true)
-	      ; true
-	      )
-	    )).
+        IPosText = 0-"",
+        with_context_vars(
+            forall(
+                call(GenMCommand, M, Command),
+                ( apply_change(Text, M, Command, FromToPText),
+                  string_concat_to(Text, FromToPText,
+                              IPosText, Pos-NewText0 ),
+                  nb_setarg(1, IPosText, Pos),
+                  nb_setarg(2, IPosText, NewText0 )
+                )),
+            [refactor_text, refactor_file],
+            [Text, File]),
+            ( IPosText = Pos-NewText0,
+              sub_string(Text, Pos, _, 0, TText),
+              string_concat(NewText0, TText, NewText),
+              save_change(Index, File-NewText),
+              ( Text \= NewText
+              ->nb_setval(refactor_modified, true)
+              ; true
+              )
+            )).
 
 string_concat_to(RText, t(From, To, PasteText), Pos-Text0, To-Text) :-
     Length is max(0, From - Pos),
@@ -614,13 +614,13 @@ gen_new_variable_name(VNL, Preffix, Count1, Name) :-
 
 will_occurs(Var, Sent, Pattern, Into, VNL, T) :-
     findall(N,
-	    ( member(Name=Var1, VNL),
-	      Name \= '_',
-	      Var==Var1
-	    ->member(Name=Var2, VNL),
-	      will_occurs(Var2, Sent, Pattern, Into, N)
-	    ; will_occurs(Var,  Sent, Pattern, Into, N)
-	    ), NL),
+            ( member(Name=Var1, VNL),
+              Name \= '_',
+              Var==Var1
+            ->member(Name=Var2, VNL),
+              will_occurs(Var2, Sent, Pattern, Into, N)
+            ; will_occurs(Var,  Sent, Pattern, Into, N)
+            ), NL),
     sumlist(NL, T).
 
 will_occurs(Var, Sent, Pattern, Into, N) :-
@@ -632,64 +632,64 @@ will_occurs(Var, Sent, Pattern, Into, N) :-
 gen_new_variable_names([], _, _, _, _, _, _, _, VNL, VNL).
 gen_new_variable_names([Var|VarL], [Name1|NameL], SVarL, Preffix, Count1, Sent, Pattern, Into, VNL1, VNL) :-
     ( ( will_occurs(Var, Sent, Pattern, Into, VNL1, N),
-	N =:= 1
+        N =:= 1
       ->( nonvar(Name1)
-	->( atom_concat('_', _, Name1)
-	  ->VNL2=VNL1,
-	    Count = Count1
-	  ; atom_concat('_', Name1, Name2),
-	    ( member(Name2=_, VNL1)
-	    ->gen_new_variable_name(VNL1, Name2, 1, Name)
-	    ; Name = Name2
-	    ),
-	    VNL2 = [Name=Var|VNL1],
-	    Count = Count1
-	  )
-	; Count = Count1,
-	  ( member(Var1, SVarL),
-	    Var1 == Var
-	  ->VNL2 = VNL1
-	  ; VNL2 = ['_'=Var|VNL1] % Required if Var is a new variable in Into
-	  )
-	)
+        ->( atom_concat('_', _, Name1)
+          ->VNL2=VNL1,
+            Count = Count1
+          ; atom_concat('_', Name1, Name2),
+            ( member(Name2=_, VNL1)
+            ->gen_new_variable_name(VNL1, Name2, 1, Name)
+            ; Name = Name2
+            ),
+            VNL2 = [Name=Var|VNL1],
+            Count = Count1
+          )
+        ; Count = Count1,
+          ( member(Var1, SVarL),
+            Var1 == Var
+          ->VNL2 = VNL1
+          ; VNL2 = ['_'=Var|VNL1] % Required if Var is a new variable in Into
+          )
+        )
       ; nonvar(Name1)
       ->( atom_concat('_', Name2, Name1)
-	->( member(Name2=_, VNL1)
-	  ->gen_new_variable_name(VNL1, Name2, 1, Name)
-	  ; Name = Name2
-	  ),
-	  VNL2 = [Name=Var|VNL1],
-	  Count = Count1
-	; VNL2 = VNL1,
-	  Count = Count1
-	)
-      ;	gen_new_variable_name(VNL1, Preffix, Count1, Name),
-	succ(Count1, Count),
-	VNL2 = [Name=Var|VNL1]
+        ->( member(Name2=_, VNL1)
+          ->gen_new_variable_name(VNL1, Name2, 1, Name)
+          ; Name = Name2
+          ),
+          VNL2 = [Name=Var|VNL1],
+          Count = Count1
+        ; VNL2 = VNL1,
+          Count = Count1
+        )
+      ; gen_new_variable_name(VNL1, Preffix, Count1, Name),
+        succ(Count1, Count),
+        VNL2 = [Name=Var|VNL1]
       )
     ),
     gen_new_variable_names(VarL, NameL, SVarL, Preffix, Count, Sent, Pattern, Into, VNL2, VNL).
 
 apply_change(Text, M, subst(TermPos, Priority, Pattern, Term, VNL, Into),
-	     t(From, To, PasteText)) :-
+             t(From, To, PasteText)) :-
     wr_options(OptionL),
     call_cleanup(
-	with_output_to(string(PasteText),
-	    with_context_vars(
-		print_expansion_0(Into, Pattern, Term, TermPos,
-				  [priority(Priority), module(M),
-				   variable_names(VNL)
-				  |OptionL],
-				  Text, From, To),
-		[refactor_termpos],
-		[TermPos])),
-	retractall(rportray_pos(_, _))).
+        with_output_to(string(PasteText),
+            with_context_vars(
+                print_expansion_0(Into, Pattern, Term, TermPos,
+                                  [priority(Priority), module(M),
+                                   variable_names(VNL)
+                                  |OptionL],
+                                  Text, From, To),
+                [refactor_termpos],
+                [TermPos])),
+        retractall(rportray_pos(_, _))).
 
 wr_options([portray_goal(ref_replace:rportray),
-	    spacing(next_argument),
-	    numbervars(true),
-	    quoted(true),
-	    partial(true)]).
+            spacing(next_argument),
+            numbervars(true),
+            quoted(true),
+            partial(true)]).
 
 print_expansion_0(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
     arg(1, TermPos, OFrom),
@@ -712,13 +712,13 @@ with_pattern_into_termpos(Goal, Pattern, Into, TermPos) :-
     succ(Tries, Tries1),
     nb_setval(refactor_tries, Tries1),
     with_context_vars(catch(once(Goal), Error,
-			    ( refactor_message(error, Error),
-			      fail
-			    )),
-		      [refactor_pattern,
-		       refactor_into,
-		       refactor_termpos],
-		      [Pattern, Into, TermPos]).
+                            ( refactor_message(error, Error),
+                              fail
+                            )),
+                      [refactor_pattern,
+                       refactor_into,
+                       refactor_termpos],
+                      [Pattern, Into, TermPos]).
 
 %% refactor_message(+Type, +Message) is det.
 % 
@@ -751,10 +751,10 @@ map_subterms(Params, T0, T1, T) :-
     ( member(X0-X1-X2, Pairs),
       X1 == T1
     ; member(X0-X1-X2, Pairs),
-      same_term(X0, T0)		% ===/2
+      same_term(X0, T0)         % ===/2
     ; sub_term(P0, P1, P2, X0, X1, X2),
       X0 \== [], % Special case: ignore []
-      same_term(X0, T0)		% ===/2
+      same_term(X0, T0)         % ===/2
     ; sub_term(P0, P1, P2, X0, X1, X2),
       X0 \== [], % Special case: ignore []
       X1 == T1
@@ -762,14 +762,14 @@ map_subterms(Params, T0, T1, T) :-
     ( T0 == T1
     ->T = X0
     ; \+ ( member(_=V1, VNL),
-	   sub_term(V2, X0),
-	   var(V2),
-	   V2 == V1
-	 )
+           sub_term(V2, X0),
+           var(V2),
+           V2 == V1
+         )
     ->( X1 =@= X2,
-	\+ same_term(X0, T0),
-	occurrences_of_var(X1, Into1, N),
-	occurrences_of_var(X2, Into2, N)
+        \+ same_term(X0, T0),
+        occurrences_of_var(X1, Into1, N),
+        occurrences_of_var(X2, Into2, N)
       ->T = X0
       ; T = X1
       )
@@ -794,30 +794,30 @@ map_subterms_2(Params, T0, T1, T) :-
     map_compound(Params, T0, T1, T).
 map_subterms_2(_, T, _, T).
 
-map_compound(Params,		% Special case: preserve Goal
-	     '$G'(T0, G),
-	     '$G'(T1, _),
-	     '$G'(T,  G)) :- !,
+map_compound(Params,            % Special case: preserve Goal
+             '$G'(T0, G),
+             '$G'(T1, _),
+             '$G'(T,  G)) :- !,
     map_subterms(Params, T0, T1, T).
-map_compound(Params,		% Special case: preserve Goal
-	     '$C'(G, T0),
-	     '$C'(_, T1),
-	     '$C'(G, T )) :- !,
+map_compound(Params,            % Special case: preserve Goal
+             '$C'(G, T0),
+             '$C'(_, T1),
+             '$C'(G, T )) :- !,
     map_subterms(Params, T0, T1, T).
 map_compound(Params,
-	     '$@'(X0, Y0),
-	     '$@'(X1, Y1),
-	     '$@'(X,  Y)) :- !,
-	map_subterms(Params, X0, X1, X),
-	Params=p(Pairs, P0, P1, P2, _, Into1, Into2),
-	map_subterms(p(Pairs, P0, P1, P2, [], Into1, Into2), Y0, Y1, Y).
+             '$@'(X0, Y0),
+             '$@'(X1, Y1),
+             '$@'(X,  Y)) :- !,
+        map_subterms(Params, X0, X1, X),
+        Params=p(Pairs, P0, P1, P2, _, Into1, Into2),
+        map_subterms(p(Pairs, P0, P1, P2, [], Into1, Into2), Y0, Y1, Y).
 map_compound(Params,
-	     '@@'(X0, Y0),
-	     '@@'(X1, Y1),
-	     '@@'(X,  Y)) :- !,
-	map_subterms(Params, X0, X1, X),
-	Params=p(Pairs, P0, P1, P2, _, Into1, Into2),
-	map_subterms(p(Pairs, P0, P1, P2, [], Into1, Into2), Y0, Y1, Y).
+             '@@'(X0, Y0),
+             '@@'(X1, Y1),
+             '@@'(X,  Y)) :- !,
+        map_subterms(Params, X0, X1, X),
+        Params=p(Pairs, P0, P1, P2, _, Into1, Into2),
+        map_subterms(p(Pairs, P0, P1, P2, [], Into1, Into2), Y0, Y1, Y).
 map_compound(Params, T0, T1, T) :-
     functor(T0, F, N),
     functor(T1, F, N),
@@ -857,8 +857,8 @@ do_trim_hack('$NOOP'(_), '').
 
 match_vars_with_names(VNL1, Var, Name) :-
     ignore(( member(Name=Var1, VNL1),
-	     Var == Var1
-	   )).
+             Var == Var1
+           )).
 
 gen_new_variable_names(Sent, Term, Into, VNL) :-
     term_variables(Into, VarL),
@@ -870,9 +870,9 @@ gen_new_variable_names(Sent, Term, Into, VNL) :-
     gen_new_variable_names(VarL, NameL, SVarL, Preffix, 1, Sent, Term, TInto, VNL1, VNL2),
     once(append(VNL, VNL1, VNL2)).
 
-%%	substitute_term_norec(+Sub, +Term, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
+%%      substitute_term_norec(+Sub, +Term, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
 %
-%	None-recursive version of substitute_term_rec//6.
+%       None-recursive version of substitute_term_rec//6.
 
 substitute_term_norec(Sub, M, Term, Priority, Pattern, Into, Expander, TermPos, OutPos, Cmd) :-
     ( refactor_context(sentence,     Sent),
@@ -883,14 +883,14 @@ substitute_term_norec(Sub, M, Term, Priority, Pattern, Into, Expander, TermPos, 
       ( Sent=@=Sent2
       ->true
       ; refactor_context(file, File),
-	refactor_context(options, OptionL),
-	option(show_left_bindings(Show), OptionL, false),
-	( Show = true
-	->print_message(warning,
-			refactor_message(file_term_position(File, TermPos),
-					 format("Bindings occurs: ~w \\=@= ~w.", [Sent2, Sent])))
-	; true
-	)
+        refactor_context(options, OptionL),
+        option(show_left_bindings(Show), OptionL, false),
+        ( Show = true
+        ->print_message(warning,
+                        refactor_message(file_term_position(File, TermPos),
+                                         format("Bindings occurs: ~w \\=@= ~w.", [Sent2, Sent])))
+        ; true
+        )
       ),
       greatest_common_binding(Pattern1, Into1, Pattern2, Into2, [[]], Unifier, [])
     ),
@@ -910,18 +910,18 @@ fix_subtermpos(top,    Into, TermPos) :-
     ; fix_subtermpos(TermPos)
     ).
 
-%%	perform_substitution(+Sub, +Priority, +M, +Term, +VNL, +Pattern, +Into, +BindingL, +TermPos, +OutPos, -Cmd)
+%%      perform_substitution(+Sub, +Priority, +M, +Term, +VNL, +Pattern, +Into, +BindingL, +TermPos, +OutPos, -Cmd)
 %
-%	Substitute occurences of Pattern with Into after calling
-%	expansion.
+%       Substitute occurences of Pattern with Into after calling
+%       expansion.
 %
-%	@param Term is the term as read from the source
-%	@param TermPos is the term layout of SrcTerm
-%	@param OutPos layout of the term that includes SrcTerm
-%	@param Priority is the environment operator priority
+%       @param Term is the term as read from the source
+%       @param TermPos is the term layout of SrcTerm
+%       @param OutPos layout of the term that includes SrcTerm
+%       @param Priority is the environment operator priority
 %
 perform_substitution(Sub, Priority, M, Term, VNL, Pattern0, Into0,
-		     BindingL, TermPos0, OutPos0, Cmd) :-
+                     BindingL, TermPos0, OutPos0, Cmd) :-
     ( trim_fake_pos(TermPos0, TermPos, N)
     ->substitute_value(TermPos0, TermPos, OutPos0, OutPos),
       trim_fake_args(N, Pattern0, Pattern),
@@ -941,9 +941,9 @@ perform_substitution(Sub, Priority, M, Term, VNL, Pattern0, Into0,
        languages), modifying term position once the predicate is called */
     fix_subtermpos(Pattern, Into1, Sub, OutPos),
     with_context_vars(subst_term(TermPos, M, Pattern, GTerm, Priority, Term1),
-		      [refactor_bind, refactor_new_varnames], [BindingL, VNL]),
+                      [refactor_bind, refactor_new_varnames], [BindingL, VNL]),
     shared_variables(VNL, Term1, Into1, V5), % after subst_term, in case some
-    maplist(eq, V5, V5, UL5),		     % variables from Term3 reappear
+    maplist(eq, V5, V5, UL5),                % variables from Term3 reappear
     maplist(subst_fvar(M, Term1, TermPos, GTerm), UL5),
     special_term(Sub, Pattern, Into1, Into2),
     !,
@@ -961,9 +961,9 @@ subst_fvar(M, Term, Pos, GTerm, V=T) :-
 trim_fake_pos(term_position(F, T, FF, FT, PosL0 ), Pos, N) :-
     nonvar(PosL0 ),
     once(( member(FE, [0-0, T-T]),
-	   append(PosL, [FE|E], PosL0 ),
-	   maplist('='(FE), E)
-	 )),
+           append(PosL, [FE|E], PosL0 ),
+           maplist('='(FE), E)
+         )),
     length([_|E], N),
     Pos = term_position(F, T, FF, FT, PosL).
 
@@ -1043,16 +1043,16 @@ subst_var(Pos, M, Var, GTerm, GPriority, CTerm) :-
       Var = '$sb'(Pos, IFrom, ITo, GTerm, GPriority, CTerm)
     ).
 
-%%	subst_term(+Position, +Pattern, +Vars, +Term)
+%%      subst_term(+Position, +Pattern, +Vars, +Term)
 %
-%	Here, Pattern is a term  that   holds  variables.  It is matched
-%	against a position term and  if  there   is  a  variable  in the
-%	pattern, this is unified to   a  '$sb'(Pos, ...),
-%	indicating that this position currently holds SubTerm.
+%       Here, Pattern is a term  that   holds  variables.  It is matched
+%       against a position term and  if  there   is  a  variable  in the
+%       pattern, this is unified to   a  '$sb'(Pos, ...),
+%       indicating that this position currently holds SubTerm.
 %
-%	@param Position is a subterm-position term for Term
-%	@param Term is a source term
-%	@param Pattern is a substitution pattern
+%       @param Position is a subterm-position term for Term
+%       @param Term is a source term
+%       @param Pattern is a substitution pattern
 
 subst_term(none, _, T, _, _, T) :- !.
 subst_term(Pos, M, Term, GTerm, GPriority, CTerm) :-
@@ -1071,21 +1071,21 @@ subst_term(list_position(_, To, Elms, Tail), M, Term, GTerm, _, CTerm) :- !,
     subst_list(Elms, M, To, Tail, Term, GTerm, CTerm).
 subst_term(_, _, _, _, _, _).
 
-%%	substitute_term_rec(+SrcTerm, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
+%%      substitute_term_rec(+SrcTerm, +Priority, +Pattern, -Into, :Expander, +TermPos)// is nondet.
 %
-%	True when the DCG list contains   a  substitution for Pattern by
-%	Into in SrcTerm. This predicate must  be cautious about handling
-%	bindings:
+%       True when the DCG list contains   a  substitution for Pattern by
+%       Into in SrcTerm. This predicate must  be cautious about handling
+%       bindings:
 %
-%	  - Overall bindings do not affect further substitutions because
-%	    we are managed by findall/3 in do_replace/6.
-%	  - Pattern must not be instantiated by either unification with
-%	    SrcTerm or the execution of Expander.  This is needed for
-%	    substitute_term/7 to find the correct replacements.
+%         - Overall bindings do not affect further substitutions because
+%           we are managed by findall/3 in do_replace/6.
+%         - Pattern must not be instantiated by either unification with
+%           SrcTerm or the execution of Expander.  This is needed for
+%           substitute_term/7 to find the correct replacements.
 %
-%	To avoid binding Pattern, we need to copy Pattern and Into while
-%	maintaining sharing with Expander.  Next,   we  can safely unify
-%	Pattern with the SrcTerm.
+%       To avoid binding Pattern, we need to copy Pattern and Into while
+%       maintaining sharing with Expander.  Next,   we  can safely unify
+%       Pattern with the SrcTerm.
 
 substitute_term_rec(M, Term, Priority, Pattern, Into, Expander, TermPos, OutPos, Cmd) :-
     substitute_term_norec(sub, M, Term, Priority, Pattern, Into, Expander, TermPos, OutPos, Cmd),
@@ -1106,7 +1106,7 @@ substitute_term_into(map_position(_, _, _, _, PosL), _, M, Term, Ref, In, Ex, Cm
     substitute_term_pair(M, Term, Ref, In, Ex, Pos, Pos, Cmd).
 
 substitute_term_pair(M, Term, Ref, Into, Expander,
-		     key_value_position(_, _, Key, PosK, PosV), OutPos, Cmd) :-
+                     key_value_position(_, _, Key, PosK, PosV), OutPos, Cmd) :-
     ( substitute_term_rec(M, Key, 999, Ref, Into, Expander, PosK, OutPos, Cmd)
     ; substitute_term_rec(M, Term.Key, 999, Ref, Into, Expander, PosV, OutPos, Cmd)
     ).
@@ -1127,17 +1127,17 @@ term_priority(Term, M, N, Priority) :-
 term_priority_gnd(Term, M, N, PrG) :-
     functor(Term, F, A),
     ( ( A == 1 ->
-	( prolog_listing:prefix_op(M:F, PrG) -> true
-	; prolog_listing:postfix_op(M:F, PrG) -> true
-	)
+        ( prolog_listing:prefix_op(M:F, PrG) -> true
+        ; prolog_listing:postfix_op(M:F, PrG) -> true
+        )
       ; A == 2 ->
-	prolog_listing:infix_op(M:F, Left, Right),
-	( N==1 -> PrG = Left
-	; N==2 -> PrG = Right
-	)
+        prolog_listing:infix_op(M:F, Left, Right),
+        ( N==1 -> PrG = Left
+        ; N==2 -> PrG = Right
+        )
       )
     ->true
-    ; PrG=999		% term_priority((_, _), 1, Priority)
+    ; PrG=999           % term_priority((_, _), 1, Priority)
     ).
 
 substitute_term_args(PAs, OutPos, M, Term, Ref, Into, Expander, Cmd) :-
@@ -1178,17 +1178,17 @@ compound_positions(_, Pos, _, Pos).
 
 textpos_line(Text, CharPos, Line, LinePos) :-
     setup_call_cleanup(
-	( open_codes_stream(Text, In),
-	  open_null_stream(Out)
-	),
-	( copy_stream_data(In, Out, CharPos),
-	  stream_property(In, position(Pos)),
-	  stream_position_data(line_count, Pos, Line),
-	  stream_position_data(line_position, Pos, LinePos)
-	),
-	( close(Out),
-	  close(In)
-	)).
+        ( open_codes_stream(Text, In),
+          open_null_stream(Out)
+        ),
+        ( copy_stream_data(In, Out, CharPos),
+          stream_property(In, position(Pos)),
+          stream_position_data(line_count, Pos, Line),
+          stream_position_data(line_position, Pos, LinePos)
+        ),
+        ( close(Out),
+          close(In)
+        )).
 
 get_output_position(Pos) :-
     ( nb_current(refactor_from, From)
@@ -1236,8 +1236,8 @@ rportray('$sb'(ArgPos, _IFrom, _ITo, GTerm, GPriority, Into), OptionL) :-
     \+ retract(rportray_skip),
     !,
     ignore((b_getval(refactor_text, Text),
-	    print_subtext_sb(Into, GTerm, ArgPos, GPriority, OptionL, Text)
-	   )).
+            print_subtext_sb(Into, GTerm, ArgPos, GPriority, OptionL, Text)
+           )).
 rportray('$@'(Term), OptionL) :-
     write_term(Term, OptionL).
 rportray(\\(Term), OptionL) :-
@@ -1269,8 +1269,8 @@ rportray('$C'(Goal, Into), Opt) :-
     call(Goal),
     write_term(Into, Opt).
 rportray('$NOOP'(Term), Opt) :- !,
-    with_output_to(string(_),	% Ignore, but process for the side effects
-		   write_term(Term, Opt)).
+    with_output_to(string(_),   % Ignore, but process for the side effects
+                   write_term(Term, Opt)).
 rportray('$LIST'(L), Opt) :- !,
     maplist(term_write(Opt), L).
 rportray('$LIST,'(L), Opt) :- !,
@@ -1371,14 +1371,14 @@ rportray([E|T0], Opt) :- !,
       format(atom(ST), "~s~s~s", [SL, SC, SR]),
       ( Term == []
       ->T = H,
-	write('['),
-	term_priority([_|_], user, 1, Priority),
-	merge_options([priority(Priority)], Opt, Opt1),
-	term_write_sep_list(T, ', ', Opt1),
-	format("~s", [ST]),
-	write(']')
+        write('['),
+        term_priority([_|_], user, 1, Priority),
+        merge_options([priority(Priority)], Opt, Opt1),
+        term_write_sep_list(T, ', ', Opt1),
+        format("~s", [ST]),
+        write(']')
       ; append(H, ['$TEXT'(ST)], T),
-	write_term(T, Opt)
+        write_term(T, Opt)
       )
     ).
 % Better formatting:
@@ -1475,11 +1475,11 @@ write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), Writter, SepIn, Opt)
       arg(1, LPos, From),
       append(_, [RPos], PosL),
       ( Tail = none ->
-	arg(2, RPos, To)
+        arg(2, RPos, To)
       ; arg(2, Tail, To)
       ),
       print_subtext_sb(Term, GTerm, list_position(From, To, PosL, Tail),
-			 GPriority, Opt, Text)
+                         GPriority, Opt, Text)
     ; term_write_sep_list_inner_rec(Term, Writter, SepIn, Opt)
     ),
     display_subtext(Text, ITo, To0).
@@ -1529,11 +1529,11 @@ print_expansion_1('$TEXTQ'(Into, Delta), _, _, TermPos, OptionL, _, From, To) :-
     write_q(Into, OptionL),
     To is To0 + Delta.
 print_expansion_1('$LIST.NL'(IntoL), Pattern, Term, TermPos, OptionL0,
-		  Text, From, To) :- !,
+                  Text, From, To) :- !,
     merge_options([priority(1200)], OptionL0, OptionL),
     print_expansion_rm_dot(TermPos, Text, From, To),
     with_from(term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, OptionL,
-				      Text), From).
+                                      Text), From).
 print_expansion_1(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
     print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To).
 
@@ -1541,14 +1541,14 @@ term_write_stop_nl_list([Into|IntoL], Pattern, Term, TermPos, OptionL, Text) :-
     term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL, Text),
     term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, OptionL, Text).
 term_write_stop_nl_list('$sb'(_, _, _, _, _, IntoL), Pattern, Term, TermPos,
-			OptionL, Text) :-
+                        OptionL, Text) :-
     term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, OptionL, Text).
 term_write_stop_nl_list([], _, _, _, _, _).
 
 term_write_stop_nl__('$NOOP'(Into), Pattern, Term, TermPos, OptionL, Text) :- !,
-    with_output_to(string(_),	%Ignore, but process
-		   term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL,
-					Text)).
+    with_output_to(string(_),   %Ignore, but process
+                   term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL,
+                                        Text)).
 term_write_stop_nl__('$NODOT'(Into), Pattern, Term, TermPos, OptionL, Text) :- !,
     print_expansion(Into, Pattern, Term, TermPos, OptionL, Text).
 term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL, Text) :-
@@ -1564,14 +1564,14 @@ print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
 % required, include it!!!
 %
 fix_position_if_braced(term_position(From, _, FFrom, FTo, _), M,
-		       Term, GPriority, Into, Priority, Text, Display) :-
+                       Term, GPriority, Into, Priority, Text, Display) :-
     \+ ( From==FFrom,
-	 sub_string(Text, FTo, 1, _, "(")
+         sub_string(Text, FTo, 1, _, "(")
        ),
     ( \+ term_needs_braces(M:Term, GPriority),
       ( nonvar(Into),
-	term_needs_braces(M:Into, Priority)
-	% \+ term_needs_braces(M:Term, Priority)
+        term_needs_braces(M:Into, Priority)
+        % \+ term_needs_braces(M:Term, Priority)
       )
     ->Display=yes
     ),
@@ -1640,15 +1640,15 @@ print_expansion(Var, _, _, RefPos, OptionL, Text) :-
     ).
 print_expansion('$sb'(RefPos), _, Term, _, _, Text) :-
     \+ ( nonvar(Term),
-	 Term = '$sb'(_)
+         Term = '$sb'(_)
        ),
     !,
     print_subtext(RefPos, Text).
 print_expansion('$sb'(RefPos, _IFrom, _ITo, GTerm, Priority, Into), _Pattern, Term, _RPos, OptionL, Text) :-
     nonvar(RefPos),
     \+ ( nonvar(Term),
-	 Term = '$sb'(_, _, _, _, _, _),
-	 Into \= '$sb'(_, _, _, _, _, _)
+         Term = '$sb'(_, _, _, _, _, _),
+         Into \= '$sb'(_, _, _, _, _, _)
        ),
     !,
     print_subtext_sb(Into, GTerm, RefPos, Priority, OptionL, Text).
@@ -1657,14 +1657,14 @@ print_expansion(Into, Pattern, Term, RefPos, OptionL, Text) :-
 
 print_expansion_ne('$G'(Into, Goal), Pattern, Term, RefPos, OptionL, Text) :-
     \+ ( nonvar(Term),
-	 Term = '$G'(_, _)
+         Term = '$G'(_, _)
        ),
     !,
     with_str_hook(print_expansion(Into, Pattern, Term, RefPos, OptionL, Text),
-		  Goal).
+                  Goal).
 print_expansion_ne('$C'(Goal, Into), Pattern, Term, RefPos, OptionL, Text) :-
     \+ ( nonvar(Term),
-	 Term = '$C'(_, _)
+         Term = '$C'(_, _)
        ),
     !,
     call(Goal),
@@ -1767,7 +1767,7 @@ normalize_pos(Pos, F-T) :-
     arg(2, Pos, T).
 
 print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT),
-		    Into, Pattern, GTerm, OptionL, Text) :-
+                    Into, Pattern, GTerm, OptionL, Text) :-
     compound(Into),
     functor(Into,    FT, A),
     nonvar(Pattern),
@@ -1777,27 +1777,27 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT),
     ->NT = FT % preserve layout
     ; NT = '$TEXTQ'(FT),
       ( option(priority(Priority), OptionL),
-	current_op(PrP, TypeOpP, M:FP),
-	valid_op_type_arity(TypeOpP, A),
-	current_op(PrT, TypeOpT, M:FT),
-	valid_op_type_arity(TypeOpT, A),
-	PrT =< Priority,
-	( PrP =< PrT
-	; forall(arg(AP, Into, Arg),
-		 ( term_priority_gnd(Into, M, AP, PrA),
-		   \+ term_needs_braces(M:Arg, PrA)))
-	)
+        current_op(PrP, TypeOpP, M:FP),
+        valid_op_type_arity(TypeOpP, A),
+        current_op(PrT, TypeOpT, M:FT),
+        valid_op_type_arity(TypeOpT, A),
+        PrT =< Priority,
+        ( PrP =< PrT
+        ; forall(arg(AP, Into, Arg),
+                 ( term_priority_gnd(Into, M, AP, PrA),
+                   \+ term_needs_braces(M:Arg, PrA)))
+        )
       ; option(module(M), OptionL),
-	\+ current_op(_, _, M:FT),
-	\+ current_op(_, _, M:FP)
+        \+ current_op(_, _, M:FT),
+        \+ current_op(_, _, M:FP)
       )
     ), !,
     mapnlist([Into, Pattern, GTerm] +\ N^Pos^(PosK-v(N, Pos, Arg, PAr, GAr))^
-	    ( arg(N, Into, Arg),
-	      arg(N, Pattern, PAr),
-	      arg(N, GTerm, GAr),
-	      normalize_pos(Pos, PosK)
-	    ), 1, PosT, KPosValTU),
+            ( arg(N, Into, Arg),
+              arg(N, Pattern, PAr),
+              arg(N, GTerm, GAr),
+              normalize_pos(Pos, PosK)
+            ), 1, PosT, KPosValTU),
     /* 0 is the functor, priority 1200 */
     KPosValU = [(FFrom-FFTo)-v(0, FFrom-FFTo, NT, FP, FP)|KPosValTU],
     keysort(KPosValU, KPosValL),
@@ -1815,7 +1815,7 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, O
     length(PosL, N),
     ( trim_list(N, Into, ArgL, ATail)
     ->Delta = 0
-    % ; length(LTerm, N),		% Special case: list converted to sequence
+    % ; length(LTerm, N),               % Special case: list converted to sequence
     %   once(list_sequence(LTerm, Into)),
     %   trim_list(N, LTerm, ArgL, ATail),
     %   Delta = 1
@@ -1831,7 +1831,7 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, O
     OptionL1=[priority(Priority1)|OptionL],
     ( comp_priority(M, GTerm, Priority, Into, Priority)
     ->write('(')
-    ; Delta = 1 ->write(' ')	% Only if [...] ---> (...)
+    ; Delta = 1 ->write(' ')    % Only if [...] ---> (...)
     ; true
     ),
     display_subtext(Text, From1, To1),
@@ -1856,14 +1856,14 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, O
     ; true
     ).
 print_expansion_pos(brace_term_position(From, To, TermPos), {Into}, {Pattern},
-		    {GTerm}, OptionL, Text) :-
+                    {GTerm}, OptionL, Text) :-
     arg(1, TermPos, AFrom),
     arg(2, TermPos, ATo),
     display_subtext(Text, From, AFrom),
     option(module(M), OptionL),
     print_expansion_arg(M, {Into}, OptionL, Text, ATo-To, v(1, TermPos, Into, Pattern, GTerm)).
 print_expansion_pos(parentheses_term_position(From, To, TermPos), Into, Pattern,
-		    GTerm, OptionL1, Text) :-
+                    GTerm, OptionL1, Text) :-
     arg(1, TermPos, AFrom),
     arg(2, TermPos, ATo),
     display_subtext(Text, From, AFrom),

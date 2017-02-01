@@ -28,13 +28,13 @@
 */
 
 :- module(ref_shell,
-	  [ref_commit/0,
-	   rshow/0,
-	   rdiff/0,
-	   rdiff/1,
-	   rdiff/2,
-	   rsave/1
-	  ]).
+          [ref_commit/0,
+           rshow/0,
+           rdiff/0,
+           rdiff/1,
+           rdiff/2,
+           rsave/1
+          ]).
 
 :- use_module(library(file_changes)).
 :- use_module(library(ref_changes)).
@@ -68,15 +68,15 @@ rdiff(Action, Index0, Index) :-
     findall(File, (pending_change(IdxI, File, _), IdxI=<Index), FileU),
     sort(FileU, FileL),
     forall(member(File, FileL),
-	   apply_diff(Action, Index0, File)).
+           apply_diff(Action, Index0, File)).
 
 apply_diff(Action, Index0, File) :-
     once(pending_change(_, File, Content)), % Take the last one
     ( pending_change(Idx1, File, Content0 ),
       Idx1 =< Index0
     ->setup_call_cleanup(tmp_file_stream(text, File0, Stream),
-			 format(Stream, '~s', [Content0 ]),
-			 close(Stream)),
+                         format(Stream, '~s', [Content0 ]),
+                         close(Stream)),
       TmpFile = true
     ; File0 = File,
       TmpFile = fail,

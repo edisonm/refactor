@@ -39,8 +39,8 @@ do_file_change(save, File, _, Changes) :-
     ).
 do_file_change(show, File, Name, Changes) :-
     catch(diff_file_change(File, Name, Changes),
-	  error(process_error(_, exit(1)), _),
-	  true).
+          error(process_error(_, exit(1)), _),
+          true).
 
 make_relative(File, RFile) :-
     ( absolute_file_name('',WD),
@@ -53,13 +53,13 @@ diff_file_change(File, AName, Changes) :-
     atomic_list_concat([Name, ' (source)'], FLabel),
     atomic_list_concat([Name, ' (target)'], TLabel),
     process_create(path(diff),
-		   ['-ruN',
-		    '--label', FLabel, File,
-		    '--label', TLabel, '-'
-		   ],
-		   [stdin(pipe(SIn)),
-		    stdout(pipe(Out)),
-		    process(PID)]),
+                   ['-ruN',
+                    '--label', FLabel, File,
+                    '--label', TLabel, '-'
+                   ],
+                   [stdin(pipe(SIn)),
+                    stdout(pipe(Out)),
+                    process(PID)]),
     with_output_to(SIn, format('~s', [Changes])),
     close(SIn),
     format('diff -ruN ~s -~n', [Name]), % Help emacs24

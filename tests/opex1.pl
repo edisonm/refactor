@@ -1,5 +1,5 @@
 :- module(opex1, [opex1/2
-		 ]).
+                 ]).
 
 :- op(700, xfy, myis).
 :- op(700, xfy, myis2).

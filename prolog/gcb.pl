@@ -28,7 +28,7 @@
 */
 
 :- module(gcb, [greatest_common_binding/7,
-		greatest_common_binding/8]).
+                greatest_common_binding/8]).
 
 :- use_module(library(substitute), [substitute_value/4]).
 
@@ -37,8 +37,8 @@ greatest_common_binding(Term0, Into0, Term, Into, Skip) -->
 
 greatest_common_binding(SubTerm0, Term0, Into0, Term, Into, Skip) -->
     ( { \+memberchk(SubTerm0, Skip),
-	substitute_value(SubTerm0, Var, Into0, Into1),
-	Into0\==Into1
+        substitute_value(SubTerm0, Var, Into0, Into1),
+        Into0\==Into1
       }
     ->{substitute_value(SubTerm0, Var, Term0, Term1)},
       [Var=SubTerm]
@@ -77,17 +77,17 @@ pick_tail(Tail, Tail, Tail).
 
 greatest_common_binding(SubTerm0, SubTerm, Term0, Into0, Term, Into, Skip) -->
     ( { % nonvar(SubTerm0 ),
-	% nonvar(Into0 ),
+        % nonvar(Into0 ),
         \+memberchk(SubTerm0, Skip)}
     ->( { substitute_value(SubTerm0, Var, Into0, Into1),
-	  Into0\==Into1}
+          Into0\==Into1}
       ->{substitute_value(SubTerm0, Var, Term0, Term1)},
-	[Var=SubTerm]
+        [Var=SubTerm]
       ; {Term1=Term0, Into1 = Into0 }
       ),
       ( {compound(SubTerm0 )},
         greatest_common_binding(1, SubTerm0, SubTerm, Term1, Into1, Term, Into, Skip),
-	{Into1\==Into}
+        {Into1\==Into}
       ->[]
       ; {SubTerm=SubTerm0, Term=Term1, Into=Into1 }
       )

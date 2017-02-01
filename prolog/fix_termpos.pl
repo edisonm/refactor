@@ -28,9 +28,9 @@
 */
 
 :- module(fix_termpos, [fix_termpos/1,
-			fix_subtermpos/1,
-			term_innerpos/4
-		       ]).
+                        fix_subtermpos/1,
+                        term_innerpos/4
+                       ]).
 
 :- use_module(library(apply)).
 
@@ -177,17 +177,17 @@ count_sub_string(Text, From0, To0, SubText, SubTextN, From, To, N) :-
       To1 is From1 + SubTextN,
       ( To1 =< To0
       ->S = s(1, To1),
-	forall(seek_sub_string(Text, SubText, SubTextN, To0, To1, To2),
-	       ( arg(1, S, N1),
-		 succ(N1, N2),
-		 nb_setarg(1, S, N2),
-		 To3 is To2 + SubTextN,
-		 nb_setarg(2, S, To3)
-	       )),
-	arg(1, S, N),
-	arg(2, S, To)
+        forall(seek_sub_string(Text, SubText, SubTextN, To0, To1, To2),
+               ( arg(1, S, N1),
+                 succ(N1, N2),
+                 nb_setarg(1, S, N2),
+                 To3 is To2 + SubTextN,
+                 nb_setarg(2, S, To3)
+               )),
+        arg(1, S, N),
+        arg(2, S, To)
       ; N = 1,
-	To = To1
+        To = To1
       )
     ; From = To0,
       To = From0,
@@ -254,18 +254,18 @@ include_comments_left(Text, To, From) :-
       arg(1, S, From0 ),
       ToC =< From0,
       ( L is From0 - ToC,
-	sub_string(Text, ToC, L, _, Text1),
-	\+ ( sub_string(Text1, _, 1, _, Char),
-	     \+ member(Char, [" ", "\t", "\n"])
-	   )
+        sub_string(Text, ToC, L, _, Text1),
+        \+ ( sub_string(Text1, _, 1, _, Char),
+             \+ member(Char, [" ", "\t", "\n"])
+           )
       ->nb_setarg(1, S, FromC),
-	fail
+        fail
       ; ToC = From0
       ->nb_setarg(1, S, FromC),
-	!,
-	fail
-      ;	!,
-	fail
+        !,
+        fail
+      ; !,
+        fail
       )
     ->true
     ; true
@@ -278,18 +278,18 @@ include_comments_right(Text, From, To) :-
       arg(1, S, To0 ),
       To0 =< FromC,
       ( L is FromC - To0,
-	sub_string(Text, To0, L, _, Text1),
-	\+ ( sub_string(Text1, _, 1, _, Char),
-	     \+ member(Char, [" ", "\t", "\n"])
-	   )
+        sub_string(Text, To0, L, _, Text1),
+        \+ ( sub_string(Text1, _, 1, _, Char),
+             \+ member(Char, [" ", "\t", "\n"])
+           )
       ->nb_setarg(1, S, ToC),
-	fail
+        fail
       ; To0 = FromC
       ->nb_setarg(1, S, ToC),
-	!,
-	fail
-      ;	!,
-	fail
+        !,
+        fail
+      ; !,
+        fail
       )
     ->true
     ; true
@@ -303,9 +303,9 @@ seekn_parenthesis_right(N, Text, L, T0, T) :-
       arg(1, S, N0),
       succ(N0, N1),
       ( N1 = N -> !,
-	succ(T1, T)
+        succ(T1, T)
       ; nb_setarg(1, S, N1),
-	fail
+        fail
       )
     ).
 
@@ -322,7 +322,7 @@ fix_boundaries_from_right(Text, Pos, To0, From2, To2, From, To) :-
       sub_string(Text, To0, RL, _, TextL),
       b_getval(refactor_file, File),
       print_message(warning, fix_termpos(file_term_position(File, Pos),
-					 "Misplaced text --> `~w'", [TextL]))
+                                         "Misplaced text --> `~w'", [TextL]))
     ; true
     ),
     count_sub_string(Text, To1, To0, ")", 1, _, To2, N),
@@ -343,8 +343,8 @@ fix_termpos_from_right(Text, To0, Pos ) :-
 fix_termpos_from_left(Text, Pos, From0, To) :-
     fix_subtermpos_rec(Pos),
     fix_boundaries_from_left(Text, Pos, From0, From2, From, To),
-    nb_setarg(1, Pos, From),	% if using From2 and To2, comments not included
-    nb_setarg(2, Pos, To),	% TODO: make this parameterizable
+    nb_setarg(1, Pos, From),    % if using From2 and To2, comments not included
+    nb_setarg(2, Pos, To),      % TODO: make this parameterizable
     assertz(term_innerpos(From, To, From2, To)).
 
 fix_termpos_from_left_comm(Text, Pos, From0, To) :-
@@ -362,10 +362,10 @@ fix_boundaries_from_left(Text, Pos, From0, From2, From, To) :-
       sub_string(Text, From1, RL, _, TextL),
       b_getval(refactor_file, File),
       print_message(warning,
-		    fix_termpos(file_term_position(File, Pos),
-				"Misplaced text <-- `~w' (~w)",
-				[TextL,
-				 fix_boundaries_from_left(_, Pos, From0, From2, From, To)]))
+                    fix_termpos(file_term_position(File, Pos),
+                                "Misplaced text <-- `~w' (~w)",
+                                [TextL,
+                                 fix_boundaries_from_left(_, Pos, From0, From2, From, To)]))
     ; true
     ),
     count_sub_string(Text, From0, From1, "(", 1, From2, _, N),

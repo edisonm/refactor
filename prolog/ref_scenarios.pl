@@ -28,30 +28,30 @@
 */
 
 :- module(ref_scenarios,
-	  [replace_term/3,
-	   replace_head/3,
-	   replace_body/3,
-	   replace_goal/3,
-	   replace_sentence/3,
-	   rename_variable/3,
-	   rename_variables/2,
-	   underscore_singletons/1,
-	   anonymize_singletons/1,
-	   anonymize_all_singletons/1,
-	   new_name/3,
-	   fix_multi_singletons/1,
-	   anonymize_term_singletons/2,
-	   replace_term_id/3,
-	   unfold_goal/2,
-	   rename_predicate/3,
-	   rename_functor/3,
-	   remove_useless_exports/1,
-	   remove_underscore_multi/1,
-	   replace_conjunction/3,
-	   replace_conjunction/4,
-	   remove_call/2,
-	   remove_call/3
-	  ]).
+          [replace_term/3,
+           replace_head/3,
+           replace_body/3,
+           replace_goal/3,
+           replace_sentence/3,
+           rename_variable/3,
+           rename_variables/2,
+           underscore_singletons/1,
+           anonymize_singletons/1,
+           anonymize_all_singletons/1,
+           new_name/3,
+           fix_multi_singletons/1,
+           anonymize_term_singletons/2,
+           replace_term_id/3,
+           unfold_goal/2,
+           rename_predicate/3,
+           rename_functor/3,
+           remove_useless_exports/1,
+           remove_underscore_multi/1,
+           replace_conjunction/3,
+           replace_conjunction/4,
+           remove_call/2,
+           remove_call/3
+          ]).
 
 :- use_module(library(implementation_module)).
 :- use_module(library(option_utils)).
@@ -64,7 +64,7 @@
 :- use_module(library(prolog_clause), []).
 
 :- meta_predicate
-	unfold_goal(0,+).
+        unfold_goal(0,+).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Most used refactoring scenarios:
@@ -72,16 +72,16 @@
 remove_useless_exports(Options0) :-
     select_option(module(M), Options0, Options, M),
     replace_sentence((:-module(M,L)), (:- module(M,N)),
-		    ( include(being_used(M), L, N),
-		      L \= N
-		    ), [module(M)|Options]),
+                    ( include(being_used(M), L, N),
+                      L \= N
+                    ), [module(M)|Options]),
     replace_sentence((:-export(K)), Exp,
-		    ( once(list_sequence(L, K)),
-		      include(being_used(M), L, N),
-		      ( N = []                   -> Exp = []
-		      ; L \= N, list_sequence(N,S), Exp = (:- export(S))
-		      )
-		    ), [module(M)|Options]).
+                    ( once(list_sequence(L, K)),
+                      include(being_used(M), L, N),
+                      ( N = []                   -> Exp = []
+                      ; L \= N, list_sequence(N,S), Exp = (:- export(S))
+                      )
+                    ), [module(M)|Options]).
 
 being_used(M, F/A) :-
     functor(H, F, A),
@@ -90,16 +90,16 @@ being_used(M, F/A) :-
 :- meta_predicate apply_var_renamer(2, +).
 apply_var_renamer(Renamer, OptionL0 ) :-
     foldl(select_option_default,
-	  [variable_names(Dict)-Dict],
-	  OptionL0, OptionL),
+          [variable_names(Dict)-Dict],
+          OptionL0, OptionL),
     replace_term(Var, '$VAR'(Name),
-		 ( var(Var),
-		   member(Name1 = Var1, Dict),
-		   Var1==Var
-		 ->call(Renamer, Name1, Name),
-		   \+ memberchk(Name=_, Dict)
-		 ),
-		 [variable_names(Dict)|OptionL]).
+                 ( var(Var),
+                   member(Name1 = Var1, Dict),
+                   Var1==Var
+                 ->call(Renamer, Name1, Name),
+                   \+ memberchk(Name=_, Dict)
+                 ),
+                 [variable_names(Dict)|OptionL]).
 
 %% rename_variable(?Name0:atom, +Name:atom, +Options) is det.
 %
@@ -110,71 +110,71 @@ rename_variable(Name0, Name, Options) :-
 
 underscore_singletons(OptionL1) :-
     foldl(select_option_default,
-	  [sentence(Sent)-Sent,
-	   variable_names(Dict)-Dict],
-	  OptionL1, OptionL),
+          [sentence(Sent)-Sent,
+           variable_names(Dict)-Dict],
+          OptionL1, OptionL),
     apply_var_renamer([Dict, Sent] +\ Name1^Name
-		     ^( member(Name0=Var, Dict),
-			\+ atom_concat('_', _, Name0),
-			occurrences_of_var(Var, Sent, 1),
-			atom_concat('_', Name1, Name)
-		      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+                     ^( member(Name0=Var, Dict),
+                        \+ atom_concat('_', _, Name0),
+                        occurrences_of_var(Var, Sent, 1),
+                        atom_concat('_', Name1, Name)
+                      ), [sentence(Sent), variable_names(Dict)|OptionL]).
 
 remove_underscore_multi(OptionL1) :-
     foldl(select_option_default,
-	  [sentence(Sent)-Sent,
-	   variable_names(Dict)-Dict],
-	  OptionL1, OptionL),
+          [sentence(Sent)-Sent,
+           variable_names(Dict)-Dict],
+          OptionL1, OptionL),
     apply_var_renamer([Dict, Sent] +\ Name1^Name
-		     ^( member(Name1=Var, Dict),
-			atom_concat('_', Name, Name1),
-			atom_codes(Name, [C|_]),
-			char_type(C, csymf),
-			occurrences_of_var(Var, Sent, N),
-			N > 1,
-			( member(Name=_, Dict)
-			->refactor_message("Cannot rename ~w to ~w since it already exists",
-					   [Name1, Name]),
-			  fail
-			; true
-			)
-		      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+                     ^( member(Name1=Var, Dict),
+                        atom_concat('_', Name, Name1),
+                        atom_codes(Name, [C|_]),
+                        char_type(C, csymf),
+                        occurrences_of_var(Var, Sent, N),
+                        N > 1,
+                        ( member(Name=_, Dict)
+                        ->refactor_message("Cannot rename ~w to ~w since it already exists",
+                                           [Name1, Name]),
+                          fail
+                        ; true
+                        )
+                      ), [sentence(Sent), variable_names(Dict)|OptionL]).
 
 anonymize_all_singletons(OptionL0 ) :-
     foldl(select_option_default,
-	  [sentence(Sent)-Sent,
-	   variable_names(Dict)-Dict],
-	  OptionL0, OptionL),
+          [sentence(Sent)-Sent,
+           variable_names(Dict)-Dict],
+          OptionL0, OptionL),
     apply_var_renamer([Dict, Sent] +\ Name0^Name
-		     ^( member(Name0=Var, Dict),
-			occurrences_of_var(Var, Sent, 1),
-			Name = '_'
-		      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+                     ^( member(Name0=Var, Dict),
+                        occurrences_of_var(Var, Sent, 1),
+                        Name = '_'
+                      ), [sentence(Sent), variable_names(Dict)|OptionL]).
 
 anonymize_term_singletons(Term, OptionL0 ) :-
     foldl(select_option_default,
-	  [sentence(Sent)-Sent,
-	   variable_names(Dict)-Dict],
-	  OptionL0, OptionL),
+          [sentence(Sent)-Sent,
+           variable_names(Dict)-Dict],
+          OptionL0, OptionL),
     apply_var_renamer([Term, Dict, Sent] +\ Name0^Name
-		     ^( member(Name0=Var, Dict),
-			occurrences_of_var(Var, Sent, 1),
-			\+ occurrences_of_var(Var, Term, 0 ),
-			Name = '_'
-		      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+                     ^( member(Name0=Var, Dict),
+                        occurrences_of_var(Var, Sent, 1),
+                        \+ occurrences_of_var(Var, Term, 0 ),
+                        Name = '_'
+                      ), [sentence(Sent), variable_names(Dict)|OptionL]).
 
 
 anonymize_singletons(OptionL0 ) :-
     foldl(select_option_default,
-	  [sentence(Sent)-Sent,
-	   variable_names(Dict)-Dict],
-	  OptionL0, OptionL),
+          [sentence(Sent)-Sent,
+           variable_names(Dict)-Dict],
+          OptionL0, OptionL),
     apply_var_renamer([Dict, Sent] +\ Name0^Name
-		     ^( member(Name0=Var, Dict),
-			\+ atom_concat('_', _, Name0 ),
-			occurrences_of_var(Var, Sent, 1),
-			Name = '_'
-		      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+                     ^( member(Name0=Var, Dict),
+                        \+ atom_concat('_', _, Name0 ),
+                        occurrences_of_var(Var, Sent, 1),
+                        Name = '_'
+                      ), [sentence(Sent), variable_names(Dict)|OptionL]).
 
 :- meta_predicate new_name(1, +, -).
 new_name(AlreadyUsedName, Name, Name) :-
@@ -191,20 +191,20 @@ new_name_rec(AlreadyUsedName, Idx0, Name0, Name) :-
 
 fix_multi_singletons(OptionL0 ) :-
     foldl(select_option_default,
-	  [sentence(Sent)-Sent,
-	   variable_names(Dict)-Dict],
-	  OptionL0, OptionL),
+          [sentence(Sent)-Sent,
+           variable_names(Dict)-Dict],
+          OptionL0, OptionL),
     apply_var_renamer([Dict, Sent] +\ Name0^Name
-		     ^( member(Name0=Var, Dict),
-			atom_concat('_', Name1, Name0 ),
-			occurrences_of_var(Var, Sent, N),
-			N > 1,
-			new_name([Dict]+\ X^member(X=_, Dict), Name1, Name)
-		      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+                     ^( member(Name0=Var, Dict),
+                        atom_concat('_', Name1, Name0 ),
+                        occurrences_of_var(Var, Sent, N),
+                        N > 1,
+                        new_name([Dict]+\ X^member(X=_, Dict), Name1, Name)
+                      ), [sentence(Sent), variable_names(Dict)|OptionL]).
 
 rename_variables(RenameL, Options) :-
     apply_var_renamer([RenameL] +\ Name0^Name^member(Name0=Name, RenameL),
-		      Options).
+                      Options).
 
 rename_functor(Functor/Arity, NewName, Options) :-
     functor(Term, Functor, Arity),
@@ -227,23 +227,23 @@ rename_predicate(M:Name0/Arity, Name, OptionL0) :-
     select_option(module(CM), OptionL0, OptionL1, CM),
     OptionL = [module(CM)|OptionL1],
     replace_goal(H0, H,
-		 ( predicate_property(CM:H0, imported_from(M))
-		 ; M = CM
-		 ),
-		 OptionL),	% Replace calls
+                 ( predicate_property(CM:H0, imported_from(M))
+                 ; M = CM
+                 ),
+                 OptionL),      % Replace calls
     % Replace heads:
     replace_head(H0, H, true, OptionL),
     replace_head((M:H0), (M:H), true, OptionL),
     replace_term(M:Name0/Arity, M:Name/Arity, OptionL),
     replace_term(Name0/Arity, Name/Arity,
-		 ( catch(absolute_file_name(Alias, File, [file_type(prolog)]),
-			 _, fail),
-		   current_module(M, File)
-		 ),
-		 [sentence((:- use_module(Alias, _)))|OptionL0]),
+                 ( catch(absolute_file_name(Alias, File, [file_type(prolog)]),
+                         _, fail),
+                   current_module(M, File)
+                 ),
+                 [sentence((:- use_module(Alias, _)))|OptionL0]),
     ( CM = M
-    ->		 % Replace PIs, but only inside the module, although this part
-		 % is `complete but not correct'
+    ->           % Replace PIs, but only inside the module, although this part
+                 % is `complete but not correct'
       replace_term(Name0/Arity, Name/Arity, OptionL)
     ; true
     ).
@@ -286,18 +286,18 @@ unfold_body(Body0, Body, IM, CM) :-
       ->implementation_module(CM:Body0, IM2)
       ; predicate_property(IM:Body0, exported)
       ->IM2 = IM1,
-	functor(Body0, F, A),
+        functor(Body0, F, A),
         assertz(add_import(CM, IM1, F, A))
       ; IM2 = CM %% Make IM2 different than IM1
       ),
       ( predicate_property(IM:Body0, meta_predicate(Meta)),
-	arg(_, Meta, Spec),
-	( integer(Spec)
-	; Spec = (^)
-	)
+        arg(_, Meta, Spec),
+        ( integer(Spec)
+        ; Spec = (^)
+        )
       ->functor(Body0, F, A),
-	functor(Body1, F, A),
-	mapargs(unfold_body_arg(IM, CM), Meta, Body0, Body1)
+        functor(Body1, F, A),
+        mapargs(unfold_body_arg(IM, CM), Meta, Body0, Body1)
       ; Body1 = Body0
       ),
       ( IM1 \= IM2
@@ -314,11 +314,11 @@ rsum(Module, UML) :-
     sort(Pairs, Sorted),
     group_pairs_by_key(Sorted, Grouped),
     findall(UM,
-	    ( member(Import-IL, Grouped),
-	      current_module(Import, IFile),
-	      smallest_alias(IFile, IA),
-	      UM = '$@'(:- use_module(IA, '$C'((nl,write('\t     ')),'$LIST,NL'(IL))))
-	    ), UML).
+            ( member(Import-IL, Grouped),
+              current_module(Import, IFile),
+              smallest_alias(IFile, IA),
+              UM = '$@'(:- use_module(IA, '$C'((nl,write('\t     ')),'$LIST,NL'(IL))))
+            ), UML).
 
 is_member(VarL, E) :-
     member(V, VarL),
@@ -328,10 +328,10 @@ set_new_name(VNBody, VN, V) :-
     ( member(Name1=V1, VNBody),
       V1 == V
     ->( ( Name = Name1
-	; between(2, infinite, Count),
-	  atomic_concat(Name1, Count, Name)
-	),
-	\+ member(Name=_, VN)
+        ; between(2, infinite, Count),
+          atomic_concat(Name1, Count, Name)
+        ),
+        \+ member(Name=_, VN)
       ->V = '$VAR'(Name)
       )
     ; true % Leave unnamed
@@ -349,40 +349,40 @@ unfold_goal(MGoal, OptionL0) :-
     MMeta = M:Meta,
     retractall(add_import(_, _, _, _)),
     replace_goal(Goal, '$BODY'(Body),
-		 ( findall(clause(MMeta, Body1, CM, VNBody),
-			   ( clause(MMeta, _, Ref),
-			     clause_property(Ref, line_count(Line)),
-			     clause_property(Ref, file(File)),
-			     clause_property(Ref, module(CM)),
-			     prolog_clause:read_term_at_line(File, Line, CM, Clause, _, VNBody),
-			     match_clause_head_body(Clause, MMeta, Body1) % Raw Body before expansion
-			   ), [clause(MMeta, Body1, CM, VNBody)]),
-		   unfold_body(Body1, Body, CM, Module),
-		   term_variables(Body, VarL),
-		   term_variables(VN, VarS),
-		   exclude(is_member(VarS), VarL, NewVarL),
-		   maplist(set_new_name(VNBody, VN), NewVarL)
-		 ),
-		 [module(Module), variable_names(VN)|OptionL]),
+                 ( findall(clause(MMeta, Body1, CM, VNBody),
+                           ( clause(MMeta, _, Ref),
+                             clause_property(Ref, line_count(Line)),
+                             clause_property(Ref, file(File)),
+                             clause_property(Ref, module(CM)),
+                             prolog_clause:read_term_at_line(File, Line, CM, Clause, _, VNBody),
+                             match_clause_head_body(Clause, MMeta, Body1) % Raw Body before expansion
+                           ), [clause(MMeta, Body1, CM, VNBody)]),
+                   unfold_body(Body1, Body, CM, Module),
+                   term_variables(Body, VarL),
+                   term_variables(VN, VarS),
+                   exclude(is_member(VarS), VarL, NewVarL),
+                   maplist(set_new_name(VNBody, VN), NewVarL)
+                 ),
+                 [module(Module), variable_names(VN)|OptionL]),
     replace_sentence((:- use_module(Alias, L0)), [(:- use_module(Alias, '$LISTB,NL'(L)))],
-		     ( catch(absolute_file_name(Alias, IFile, [file_type(prolog)]),
-			     _,
-			     fail),
-		       current_module(Import, IFile),
-		       findall(F/A, retract(add_import(Module, Import, F, A)), UL),
-		       UL \= [],
-		       sort(UL, L1),
-		       append(L0, L1, L)
-		     ),
-		     [module(Module)|OptionL]),
+                     ( catch(absolute_file_name(Alias, IFile, [file_type(prolog)]),
+                             _,
+                             fail),
+                       current_module(Import, IFile),
+                       findall(F/A, retract(add_import(Module, Import, F, A)), UL),
+                       UL \= [],
+                       sort(UL, L1),
+                       append(L0, L1, L)
+                     ),
+                     [module(Module)|OptionL]),
     replace_sentence((:- module(Module, L)), [(:- module(Module, L))|UML],
-		     rsum(Module, UML),
-		     [module(Module)|OptionL]).
+                     rsum(Module, UML),
+                     [module(Module)|OptionL]).
 
 :- meta_predicate remove_call(+,0,+).
 remove_call(Call, Expander, Options) :-
     replace(body_rec, Term, _, (do_remove_call(Term, Call), Expander),
-	    Options).
+            Options).
 
 remove_call(Call, Options) :-
     remove_call(Call, true, Options).
@@ -410,9 +410,9 @@ replace_conjunction(Conj, Repl, Expander, Options) :-
     add_body_hook_if_needed(Conj, Repl1, Repl2),
     copy_term(t(Conj2, CLit, CBody, Repl2, RLit, RBody), Term),
     replace(body_rec, Conj2, Repl2,
-	    ( bind_lit_body(Term, Conj2, CLit, CBody, RLit, RBody),
-	      Expander
-	    ), Options).
+            ( bind_lit_body(Term, Conj2, CLit, CBody, RLit, RBody),
+              Expander
+            ), Options).
 
 add_body_hook_if_needed(Conj, Repl1, Repl) :-
     ( var(Conj)

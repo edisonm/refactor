@@ -1,19 +1,19 @@
 :- module(i18n_file_utils,
-	  [current_po_file/3,
-	   edit_po_file/3,
-	   edit_po_file/2,
-	   edit_po_files/2,
-	   edit_po_files/1,
-	   expand_pot_files/0,
-	   expand_pot_file/1,	% ?Module,
-	   clean/3,
-	   sort/3,
-	   expand/3,
-	   compact/2,
-	   read_po_file/2,	% +PoFile, -Entries
-	   save_to_po_file/2,
-	   arrange_po_files/1,
-	   subtract_po_file/2]).
+          [current_po_file/3,
+           edit_po_file/3,
+           edit_po_file/2,
+           edit_po_files/2,
+           edit_po_files/1,
+           expand_pot_files/0,
+           expand_pot_file/1,   % ?Module,
+           clean/3,
+           sort/3,
+           expand/3,
+           compact/2,
+           read_po_file/2,      % +PoFile, -Entries
+           save_to_po_file/2,
+           arrange_po_files/1,
+           subtract_po_file/2]).
 
 :- use_module(library(lists)).
 :- use_module(library(readutil)).
@@ -33,7 +33,7 @@ read_po_file(File, Entries) :-
     ( ( pending_change(_, File, Codes)
       ->true
       ; access_file(File, read) ->
-	read_file_to_codes(File, Codes, [])
+        read_file_to_codes(File, Codes, [])
       )
     ->parse_po_entries(Entries, Codes, [])
     ; Entries = []
@@ -56,9 +56,9 @@ clean(PoFile, ML, Codes) :-
     read_po_file(PoFile, Entries0),
     Entry = entry(_, _, Ref, _, MsgId, _),
     findall(Entry,
-	    ( member(Entry, Entries0),
-	      member(entry(_, _, Ref, _, MsgId, _), TmplEntries)
-	    ), Entries),
+            ( member(Entry, Entries0),
+              member(entry(_, _, Ref, _, MsgId, _), TmplEntries)
+            ), Entries),
     parse_po_entries(Entries, Codes, []).
 
 sort(PoFile, _, Codes) :-
@@ -75,8 +75,8 @@ expand(PoFile, ML, Codes) :-
     i18n_tmpl_entries(ML, TmplEntries),
     Entry = entry(_, _, Ref, _, MsgId, _),
     findall(Entry, ( member(Entry, TmplEntries),
-		     \+ member(entry(_, _, Ref, _, MsgId, _), Entries0)
-		   ), Entries, Entries0),
+                     \+ member(entry(_, _, Ref, _, MsgId, _), Entries0)
+                   ), Entries, Entries0),
     parse_po_entries(Entries, Codes, []).
 
 %% compact(+PoFile,-Codes) is det
@@ -85,18 +85,18 @@ expand(PoFile, ML, Codes) :-
 compact(PoFile, Codes) :-
     read_po_file(PoFile, Entries0),
     findall(Entry,
-	    ( member(Entry, Entries0),
-	      Entry \= entry(_, _, _, _, _, [""])
-	    ), Entries),
+            ( member(Entry, Entries0),
+              Entry \= entry(_, _, _, _, _, [""])
+            ), Entries),
     parse_po_entries(Entries, Codes, []).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 :- meta_predicate edit_po_file(2,+,+).
 edit_po_file(Command, M, Lang) :-
     findall(PoFile-Codes,
-	    ( current_po_file(M, Lang, PoFile),
-	      call(Command, PoFile, [M], Codes)
-	    ), FileCodes),
+            ( current_po_file(M, Lang, PoFile),
+              call(Command, PoFile, [M], Codes)
+            ), FileCodes),
     save_changes(FileCodes).
 
 :- meta_predicate edit_po_file(2,+).
@@ -109,19 +109,19 @@ edit_po_files(Command, Lang) :-
     keysort(Pairs, Sorted),
     group_pairs_by_key(Sorted, Grouped),
     forall(member(PoFile-ML, Grouped),
-	   call(Command, PoFile, ML)).
+           call(Command, PoFile, ML)).
 
 :- meta_predicate edit_po_files(2).
 edit_po_files(Command) :- edit_po_files(Command, '??').
 
 expand_pot_file(M) :-
     findall(PotFile-Codes,
-	    ( current_pot_file(M, PotFile),
-	      i18n_tmpl_entries_module(M, EntriesU),
-	      sort(EntriesU, Entries),
-	      parse_po_entries(Entries, Codes, [])
-	    ),
-	    FileChanges),
+            ( current_pot_file(M, PotFile),
+              i18n_tmpl_entries_module(M, EntriesU),
+              sort(EntriesU, Entries),
+              parse_po_entries(Entries, Codes, [])
+            ),
+            FileChanges),
     save_changes(FileChanges).
 
 expand_pot_files :-
@@ -129,12 +129,12 @@ expand_pot_files :-
     keysort(Pairs, Sorted),
     group_pairs_by_key(Sorted, Grouped),
     findall(PotFile-Codes,
-	    ( member(PotFile-ML, Grouped),
-	      i18n_tmpl_entries(ML, EntriesU),
-	      sort(EntriesU, Entries),
-	      parse_po_entries(Entries, Codes, [])
-	    ),
-	    FileChanges),
+            ( member(PotFile-ML, Grouped),
+              i18n_tmpl_entries(ML, EntriesU),
+              sort(EntriesU, Entries),
+              parse_po_entries(Entries, Codes, [])
+            ),
+            FileChanges),
     save_changes(FileChanges).
 
 read_entries(FL, Lang, TEntriesL) :-
@@ -151,18 +151,18 @@ read_time_entries(PotFile, Lang, Time-Entries) :-
 read_entries([],  FL,  FL, _,    []) :- !.
 read_entries(FD0, FL0, FL, Lang, TEntriesL) :- 
     findall(TEntries,
-	    ( member(PotFile, FD0),
-	      read_time_entries(PotFile, Lang, TEntries)
-	    ),
-	    TEntriesL, TEntriesT),
+            ( member(PotFile, FD0),
+              read_time_entries(PotFile, Lang, TEntries)
+            ),
+            TEntriesL, TEntriesT),
     append(FL0, FD0, FL1),
     findall(PotFile, ( TEntriesT = [], % Temporarily close the list
-		       member(_-Entries, TEntriesL),
-		       member(Entry, Entries),
-		       determine_module(Entry, M),
-		       current_pot_file(M, PotFile),
-		       \+ memberchk(PotFile, FL1)
-	       ), FD1),
+                       member(_-Entries, TEntriesL),
+                       member(Entry, Entries),
+                       determine_module(Entry, M),
+                       current_pot_file(M, PotFile),
+                       \+ memberchk(PotFile, FL1)
+               ), FD1),
     sort(FD1, FD2),
     read_entries(FD2, FL1, FL, Lang, TEntriesT).
 
@@ -177,10 +177,10 @@ merge_entries([],               _, TEntries, TEntries).
 merge_entries([Entry0|Entries], Time0, TEntries0, TEntries) :-
     Entry0 = entry(_, _, Ref, _, MsgId, _),
     ( select(Time1-entry(_, _, Ref, _, MsgId, _), TEntries0, TEntries1)
-    ->				% Two entries with same Key
+    ->                          % Two entries with same Key
       ( Time1 < Time0
       ->TEntries2 = [Time0-Entry0|TEntries1] % Entry1 will be replaced
-      ; TEntries2 = TEntries0		     % Entry1 will be preserved
+      ; TEntries2 = TEntries0                % Entry1 will be preserved
       )
     ; TEntries2 = [Time0-Entry0|TEntries0]
     ),
@@ -195,9 +195,9 @@ arrange_po_files(Lang) :-
     merge_entries_list(TEntriesL, [], TEntries),
     pairs_values(TEntries, Entries),
     maplist(\Entry^(F-Entry)^ ( determine_module(Entry, M),
-				once(current_pot_file(M, F))
-			      ),
-	    Entries, UFEntries),
+                                once(current_pot_file(M, F))
+                              ),
+            Entries, UFEntries),
     keysort(UFEntries, FEntries),
     group_pairs_by_key(FEntries, GFEntries),
     pairs_keys(GFEntries, UF),
@@ -205,10 +205,10 @@ arrange_po_files(Lang) :-
     maplist(\F^(F-[])^true, EFL, EFEntries),
     append(GFEntries, EFEntries, AFEntries),
     maplist([Lang] +\ (F-UE)^(PoFile-Codes)^
-	   ( sort(UE, E),
-	     get_lang_file(F, Lang, PoFile),
-	     parse_po_entries(E, Codes, [])
-	   ), AFEntries, FileChanges),
+           ( sort(UE, E),
+             get_lang_file(F, Lang, PoFile),
+             parse_po_entries(E, Codes, [])
+           ), AFEntries, FileChanges),
     save_changes(FileChanges).
 
 determine_module(entry(_, _, Ref, _, _, _), M) :-
@@ -235,9 +235,9 @@ collect_i18n_term(M, Term) :-
 i18n_tmpl_entries(ML, Entries) :-
     collect_i18n_entries_by_module,
     findall(Entry,
-	    ( member(M, ML),
-	      retract(i18n_po_tmpl(Entry, M))
-	    ), Entries).
+            ( member(M, ML),
+              retract(i18n_po_tmpl(Entry, M))
+            ), Entries).
 
 i18n_tmpl_entries_module(M, Entries) :-
     collect_i18n_entries_by_module,

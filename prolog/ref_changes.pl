@@ -28,14 +28,14 @@
 */
 
 :- module(ref_changes,
-	  [pending_change/1,
-	   pending_change/3,
-	   index_change/1,
-	   save_changes/1,
-	   save_change/2,
-	   undo_changes/1,
-	   reset_changes/0
-	  ]).
+          [pending_change/1,
+           pending_change/3,
+           index_change/1,
+           save_changes/1,
+           save_change/2,
+           undo_changes/1,
+           reset_changes/0
+          ]).
 
 :- dynamic
     pending_change/1,
