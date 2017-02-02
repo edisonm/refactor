@@ -25,9 +25,9 @@ execute_test(Module, Test, Goal, OptionL) :-
 execute_test_(Test, Goal, OptionL) :-
     rreset,
     call_in_module_dir(ex1,
-		       ( call(Goal, OptionL),
-			 with_output_to(string(Result), rshow)
-		       )),
+                       ( call(Goal, OptionL),
+                         with_output_to(string(Result), rshow)
+                       )),
     comment_data(Test, Pattern),
     assertion(Pattern == Result).
 
@@ -83,7 +83,7 @@ diff -ruN ex3.pl -
 
 test(ex3) :-
     execute_test(ex3, replace_sentence((A :- display(B)),
-				       (A :- A, B, display(B)), true)).
+                                       (A :- A, B, display(B)), true)).
 
 :- use_module(ex4).
 
@@ -161,8 +161,8 @@ diff -ruN ex7.pl -
 
 test(ex7_1) :-
     execute_test(ex7, ex7_1,
-		 replace_sentence(aaa([[X,_]],[d], []),
-				  aab([['$VAR'('_')]], e, [X], [[c,d],[b,c,d]])), []).
+                 replace_sentence(aaa([[X,_]],[d], []),
+                                  aab([['$VAR'('_')]], e, [X], [[c,d],[b,c,d]])), []).
 
 % Note the difference with previous test, the layout of [d] is
 % preserved, due to is exactly the same term, although is via the
@@ -181,8 +181,8 @@ diff -ruN ex7.pl -
 
 test(ex7_2) :-
     execute_test(ex7, ex7_2,
-		 replace_sentence(aaa([[X,_]],[d], []),
-				  aaa([['$VAR'('_')]], [X], [[c,d],[b,c,d]]), true), []).
+                 replace_sentence(aaa([[X,_]],[d], []),
+                                  aaa([['$VAR'('_')]], [X], [[c,d],[b,c,d]]), true), []).
 
 :- use_module(ex8).
 
@@ -234,8 +234,8 @@ diff -ruN ex10.pl -
 
 test(ex10_1) :-
     execute_test(ex10, ex10_1,
-		 replace_term(g(_A), g(B,X), ((X=a(B),B='$VAR'('C')))),
-		 [sentence(ex10(_, _))]).
+                 replace_term(g(_A), g(B,X), ((X=a(B),B='$VAR'('C')))),
+                 [sentence(ex10(_, _))]).
 
 /* $ex10_2$
 diff -ruN ex10.pl -
@@ -250,7 +250,7 @@ diff -ruN ex10.pl -
 
 test(ex10_2) :-
     execute_test(ex10, ex10_2,
-		 replace_term(g(A), g(A,X), true), [sentence(ex10(X, _))]).
+                 replace_term(g(A), g(A,X), true), [sentence(ex10(X, _))]).
 
 :- use_module(ex11).
 
@@ -269,8 +269,8 @@ diff -ruN ex11.pl -
 
 test(ex11) :-
     execute_test(ex11, ex11,
-		 replace_term(ex11(A), ex11_one(A), true),
-		 [sentence((ex11([A|_]):-_))]).
+                 replace_term(ex11(A), ex11_one(A), true),
+                 [sentence((ex11([A|_]):-_))]).
 
 :- use_module(ex12).
 
@@ -358,7 +358,7 @@ diff -ruN ex14.pl -
 
 test(ex14_1) :-
     execute_test(ex14, ex14_1,
-		 replace_sentence((Head :- A=B, Body), (Head1$@Head :- Body1$@Body), (unifiable(A,B,L),substitute_values(L,Head-Body,Head1-Body1))), []).
+                 replace_sentence((Head :- A=B, Body), (Head1$@Head :- Body1$@Body), (unifiable(A,B,L),substitute_values(L,Head-Body,Head1-Body1))), []).
 
 /* $ex14_2$
 diff -ruN ex14.pl -
@@ -398,7 +398,7 @@ diff -ruN ex14.pl -
     %% TODO: Fix this test!!!
 testx(ex14_2) :-
     execute_test(ex14, ex14_2,
-		 replace_sentence((Head :- A=B, Body), (Head :- Body), (A=g(B))), []).
+                 replace_sentence((Head :- A=B, Body), (Head :- Body), (A=g(B))), []).
 
 :- use_module(ex15).
 
@@ -510,8 +510,8 @@ diff -ruN ex19.pl -
 
 test(ex19_2) :-
     execute_test(ex19, ex19_2,
-		 replace_sentence(ex19(A, B, C), ex19(AS$@A, C),
-				  substitute_value(B, C, A, AS)), []).
+                 replace_sentence(ex19(A, B, C), ex19(AS$@A, C),
+                                  substitute_value(B, C, A, AS)), []).
 
 :- use_module(conjex).
 
@@ -731,7 +731,7 @@ diff -ruN ex27.pl -
 
 test(ex27) :-
     execute_test(ex27, replace_term((ex27:- (A=V,Body)), (ex27 :- (Body1@@Body)@@(A=V,Body)),
-				    substitute_value(A, V, Body, Body1))).
+                                    substitute_value(A, V, Body, Body1))).
 
 /* $ex27_2$
 diff -ruN ex27.pl -
@@ -815,18 +815,18 @@ diff -ruN exapp.pl -
  
  exapp(A, T, C) :-
 -    append([ /*1*/A,
--	     /*2*/A], /*3*/ T, C).
+-             /*2*/A], /*3*/ T, C).
 +    C=[/*1*/A, /*2*/A|/*3*/ T].
  exapp(A1-A2, T, C) :-
 -    append([ [ _, [ A1 ] ] ], [ [ _, [ A2 ] ], [ _, [ T ] ] ],
--	   C).
+-           C).
 +    C=[[ _, [ A1 ] ],  [ _, [ A2 ] ], [ _, [ T ] ] ].
 */
 
 test(exapp_1) :-
     execute_test(exapp, exapp_1,
-		 replace_term(append(A,B,C), C=L, (is_list(A),append(A,B,L))),
-		 [linear_term(yes)]).
+                 replace_term(append(A,B,C), C=L, (is_list(A),append(A,B,L))),
+                 [linear_term(yes)]).
 
 /* $exapp_2$
 diff -ruN exapp.pl -
@@ -847,24 +847,24 @@ diff -ruN exapp.pl -
  
  exapp(A, T, C) :-
 -    append([ /*1*/A,
--	     /*2*/A], /*3*/ T, C).
+-             /*2*/A], /*3*/ T, C).
 +    C=[ /*1*/A,
-+	     /*2*/A|/*3*/ T].
++             /*2*/A|/*3*/ T].
  exapp(A1-A2, T, C) :-
 -    append([ [ _, [ A1 ] ] ], [ [ _, [ A2 ] ], [ _, [ T ] ] ],
--	   C).
+-           C).
 +    C=[ [ _, [ A1 ] ], [ _, [ A2 ] ], [ _, [ T ] ] ].
 */
 
 test(exapp_2) :-
     execute_test(exapp, exapp_2,
-		 replace_term(append(A,B,C),C=L$@A,(is_list(A),append(A,B,L))),
-		 [linear_term(yes)]).
+                 replace_term(append(A,B,C),C=L$@A,(is_list(A),append(A,B,L))),
+                 [linear_term(yes)]).
 
 test(self_refactor_1) :-
     rreset,
     replace_term(print_expansion(A, B, C, D, E, F),
-		 print_expansion_(A, B, C, D, E, F), [module(ref_replace)]),
+                 print_expansion_(A, B, C, D, E, F), [module(ref_replace)]),
     with_output_to(string(Result), rshow), assertion(Result \== "").
 
 test(self_refactor_2) :-
@@ -952,7 +952,7 @@ diff -ruN exnoload.pl -
 
 test(exnoload) :-
     execute_test_(exnoload, replace_goal(exnoload(A,B), 'exnoload*'(A,B)),
-		 [files(exnoload)]).
+                 [files(exnoload)]).
 
 /* $opex1_1$
 diff -ruN opex1.pl -
@@ -1002,7 +1002,7 @@ diff -ruN opex2.pl -
 */
 test(opex2) :-
     execute_test(opex2, opex2,
-		 replace(goal, myis(A, B), myis2(A, B), true), []).
+                 replace(goal, myis(A, B), myis2(A, B), true), []).
 
 :- use_module(fpex).
 
@@ -1016,16 +1016,16 @@ diff -ruN fpex.pl -
  'fpex'(A, B) :-
 -    once(( A=1,
 +    once(( A=1->
- 	   B=a
--	 ; A=2,
-+	 ; A=2->
- 	   B=b
- 	 ; A=3,
- 	   B=c
+            B=a
+-         ; A=2,
++         ; A=2->
+            B=b
+          ; A=3,
+            B=c
 */
 test(fpex) :-
     execute_test(fpex, fpex,
-		 replace_term(((A,B);C), (A->B;C), true), [fixpoint(true)]).
+                 replace_term(((A,B);C), (A->B;C), true), [fixpoint(true)]).
 
 /* $eqname_1$
 diff -ruN eqname.pl -
@@ -1147,11 +1147,11 @@ diff -ruN ref_body.pl -
 @@ -3,7 +3,9 @@
  rb :-
      call_cleanup(call,
- 		 % 1
--		 cleanup).
-+		 ( cleanup1(a),
-+		   cleanup2(a)
-+		 )).
+                  % 1
+-                 cleanup).
++                 ( cleanup1(a),
++                   cleanup2(a)
++                 )).
  
  call.
  
@@ -1225,12 +1225,12 @@ diff -ruN newvars.pl -
 
 test(newvars) :-
     execute_test_(newvars, replace_sentence((H1 :- B1), (H2 :- B2),
-					    (H1 = p(a(X), B),
-					     H2 = p(X, Y, B),
-					     B1 = (R = g(_, "b")),
-					     B2 = (R = g(f(X), Y, A, A, _D, "b"))
-					    )),
-		  [file(newvars), vars_preffix('A')]).
+                                            (H1 = p(a(X), B),
+                                             H2 = p(X, Y, B),
+                                             B1 = (R = g(_, "b")),
+                                             B2 = (R = g(f(X), Y, A, A, _D, "b"))
+                                            )),
+                  [file(newvars), vars_preffix('A')]).
 
 /* $autovn$
 diff -ruN autovn.pl -
@@ -1248,8 +1248,8 @@ diff -ruN autovn.pl -
 test(autovn) :-
     rreset,
     execute_test_(autovn, replace_sentence(f(A1, _A2, A3, A4, A5, A6, A7),
-					   f(A1, A3, A3, A4, A5, A5, A6, A7)),
-		  [file(autovn)]).
+                                           f(A1, A3, A3, A4, A5, A5, A6, A7)),
+                  [file(autovn)]).
 
 /* $autovn2$
 diff -ruN autovn.pl -
@@ -1266,7 +1266,7 @@ diff -ruN autovn.pl -
 test(autovn2) :-
     rreset,
     execute_test_(autovn2, replace_sentence(p(C,X), p(C,X), (X=f(_A))),
-		  [file(autovn)]).
+                  [file(autovn)]).
 
 /* $autovn3$
 diff -ruN autovn.pl -
@@ -1283,7 +1283,7 @@ diff -ruN autovn.pl -
 test(autovn3) :-
     rreset,
     execute_test_(autovn3, replace_sentence(p(g(A),_B), p(g(A),A)),
-		  [file(autovn)]).
+                  [file(autovn)]).
 
 /* $autovn4$
 diff -ruN autovn.pl -
@@ -1300,7 +1300,7 @@ diff -ruN autovn.pl -
 test(autovn4) :-
     rreset,
     execute_test_(autovn4, replace_sentence(p(g(A),_B), p(g(A),t(A))),
-		  [file(autovn)]).
+                  [file(autovn)]).
 
 /* $list1$
 diff -ruN list1.pl -
@@ -1315,12 +1315,12 @@ diff -ruN list1.pl -
 test(list1) :-
     rreset,
     execute_test_(list1,
-		  replace_sentence((H1 :- B1), (H2 :- B2),
-				   ( B1 = (A=B),
-				     occurrences_of_var(A, (H1 :- B1), 2),
-				     substitute_values([(A=B)=true, A=B],
-						       (H1:-B1),(H2:-B2)))),
-		  [file(list1)]).
+                  replace_sentence((H1 :- B1), (H2 :- B2),
+                                   ( B1 = (A=B),
+                                     occurrences_of_var(A, (H1 :- B1), 2),
+                                     substitute_values([(A=B)=true, A=B],
+                                                       (H1:-B1),(H2:-B2)))),
+                  [file(list1)]).
 
 :- comment_data:disable.
 
