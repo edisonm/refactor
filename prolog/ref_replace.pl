@@ -1952,10 +1952,12 @@ nl_indent(and, Op, LinePos) :-
     line_pos(LinePos).
 
 line_pos(LinePos) :-
-    LinePos >= 8,
+    setting(listing:tab_distance, N),
+    N > 0,
+    LinePos >= N,
     !,
     write('\t'),
-    LinePos1 is LinePos - 8,
+    LinePos1 is LinePos - N,
     line_pos(LinePos1).
 line_pos(LinePos) :-
     LinePos > 0,
