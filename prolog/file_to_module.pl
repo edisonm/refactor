@@ -181,7 +181,7 @@ add_modexp_decl(M, PIFx) :-
                        ->pretty_decl((:- module(M, PIFx)), PDecl)
                        ; append(MEL, '$LIST,NL'(NExL,'$1'+1), NMExL),
                          PDecl = (:- $@(module('$POS'('$1', M),
-                                               '$NLID'(NMExL$@MEL, '$1'))))
+                                               '$NL'(NMExL$@MEL, '$1'))))
                        )
                      ), [file(MFile)]).
 
