@@ -1712,8 +1712,12 @@ print_expansion_arg(M, MInto, OptionL0, Text, FromTo, v(N, RefPos, Into, Pattern
     print_expansion_elem(OptionL, Text, FromTo, RefPos, Into, Pattern-GTerm).
 
 print_expansion_elem(OptionL, Text, From-To, RefPos, Into, Pattern-GTerm) :-
-    print_expansion(Into, Pattern, GTerm, RefPos, OptionL, Text),
-    display_subtext(Text, From, To).
+    ( Into == '$RM',
+      GTerm \== '$RM'
+    ->true
+    ; print_expansion(Into, Pattern, GTerm, RefPos, OptionL, Text),
+      display_subtext(Text, From, To)
+    ).
 
 escape_term($@(_)).
 escape_term(\\(_)).
