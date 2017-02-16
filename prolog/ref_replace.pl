@@ -721,7 +721,7 @@ with_pattern_into_termpos(Goal, Pattern, Into, TermPos) :-
                       [Pattern, Into, TermPos]).
 
 %% refactor_message(+Type, +Message) is det.
-% 
+%
 % Print a message but first showing the location of the source code being
 % refactorized. Intended to be used in the expander of a refactoring call.
 %
@@ -875,25 +875,24 @@ gen_new_variable_names(Sent, Term, Into, VNL) :-
 %       None-recursive version of substitute_term_rec//6.
 
 substitute_term_norec(Sub, M, Term, Priority, Pattern, Into, Expander, TermPos, OutPos, Cmd) :-
-    ( refactor_context(sentence,     Sent),
-      refactor_context(sent_pattern, SentPattern),
-      subsumes_term(SentPattern-Pattern, Sent-Term),
-      copy_term(Sent, Sent2),
-      with_context(Sent, Term, TermPos, Pattern, Into, Pattern1, Into1, VNL, Expander),
-      ( Sent=@=Sent2
-      ->true
-      ; refactor_context(file, File),
-        refactor_context(options, OptionL),
-        option(show_left_bindings(Show), OptionL, false),
-        ( Show = true
-        ->print_message(warning,
-                        refactor_message(file_term_position(File, TermPos),
-                                         format("Bindings occurs: ~w \\=@= ~w.", [Sent2, Sent])))
-        ; true
-        )
-      ),
-      greatest_common_binding(Pattern1, Into1, Pattern2, Into2, [[]], Unifier, [])
+    refactor_context(sentence,     Sent),
+    refactor_context(sent_pattern, SentPattern),
+    subsumes_term(SentPattern-Pattern, Sent-Term),
+    copy_term(Sent, Sent2),
+    with_context(Sent, Term, TermPos, Pattern, Into, Pattern1, Into1, VNL, Expander),
+    ( Sent=@=Sent2
+    ->true
+    ; refactor_context(file, File),
+      refactor_context(options, OptionL),
+      option(show_left_bindings(Show), OptionL, false),
+      ( Show = true
+      ->print_message(warning,
+                      refactor_message(file_term_position(File, TermPos),
+                                       format("Bindings occurs: ~w \\=@= ~w.", [Sent2, Sent])))
+      ; true
+      )
     ),
+    greatest_common_binding(Pattern1, Into1, Pattern2, Into2, [[]], Unifier, []),
     perform_substitution(Sub, Priority, M, Term, VNL, Pattern2, Into2, Unifier, TermPos, OutPos, Cmd).
 
 fix_subtermpos(Pattern, _, _, _) :-
@@ -946,8 +945,11 @@ perform_substitution(Sub, Priority, M, Term, VNL, Pattern0, Into0,
     maplist(eq, V5, V5, UL5),                % variables from Term3 reappear
     maplist(subst_fvar(M, Term1, TermPos, GTerm), UL5),
     special_term(Sub, Pattern, Into1, Into2),
+    maplist(collapse_bindings, BindingL), % This looks like a kludge (test bind1)
     !,
     Cmd =subst(TermPos, Priority, Pattern, GTerm, VNL, Into2).
+
+collapse_bindings(A=B) :- ignore(A=B).
 
 subst_fvar(M, Term, Pos, GTerm, V=T) :-
     ( var(V),
