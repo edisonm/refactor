@@ -32,12 +32,11 @@
 :- reexport(library(ref_shell)).
 :- reexport(library(ref_replay)).
 :- reexport(library(ref_context)).
-:- reexport(library(ref_replace), except([replace/5,
-                                          refactor_message/2])).
+:- reexport(library(ref_replace), except([replace/5])).
 :- use_module(library(ref_replacers), []).
 :- use_module(library(ref_scenarios), []).
 :- use_module(library(ref_expand), [term_expansion/2]).
 
-:- comm_commands(ref_replace).
+:- comm_commands(ref_replace, [replace/5]).
 :- comm_commands(ref_replacers).
 :- comm_commands(ref_scenarios).

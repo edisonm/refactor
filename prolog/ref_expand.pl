@@ -31,8 +31,7 @@
 
 :- use_module(library(lists)).
 
-term_expansion((:- comm_commands(M)), ClauseL) :-
-    module_property(M, exports(PIL)),
+expand_comm_commands(M, PIL, ClauseL) :-
     findall(Clause,
             ( member(F/A, PIL),
               functor(H, F, A),
@@ -42,3 +41,9 @@ term_expansion((:- comm_commands(M)), ClauseL) :-
               ; Clause = (H :- apply_command_q(M:H))
               )
             ), ClauseL).
+
+term_expansion((:- comm_commands(M, PIL)), ClauseL) :-
+    expand_comm_commands(M, PIL, ClauseL).
+term_expansion((:- comm_commands(M)), ClauseL) :-
+    module_property(M, exports(PIL)),
+    expand_comm_commands(M, PIL, ClauseL).
