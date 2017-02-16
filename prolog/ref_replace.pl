@@ -1775,6 +1775,7 @@ normalize_pos(Pos, F-T) :-
 print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT),
                     Into, Pattern, GTerm, OptionL, Text) :-
     compound(Into),
+    Into \= [_|_],
     functor(Into,    FT, A),
     nonvar(Pattern),
     functor(Pattern, FP, A),
