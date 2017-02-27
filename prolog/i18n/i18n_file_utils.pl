@@ -149,7 +149,7 @@ read_time_entries(PotFile, Lang, Time-Entries) :-
     time_file(PoFile, Time).
 
 read_entries([],  FL,  FL, _,    []) :- !.
-read_entries(FD0, FL0, FL, Lang, TEntriesL) :- 
+read_entries(FD0, FL0, FL, Lang, TEntriesL) :-
     findall(TEntries,
             ( member(PotFile, FD0),
               read_time_entries(PotFile, Lang, TEntries)

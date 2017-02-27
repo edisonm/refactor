@@ -96,4 +96,4 @@ replace_entry(M, MsgId0, MsgStr0, MsgId, MsgStr, Entries0, Entries) :-
       Entry =  entry([], [], Ref, [], MsgId, MsgStr),
       append(Entries0, [Entry], Entries)
     ; Entries = Entries0
-    ).  
+    ).

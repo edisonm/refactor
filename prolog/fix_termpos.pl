@@ -313,7 +313,7 @@ seekn_parenthesis_right(N, Text, L, T0, T) :-
 prolog:message(fix_termpos(Loc, Format, ArgL)) -->
     prolog:message_location(Loc),
     [Format-ArgL].
-    
+
 
 fix_boundaries_from_right(Text, Pos, To0, From2, To2, From, To) :-
     arg(2, Pos, To1),

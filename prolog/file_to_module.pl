@@ -714,7 +714,7 @@ collect_import_decls(M, FileL, ExcludeL, MDL, Tail) :-
                      memberchk(UFile, FileL)
                    ),
                 get_use_module_decl('', M, EM, EA, REL, Decl)
-              
+
               )
             ), MDL, Tail).
 

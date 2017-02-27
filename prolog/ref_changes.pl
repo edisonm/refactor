@@ -56,6 +56,6 @@ undo_changes(Index) :-
     retract(pending_change(Index)),
     retractall(pending_change(Index, _, _)).
 
-reset_changes :-    
+reset_changes :-
     retractall(pending_change(_)),
     retractall(pending_change(_, _, _)).
