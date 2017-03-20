@@ -433,15 +433,12 @@ binding_varname(VNL, Var=Term) -->
     ; []
     ).
 
-is_unnamed_singleton(Term, VNL, Var) :-
-    occurrences_of_var(Var, Term, 1),
-    \+ ( member(_=Var1, VNL),
-         Var==Var1
-       ).
-
 collect_singletons(Term, VNL, SVarL) :-
-    term_variables(Term, VarL),
-    include(is_unnamed_singleton(Term, VNL), VarL, SVarL).
+    term_variables(Term, VarU),
+    sort(VarU, VarL),
+    term_variables(VNL, UnnU),
+    sort(UnnU, UnnL),
+    ord_subtract(VarL, UnnL, SVarL).
 
 fetch_and_expand(M, SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
                  Linear, VNL, Bindings, Level, Term, Into, Expander, Command, In) :-
@@ -1142,8 +1139,8 @@ term_priority_gnd(Term, M, N, PrG) :-
     ; PrG=999           % term_priority((_, _), 1, Priority)
     ).
 
-substitute_term_args(PAs, OutPos, M, Term, Ref, Into, Expander, Cmd) :-
-    nth1(N, PAs, PA),
+substitute_term_args(PAL, OutPos, M, Term, Ref, Into, Expander, Cmd) :-
+    nth1(N, PAL, PA),
     arg(N, Term, Arg),
     term_priority(Term, M, N, Priority),
     substitute_term_rec(M, Arg, Priority, Ref, Into, Expander, PA, OutPos, Cmd).
