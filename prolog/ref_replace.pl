@@ -628,42 +628,18 @@ will_occurs(Var, Sent, Pattern, Into, N) :-
 
 gen_new_variable_names([], _, _, _, _, _, _, _, VNL, VNL).
 gen_new_variable_names([Var|VarL], [Name1|NameL], SVarL, Preffix, Count1, Sent, Pattern, Into, VNL1, VNL) :-
-    ( ( will_occurs(Var, Sent, Pattern, Into, VNL1, N),
-        N =:= 1
-      ->( nonvar(Name1)
-        ->( atom_concat('_', _, Name1)
-          ->VNL2=VNL1,
-            Count = Count1
-          ; atom_concat('_', Name1, Name2),
-            ( member(Name2=_, VNL1)
-            ->gen_new_variable_name(VNL1, Name2, 1, Name)
-            ; Name = Name2
-            ),
-            VNL2 = [Name=Var|VNL1],
-            Count = Count1
-          )
-        ; Count = Count1,
-          ( member(Var1, SVarL),
-            Var1 == Var
-          ->VNL2 = VNL1
-          ; VNL2 = ['_'=Var|VNL1] % Required if Var is a new variable in Into
-          )
-        )
-      ; nonvar(Name1)
-      ->( atom_concat('_', Name2, Name1)
-        ->( member(Name2=_, VNL1)
-          ->gen_new_variable_name(VNL1, Name2, 1, Name)
-          ; Name = Name2
-          ),
-          VNL2 = [Name=Var|VNL1],
-          Count = Count1
-        ; VNL2 = VNL1,
-          Count = Count1
-        )
-      ; gen_new_variable_name(VNL1, Preffix, Count1, Name),
-        succ(Count1, Count),
-        VNL2 = [Name=Var|VNL1]
-      )
+    ( nonvar(Name1)
+    ->VNL2 = VNL1,
+      Count = Count1
+    ; member(Var1, SVarL),
+      Var1 == Var,
+      will_occurs(Var, Sent, Pattern, Into, VNL1, N),
+      N =:= 1
+    ->VNL2 = VNL1,
+      Count = Count1
+    ; gen_new_variable_name(VNL1, Preffix, Count1, Name),
+      succ(Count1, Count),
+      VNL2 = [Name=Var|VNL1]
     ),
     gen_new_variable_names(VarL, NameL, SVarL, Preffix, Count, Sent, Pattern, Into, VNL2, VNL).
 

@@ -37,6 +37,7 @@
            rename_variables/2,
            underscore_singletons/1,
            anonymize_singletons/1,
+           anonymize_underscore_multi/1,
            anonymize_all_singletons/1,
            new_name/3,
            fix_multi_singletons/1,
@@ -114,10 +115,25 @@ underscore_singletons(OptionL1) :-
            variable_names(Dict)-Dict],
           OptionL1, OptionL),
     apply_var_renamer([Dict, Sent] +\ Name1^Name
-                     ^( member(Name0=Var, Dict),
-                        \+ atom_concat('_', _, Name0),
+                     ^( member(Name1=Var, Dict),
+                        \+ atom_concat('_', _, Name1),
                         occurrences_of_var(Var, Sent, 1),
                         atom_concat('_', Name1, Name)
+                      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+
+anonymize_underscore_multi(OptionL1) :-
+    foldl(select_option_default,
+          [sentence(Sent)-Sent,
+           variable_names(Dict)-Dict],
+          OptionL1, OptionL),
+    apply_var_renamer([Dict, Sent] +\ Name1^Name
+                     ^( member(Name1=Var, Dict),
+                        atom_concat('_', Name2, Name1),
+                        atom_codes(Name2, [C|_]),
+                        char_type(C, csymf),
+                        occurrences_of_var(Var, Sent, N),
+                        N > 1,
+                        Name = '_'
                       ), [sentence(Sent), variable_names(Dict)|OptionL]).
 
 remove_underscore_multi(OptionL1) :-
@@ -140,11 +156,11 @@ remove_underscore_multi(OptionL1) :-
                         )
                       ), [sentence(Sent), variable_names(Dict)|OptionL]).
 
-anonymize_all_singletons(OptionL0 ) :-
+anonymize_all_singletons(OptionL1) :-
     foldl(select_option_default,
           [sentence(Sent)-Sent,
            variable_names(Dict)-Dict],
-          OptionL0, OptionL),
+          OptionL1, OptionL),
     apply_var_renamer([Dict, Sent] +\ Name0^Name
                      ^( member(Name0=Var, Dict),
                         occurrences_of_var(Var, Sent, 1),
@@ -163,15 +179,14 @@ anonymize_term_singletons(Term, OptionL0 ) :-
                         Name = '_'
                       ), [sentence(Sent), variable_names(Dict)|OptionL]).
 
-
-anonymize_singletons(OptionL0 ) :-
+anonymize_singletons(OptionL1) :-
     foldl(select_option_default,
           [sentence(Sent)-Sent,
            variable_names(Dict)-Dict],
-          OptionL0, OptionL),
-    apply_var_renamer([Dict, Sent] +\ Name0^Name
-                     ^( member(Name0=Var, Dict),
-                        \+ atom_concat('_', _, Name0 ),
+          OptionL1, OptionL),
+    apply_var_renamer([Dict, Sent] +\ Name1^Name
+                     ^( member(Name1=Var, Dict),
+                        \+ atom_concat('_', _, Name1),
                         occurrences_of_var(Var, Sent, 1),
                         Name = '_'
                       ), [sentence(Sent), variable_names(Dict)|OptionL]).

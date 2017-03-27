@@ -1211,7 +1211,6 @@ diff -ruN addlit.pl -
 */
 
 test(addlit) :-
-    rreset,
     execute_test_(addlit, replace_conjunction((p1(A), p2), (test1, p2, p1(A))), [file(addlit)]).
 
 /* $newvars$
@@ -1225,12 +1224,17 @@ diff -ruN newvars.pl -
 */
 
 test(newvars) :-
-    execute_test_(newvars, replace_sentence((H1 :- B1), (H2 :- B2),
-                                            (H1 = p(a(X), B),
-                                             H2 = p(X, Y, B),
-                                             B1 = (R = g(_, "b")),
-                                             B2 = (R = g(f(X), Y, A, A, _D, "b"))
-                                            )),
+    execute_test_(newvars,
+                  \ OptionL
+                 ^( replace_sentence((H1 :- B1), (H2 :- B2),
+                                     (H1 = p(a(X), B),
+                                      H2 = p(X, Y, B),
+                                      B1 = (R = g(_, "b")),
+                                      B2 = (R = g(f(X), Y, A, A, _D, "b"))
+                                     ), OptionL),
+                    remove_underscore_multi(OptionL),
+                    anonymize_all_singletons(OptionL)
+                  ),
                   [file(newvars), vars_preffix('A')]).
 
 /* $autovn$
@@ -1247,9 +1251,14 @@ diff -ruN autovn.pl -
 */
 
 test(autovn) :-
-    rreset,
-    execute_test_(autovn, replace_sentence(f(A1, _A2, A3, A4, A5, A6, A7),
-                                           f(A1, A3, A3, A4, A5, A5, A6, A7)),
+    execute_test_(autovn,
+                  \ OptionL
+                 ^( replace_sentence(f(A1, _A2, A3, A4, A5, A6, A7),
+                                     f(A1, A3, A3, A4, A5, A5, A6, A7),
+                                     OptionL),
+                    remove_underscore_multi(OptionL),
+                    underscore_singletons(OptionL)
+                  ),
                   [file(autovn)]).
 
 /* $autovn2$
@@ -1265,8 +1274,11 @@ diff -ruN autovn.pl -
 */
 
 test(autovn2) :-
-    rreset,
-    execute_test_(autovn2, replace_sentence(p(C,X), p(C,X), (X=f(_A))),
+    execute_test_(autovn2,
+                  \ OptionL
+                 ^( replace_sentence(p(C,X), p(C,X), (X=f(_A)), OptionL),
+                    anonymize_singletons(OptionL)
+                  ),
                   [file(autovn)]).
 
 /* $autovn3$
@@ -1282,7 +1294,6 @@ diff -ruN autovn.pl -
 */
 
 test(autovn3) :-
-    rreset,
     execute_test_(autovn3, replace_sentence(p(g(A),_B), p(g(A),A)),
                   [file(autovn)]).
 
@@ -1299,7 +1310,6 @@ diff -ruN autovn.pl -
 */
 
 test(autovn4) :-
-    rreset,
     execute_test_(autovn4, replace_sentence(p(g(A),_B), p(g(A),t(A))),
                   [file(autovn)]).
 
@@ -1314,7 +1324,6 @@ diff -ruN list1.pl -
 +  true.
 */
 test(list1) :-
-    rreset,
     execute_test_(list1,
                   replace_sentence((H1 :- B1), (H2 :- B2),
                                    ( B1 = (A=B),
@@ -1336,7 +1345,6 @@ diff -ruN bind1.pl -
 +[["1", ""], ""].
 */
 test(bind1) :- % tests the need of collapse the bindings
-    rreset,
     execute_test_(bind1,
                   replace_sentence(f(Text),$@(Text4),
                                    ( substitute(\ X^XS
