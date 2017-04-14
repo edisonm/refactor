@@ -703,7 +703,7 @@ with_pattern_into_termpos(Goal, Pattern, Into, TermPos) :-
 %
 refactor_message(Type, Message) :-
     refactor_location(From),
-    print_message(Type, refactor_message(From, Message)).
+    print_message(Type, at_location(From, Message)).
 
 refactor_location(From) :-
     refactor_context(file, File),
@@ -1141,21 +1141,6 @@ substitute_term_list([EP|EPs], TP, OutPos, M, [Elem|Term], Ref, Into, Expander, 
 substitute_term_list([], TP, OutPos, M, Tail, Ref, Into, Expander, Cmd) :-
     term_priority([_|_], M, 2, Priority),
     substitute_term_rec(M, Tail, Priority, Ref, Into, Expander, TP, OutPos, Cmd).
-
-:- multifile
-    prolog:message//1,
-    prolog:message_location//1.
-
-prolog:message(acheck(refactor(Goal, From))) -->
-    prolog:message_location(From),
-    ['Unable to refactor ~w, no term position information available'-[Goal], nl].
-prolog:message(refactor_message(From, Message)) -->
-    prolog:message_location(From),
-    ['While refactorizing: '],
-    '$messages':translate_message(Message).
-prolog:message(refactor(From)) -->
-    prolog:message_location(From),
-    ['Exception raised while refactorizing', nl].
 
 compound_positions(Line1, Pos1, Pos0, Pos) :-
     Line1 =< 1,
