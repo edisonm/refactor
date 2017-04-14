@@ -260,7 +260,7 @@ do_goal_expansion(Term, TermPos) :-
     arg(2, TermPos, To),
     nonvar(From),
     nonvar(To),
-    b_getval(refactor_file, File),
+    refactor_context(file, File),
     \+ ref_position(File, From, To),
     assertz(ref_position(File, From, To)),
     term_variables(Term, Vars),
@@ -328,6 +328,7 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
     foldl(select_option_default,
           [syntax_errors(SE)-error,
            subterm_positions(TermPos)-TermPos,
+           term_position(Pos)-Pos,
            module(M)-M,
            linear_term(LinearTerm)-no,
            sentence(SentPattern)-SentPattern,
@@ -370,6 +371,7 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
              refactor_comments,
              refactor_bindings,
              refactor_subpos,
+             refactor_pos,
              refactor_file,
              refactor_preffix,
              refactor_goal_args,
@@ -381,6 +383,7 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
              Comments,
              Bindings,
              TermPos,
+             Pos,
              File,
              Preffix,
              ga(Term, Into, Expander),
@@ -699,9 +702,18 @@ with_pattern_into_termpos(Goal, Pattern, Into, TermPos) :-
 % refactorized. Intended to be used in the expander of a refactoring call.
 %
 refactor_message(Type, Message) :-
+    refactor_location(From),
+    print_message(Type, refactor_message(From, Message)).
+
+refactor_location(From) :-
     refactor_context(file, File),
-    nb_getval(refactor_termpos, TermPos),
-    print_message(Type, refactor_message(file_term_position(File, TermPos), Message)).
+    ( refactor_context(termpos, TermPos),
+      TermPos \= none
+    ->From = file_term_position(File, TermPos)
+    ; refactor_context(pos, Pos),
+      stream_position_data(Pos, Line),
+      From = file(File, Line, -1, _)
+    ).
 
 with_context(Sent, Term, TermPos, Pattern0, Into0, Pattern, Into, VNL, Goal) :-
     copy_term(Pattern0-Into0, Pattern-Into1),
