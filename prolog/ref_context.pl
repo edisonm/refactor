@@ -22,5 +22,7 @@ refactor_context(termpos, TermPos) :-
     b_getval(refactor_termpos, TermPos).
 refactor_context(file, File) :-
     b_getval(refactor_file, File).
+refactor_context(pos, File) :-
+    b_getval(refactor_pos, File).
 refactor_context(preffix, Px) :-
     b_getval(refactor_preffix, Px).

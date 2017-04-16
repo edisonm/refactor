@@ -711,7 +711,7 @@ refactor_location(From) :-
       TermPos \= none
     ->From = file_term_position(File, TermPos)
     ; refactor_context(pos, Pos),
-      stream_position_data(Pos, Line),
+      stream_position_data(line_count, Pos, Line),
       From = file(File, Line, -1, _)
     ).
 
