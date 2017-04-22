@@ -9,21 +9,22 @@
 :- use_module(library(clambda)).
 
 :- comment_data:enable.
+:- set_setting(listing:tab_distance, 0). % Use only spaces, no tabs
 
 :- use_module(ex1).
 
 :- meta_predicate
     execute_test(+,1),
-    execute_test_(+,1,+),
+    execute_test(+,1,+),
     execute_test(+,+,1,+).
 
 execute_test(Module, Goal) :-
     execute_test(Module, Module, Goal, []).
 
 execute_test(Module, Test, Goal, OptionL) :-
-    execute_test_(Test, Goal, [module(Module)|OptionL]).
+    execute_test(Test, Goal, [module(Module)|OptionL]).
 
-execute_test_(Test, Goal, OptionL) :-
+execute_test(Test, Goal, OptionL) :-
     rreset,
     call_in_module_dir(ex1,
                        ( call(Goal, OptionL),
@@ -952,7 +953,7 @@ diff -ruN exnoload.pl -
 */
 
 test(exnoload) :-
-    execute_test_(exnoload, replace_goal(exnoload(A,B), 'exnoload*'(A,B)),
+    execute_test(exnoload, replace_goal(exnoload(A,B), 'exnoload*'(A,B)),
                  [files(exnoload)]).
 
 /* $opex1_1$
@@ -969,7 +970,7 @@ diff -ruN opex1.pl -
 */
 
 test(opex1_1) :-
-    execute_test_(opex1_1, replace_goal(myis(A, B), p(A, B)), [files(opex1)]).
+    execute_test(opex1_1, replace_goal(myis(A, B), p(A, B)), [files(opex1)]).
 
 /* $opex1_2$
 diff -ruN opex1.pl -
@@ -985,7 +986,7 @@ diff -ruN opex1.pl -
 */
 
 test(opex1_2) :-
-    execute_test_(opex1_2, replace_goal(myis(A, B), myis2(A, B)), [files(opex1)]).
+    execute_test(opex1_2, replace_goal(myis(A, B), myis2(A, B)), [files(opex1)]).
 
 :- use_module(opex2).
 
@@ -1026,7 +1027,7 @@ diff -ruN fpex.pl -
 */
 test(fpex) :-
     execute_test(fpex, fpex,
-                 replace_term(((A,B);C), (A->B;C), true), [fixpoint(true)]).
+                 replace_term(((A,B);C), (A->B;C), true), []).
 
 /* $eqname_1$
 diff -ruN eqname.pl -
@@ -1041,7 +1042,7 @@ diff -ruN eqname.pl -
 */
 
 test(eqname_1) :-
-    execute_test_(eqname_1, replace_term(A:B,A^B), [files(eqname)]).
+    execute_test(eqname_1, replace_term(A:B,A^B), [files(eqname)]).
 
 /* $eqname_2$
 diff -ruN eqname.pl -
@@ -1056,7 +1057,7 @@ diff -ruN eqname.pl -
 */
 
 test(eqname_2) :-
-    execute_test_(eqname_2, replace_term((A:B),A*->B),[files(eqname)]).
+    execute_test(eqname_2, replace_term((A:B),A*->B),[files(eqname)]).
 
 /* $opfp$
 diff -ruN opfp.pl -
@@ -1071,7 +1072,7 @@ diff -ruN opfp.pl -
 */
 
 test(opfp) :-
-    execute_test_(opfp, replace_term(A+B, A^B),[files(opfp),fixpoint(true)]).
+    execute_test(opfp, replace_term(A+B, A^B),[files(opfp)]).
 
 :- use_module(exsl).
 
@@ -1123,7 +1124,7 @@ diff -ruN exsl.pl -
  % This comment belongs to f(a)
 */
 test(exsl2) :-
-    execute_test_(exsl2, replace_sentence([p(A),p(B)],p(C),flatten([A,B],C)),[file(exsl),fixpoint(true)]).
+    execute_test(exsl2, replace_sentence([p(A),p(B)],p(C),flatten([A,B],C)),[file(exsl), fixpoint(true)]).
 
 :- use_module(exst).
 
@@ -1169,7 +1170,7 @@ diff -ruN ref_body.pl -
 */
 
 test(ref_body) :-
-    execute_test_(ref_body, replace_conjunction(cleanup, (cleanup1(a),cleanup2(a))), [file(ref_body)]).
+    execute_test(ref_body, replace_conjunction(cleanup, (cleanup1(a),cleanup2(a))), [file(ref_body)]).
 
 /* $ref_body2$
 diff -ruN ref_body.pl -
@@ -1185,7 +1186,7 @@ diff -ruN ref_body.pl -
 
 test(ref_body2) :-
     rreset,
-    execute_test_(ref_body2, replace_conjunction((a,b), b), [file(ref_body)]).
+    execute_test(ref_body2, replace_conjunction((a,b), b), [file(ref_body)]).
 
 /* $addlit$
 diff -ruN addlit.pl -
@@ -1211,7 +1212,7 @@ diff -ruN addlit.pl -
 */
 
 test(addlit) :-
-    execute_test_(addlit, replace_conjunction((p1(A), p2), (test1, p2, p1(A))), [file(addlit)]).
+    execute_test(addlit, replace_conjunction((p1(A), p2), (test1, p2, p1(A))), [file(addlit)]).
 
 /* $newvars$
 diff -ruN newvars.pl -
@@ -1224,7 +1225,7 @@ diff -ruN newvars.pl -
 */
 
 test(newvars) :-
-    execute_test_(newvars,
+    execute_test(newvars,
                   \ OptionL
                  ^( replace_sentence((H1 :- B1), (H2 :- B2),
                                      (H1 = p(a(X), B),
@@ -1251,7 +1252,7 @@ diff -ruN autovn.pl -
 */
 
 test(autovn) :-
-    execute_test_(autovn,
+    execute_test(autovn,
                   \ OptionL
                  ^( replace_sentence(f(A1, _A2, A3, A4, A5, A6, A7),
                                      f(A1, A3, A3, A4, A5, A5, A6, A7),
@@ -1274,7 +1275,7 @@ diff -ruN autovn.pl -
 */
 
 test(autovn2) :-
-    execute_test_(autovn2,
+    execute_test(autovn2,
                   \ OptionL
                  ^( replace_sentence(p(C,X), p(C,X), (X=f(_A)), OptionL),
                     anonymize_singletons(OptionL)
@@ -1294,7 +1295,7 @@ diff -ruN autovn.pl -
 */
 
 test(autovn3) :-
-    execute_test_(autovn3, replace_sentence(p(g(A),_B), p(g(A),A)),
+    execute_test(autovn3, replace_sentence(p(g(A),_B), p(g(A),A)),
                   [file(autovn)]).
 
 /* $autovn4$
@@ -1310,7 +1311,7 @@ diff -ruN autovn.pl -
 */
 
 test(autovn4) :-
-    execute_test_(autovn4, replace_sentence(p(g(A),_B), p(g(A),t(A))),
+    execute_test(autovn4, replace_sentence(p(g(A),_B), p(g(A),t(A))),
                   [file(autovn)]).
 
 /* $list1$
@@ -1324,7 +1325,7 @@ diff -ruN list1.pl -
 +  true.
 */
 test(list1) :-
-    execute_test_(list1,
+    execute_test(list1,
                   replace_sentence((H1 :- B1), (H2 :- B2),
                                    ( B1 = (A=B),
                                      occurrences_of_var(A, (H1 :- B1), 2),
@@ -1345,17 +1346,93 @@ diff -ruN bind1.pl -
 +[["1", ""], ""].
 */
 test(bind1) :- % tests the need of collapse the bindings
-    execute_test_(bind1,
-                  replace_sentence(f(Text),$@(Text4),
-                                   ( substitute(\ X^XS
-                                               ^( atomic(X),
-                                                  X \= []
-                                                ->atom_string(X, XS)
-                                                ), Text, Text3),
-                                     copy_term(Text3, Text4),
-                                     Text4=Text3
-                                   )),
-                  [file(bind1)]).
+    execute_test(bind1,
+                 replace_sentence(f(Text),$@(Text4),
+                                  ( substitute(\ X^XS
+                                              ^( atomic(X),
+                                                 X \= []
+                                               ->atom_string(X, XS)
+                                               ), Text, Text3),
+                                    copy_term(Text3, Text4),
+                                    Text4=Text3
+                                  )),
+                 [file(bind1)]).
+
+/* $decr$
+diff -ruN decr.pl -
+--- decr.pl (source)
++++ decr.pl (target)
+@@ -1,2 +1,2 @@
+ 
+-p([p(a),f(p(b))]) :- p(X),X=1.
++q([q(a),f(q(b))]) :- p(X),X=1.
+*/
+
+test(decr) :-
+    execute_test(decr, replace(head_rec, p(A), q(A)), [file(decr)]).
+
+/* $unfold1$
+diff -ruN unfold.pl -
+--- unfold.pl (source)
++++ unfold.pl (target)
+@@ -1,4 +1,8 @@
+ 
+ f(A, B) :-
+-    append([1,2,3,4], A, X),
++    X=[1|V1],
++    V1=[2|V2],
++    V2=[3|V3],
++    V3=[4|V1],
++    append([], A, V1),
+     X = B.
+*/
+
+test(unfold1) :-
+    execute_test(unfold1, replace_conjunction(append([E|X], Y, Z), (Z=[E|T], append(X, Y, T))), [file(unfold)]).
+
+/* $unfold2$
+diff -ruN unfold.pl -
+--- unfold.pl (source)
++++ unfold.pl (target)
+@@ -1,4 +1,8 @@
+ 
+ f(A, B) :-
+-    append([1,2,3,4], A, X),
++    append([], A, V4),
++    V3=[4|V4],
++    V2=[3|V3],
++    V1=[2|V2],
++    X=[1|V1],
+     X = B.
+*/
+
+test(unfold2) :-
+    % In this case the structure is crecient, but to work around that the
+    % decrease_metric was redefined in replace_conjunction
+    execute_test(unfold2, replace_conjunction(append([E|X], Y, Z), (append(X, Y, T), Z=[E|T])), [file(unfold)]).
+
+/* $unfold3$
+diff -ruN unfold.pl -
+--- unfold.pl (source)
++++ unfold.pl (target)
+@@ -1,4 +1,8 @@
+ 
+ f(A, B) :-
+-    append([1,2,3,4], A, X),
++    append([], A, V4),
++    V3=[4|V4],
++    V2=[3|V3],
++    V1=[2|V2],
++    X=[1|V1],
+     X = B.
+*/
+
+
+test(unfold3) :-
+    % In this case the structure is crecient, although the fixpoint terminates,
+    % so we force its execution:
+    rreset,
+    execute_test(unfold3, replace_conjunction(append([E|X], Y, Z), (append(X, Y, T), Z=[E|T])), [fixpoint(true), file(unfold)]).
 
 :- comment_data:disable.
 

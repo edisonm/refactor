@@ -33,12 +33,7 @@
 */
 
 :- module(ref_scenarios,
-          [replace_term/3,
-           replace_head/3,
-           replace_body/3,
-           replace_goal/3,
-           replace_sentence/3,
-           rename_variable/3,
+          [rename_variable/3,
            rename_variables/2,
            underscore_singletons/1,
            anonymize_singletons/1,
@@ -70,31 +65,42 @@
 :- use_module(library(prolog_clause), []).
 
 :- meta_predicate
-        unfold_goal(0,+).
+    apply_var_renamer(2, :),
+    rename_variable(?,+,:),
+    remove_useless_exports(:),
+    unfold_goal(0,+),
+    underscore_singletons(:),
+    anonymize_underscore_multi(:),
+    remove_underscore_multi(:),
+    anonymize_all_singletons(:),
+    anonymize_singletons(:),
+    fix_multi_singletons(:),
+    rename_variables(:),
+    rename_functor(+,+,:),
+    replace_term_id(+,+,:).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Most used refactoring scenarios:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-remove_useless_exports(Options0) :-
+remove_useless_exports(MO:Options0) :-
     select_option(module(M), Options0, Options, M),
     replace_sentence((:-module(M,L)), (:- module(M,N)),
                     ( include(being_used(M), L, N),
                       L \= N
-                    ), [module(M)|Options]),
+                    ), MO:[module(M)|Options]),
     replace_sentence((:-export(K)), Exp,
                     ( once(list_sequence(L, K)),
                       include(being_used(M), L, N),
                       ( N = []                   -> Exp = []
                       ; L \= N, list_sequence(N,S), Exp = (:- export(S))
                       )
-                    ), [module(M)|Options]).
+                    ), MO:[module(M)|Options]).
 
 being_used(M, F/A) :-
     functor(H, F, A),
     predicate_property(C:H, imported_from(M)), C \== user.
 
-:- meta_predicate apply_var_renamer(2, +).
-apply_var_renamer(Renamer, OptionL0 ) :-
+apply_var_renamer(Renamer, MO:OptionL0) :-
     foldl(select_option_default,
           [variable_names(Dict)-Dict],
           OptionL0, OptionL),
@@ -105,16 +111,16 @@ apply_var_renamer(Renamer, OptionL0 ) :-
                  ->call(Renamer, Name1, Name),
                    \+ memberchk(Name=_, Dict)
                  ),
-                 [variable_names(Dict)|OptionL]).
+                 MO:[variable_names(Dict)|OptionL]).
 
-%% rename_variable(?Name0:atom, +Name:atom, +Options) is det.
+%% rename_variable(?Name0:atom, +Name:atom, :Options) is det.
 %
 % Rename a variable in a Term, provided that the name is new in such term.
 
 rename_variable(Name0, Name, Options) :-
     apply_var_renamer([Name0, Name] +\ Name0^Name^true, Options).
 
-underscore_singletons(OptionL1) :-
+underscore_singletons(MO:OptionL1) :-
     foldl(select_option_default,
           [sentence(Sent)-Sent,
            variable_names(Dict)-Dict],
@@ -124,9 +130,9 @@ underscore_singletons(OptionL1) :-
                         \+ atom_concat('_', _, Name1),
                         occurrences_of_var(Var, Sent, 1),
                         atom_concat('_', Name1, Name)
-                      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+                      ), MO:[sentence(Sent), variable_names(Dict)|OptionL]).
 
-anonymize_underscore_multi(OptionL1) :-
+anonymize_underscore_multi(MO:OptionL1) :-
     foldl(select_option_default,
           [sentence(Sent)-Sent,
            variable_names(Dict)-Dict],
@@ -139,9 +145,9 @@ anonymize_underscore_multi(OptionL1) :-
                         occurrences_of_var(Var, Sent, N),
                         N > 1,
                         Name = '_'
-                      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+                      ), MO:[sentence(Sent), variable_names(Dict)|OptionL]).
 
-remove_underscore_multi(OptionL1) :-
+remove_underscore_multi(MO:OptionL1) :-
     foldl(select_option_default,
           [sentence(Sent)-Sent,
            variable_names(Dict)-Dict],
@@ -159,9 +165,9 @@ remove_underscore_multi(OptionL1) :-
                           fail
                         ; true
                         )
-                      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+                      ), MO:[sentence(Sent), variable_names(Dict)|OptionL]).
 
-anonymize_all_singletons(OptionL1) :-
+anonymize_all_singletons(MO:OptionL1) :-
     foldl(select_option_default,
           [sentence(Sent)-Sent,
            variable_names(Dict)-Dict],
@@ -170,21 +176,21 @@ anonymize_all_singletons(OptionL1) :-
                      ^( member(Name0=Var, Dict),
                         occurrences_of_var(Var, Sent, 1),
                         Name = '_'
-                      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+                      ), MO:[sentence(Sent), variable_names(Dict)|OptionL]).
 
-anonymize_term_singletons(Term, OptionL0 ) :-
+anonymize_term_singletons(Term, MO:OptionL1) :-
     foldl(select_option_default,
           [sentence(Sent)-Sent,
            variable_names(Dict)-Dict],
-          OptionL0, OptionL),
+          OptionL1, OptionL),
     apply_var_renamer([Term, Dict, Sent] +\ Name0^Name
                      ^( member(Name0=Var, Dict),
                         occurrences_of_var(Var, Sent, 1),
                         \+ occurrences_of_var(Var, Term, 0 ),
                         Name = '_'
-                      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+                      ), MO:[sentence(Sent), variable_names(Dict)|OptionL]).
 
-anonymize_singletons(OptionL1) :-
+anonymize_singletons(MO:OptionL1) :-
     foldl(select_option_default,
           [sentence(Sent)-Sent,
            variable_names(Dict)-Dict],
@@ -194,7 +200,7 @@ anonymize_singletons(OptionL1) :-
                         \+ atom_concat('_', _, Name1),
                         occurrences_of_var(Var, Sent, 1),
                         Name = '_'
-                      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+                      ), MO:[sentence(Sent), variable_names(Dict)|OptionL]).
 
 :- meta_predicate new_name(1, +, -).
 new_name(AlreadyUsedName, Name, Name) :-
@@ -209,37 +215,37 @@ new_name_rec(AlreadyUsedName, Idx0, Name0, Name) :-
     succ(Idx0, Idx),
     new_name_rec(AlreadyUsedName, Idx, Name0, Name).
 
-fix_multi_singletons(OptionL0 ) :-
+fix_multi_singletons(MO:OptionL1) :-
     foldl(select_option_default,
           [sentence(Sent)-Sent,
            variable_names(Dict)-Dict],
-          OptionL0, OptionL),
+          OptionL1, OptionL),
     apply_var_renamer([Dict, Sent] +\ Name0^Name
                      ^( member(Name0=Var, Dict),
                         atom_concat('_', Name1, Name0 ),
                         occurrences_of_var(Var, Sent, N),
                         N > 1,
                         new_name([Dict]+\ X^member(X=_, Dict), Name1, Name)
-                      ), [sentence(Sent), variable_names(Dict)|OptionL]).
+                      ), MO:[sentence(Sent), variable_names(Dict)|OptionL]).
 
-rename_variables(RenameL, Options) :-
+rename_variables(RenameL, OptionL) :-
     apply_var_renamer([RenameL] +\ Name0^Name^member(Name0=Name, RenameL),
-                      Options).
+                      OptionL).
 
-rename_functor(Functor/Arity, NewName, Options) :-
+rename_functor(Functor/Arity, NewName, OptionL) :-
     functor(Term, Functor, Arity),
     Term =.. [_|Args],
-    Expansion =.. [NewName|Args],
-    replace_term_id(Term, Expansion, Options).
+    Into =.. [NewName|Args],
+    replace_term_id(Term, Into, OptionL).
 
-replace_term_id(Term, Expansion, Options) :-
-    replace_term(Term, Expansion, Options),
+replace_term_id(Term, Into, OptionL) :-
+    replace_term(Term, Into, OptionL),
     functor(Term, F0, A0),
-    functor(Expansion, F, A),
-    replace_term(F0/A0, F/A, Options).
+    functor(Into, F, A),
+    replace_term(F0/A0, F/A, OptionL).
 
 % BUG: This have to be applied only once --EMM
-:- meta_predicate rename_predicate(+,+,+).
+:- meta_predicate rename_predicate(+,+,:).
 rename_predicate(M:Name0/Arity, Name, OptionL0) :-
     functor(H0, Name0, Arity),
     H0 =.. [Name0|Args],
@@ -267,22 +273,6 @@ rename_predicate(M:Name0/Arity, Name, OptionL0) :-
       replace_term(Name0/Arity, Name/Arity, OptionL)
     ; true
     ).
-
-replace_term(Term, Into, Options) :-
-    replace_term(Term, Into, true, Options).
-
-replace_head(Term, Into, Options) :-
-    replace_head(Term, Into, true, Options).
-
-replace_body(Term, Into, Options) :-
-    replace_body(Term, Into, true, Options).
-
-replace_sentence(Sentence, Into, Options) :-
-    replace_sentence(Sentence, Into, true, Options).
-
-:- meta_predicate replace_goal(?,?,+).
-replace_goal(Term, Into, Options) :-
-    replace_goal(Term, Into, true, Options).
 
 :- dynamic add_import/4.
 
@@ -362,9 +352,9 @@ match_clause_head_body((M:Head :- Body), M:Head, Body) :- !.
 match_clause_head_body(Head, Head, true).
 
 % NOTE: Only works if exactly one clause match
-unfold_goal(MGoal, OptionL0) :-
+unfold_goal(MGoal, MO:OptionL1) :-
     MGoal = M:Goal,
-    select_option(module(Module), OptionL0, OptionL, Module),
+    select_option(module(Module), OptionL1, OptionL, Module),
     qualify_meta_goal(Goal, M, Module, Meta),
     MMeta = M:Meta,
     retractall(add_import(_, _, _, _)),
@@ -383,7 +373,7 @@ unfold_goal(MGoal, OptionL0) :-
                    exclude(is_member(VarS), VarL, NewVarL),
                    maplist(set_new_name(VNBody, VN), NewVarL)
                  ),
-                 [module(Module), variable_names(VN)|OptionL]),
+                 MO:[module(Module), variable_names(VN)|OptionL]),
     replace_sentence((:- use_module(Alias, L0)), [(:- use_module(Alias, '$LISTB,NL'(L)))],
                      ( catch(absolute_file_name(Alias, IFile, [file_type(prolog)]),
                              _,
@@ -394,18 +384,19 @@ unfold_goal(MGoal, OptionL0) :-
                        sort(UL, L1),
                        append(L0, L1, L)
                      ),
-                     [module(Module)|OptionL]),
+                     MO:[module(Module)|OptionL]),
     replace_sentence((:- module(Module, L)), [(:- module(Module, L))|UML],
                      rsum(Module, UML),
-                     [module(Module)|OptionL]).
+                     MO:[module(Module)|OptionL]).
 
-:- meta_predicate remove_call(+,0,+).
-remove_call(Call, Expander, Options) :-
+:- meta_predicate remove_call(+,0,:).
+remove_call(Call, Expander, OptionL) :-
     replace(body_rec, Term, _, (do_remove_call(Term, Call), Expander),
-            Options).
+            OptionL).
 
-remove_call(Call, Options) :-
-    remove_call(Call, true, Options).
+:- meta_predicate remove_call(+,:).
+remove_call(Call, OptionL) :-
+    remove_call(Call, true, OptionL).
 
 do_remove_call(Term, Call) :-
     ( subsumes_term((_ :- Call), Term)
@@ -423,16 +414,23 @@ do_remove_call(Term, Call) :-
     ),
     refactor_context(into, X).
 
-:- meta_predicate replace_conjunction(?, ?, 0, +).
-replace_conjunction(Conj, Repl, Expander, Options) :-
+:- meta_predicate replace_conjunction(?, ?, 0, :).
+replace_conjunction(Conj, Repl, Expander, MO:OptionL1) :-
     replace_last_literal_(Conj, Conj2, CLit, CBody),
     replace_last_literal(Repl, Repl1, RLit, RBody),
     add_body_hook_if_needed(Conj, Repl1, Repl2),
     copy_term(t(Conj2, CLit, CBody, Repl2, RLit, RBody), Term),
+    copy_term(Conj, ConjP),
+    foldl(select_option_default,
+          [decrease_metric(Metric)-(ref_scenarios:conj_pattern_size(ConjP))],
+          OptionL1, OptionL),
     replace(body_rec, Conj2, Repl2,
             ( bind_lit_body(Term, Conj2, CLit, CBody, RLit, RBody),
               Expander
-            ), Options).
+            ), MO:[decrease_metric(Metric)|OptionL]).
+
+conj_pattern_size(Conj, Term, _, Size) :-
+    ref_replace:pattern_size(Term, Conj, Size).
 
 add_body_hook_if_needed(Conj, Repl1, Repl) :-
     ( var(Conj)
@@ -454,8 +452,9 @@ add_body_hook_if_needed((_, Conj), Repl1, Repl) :-
       add_body_hook_if_needed(Conj, Repl2, Repl3)
     ).
 
-replace_conjunction(Conj, Replacement, Options) :-
-    replace_conjunction(Conj, Replacement, true, Options).
+:- meta_predicate replace_conjunction(?, ?, :).
+replace_conjunction(Conj, Replacement, OptionL) :-
+    replace_conjunction(Conj, Replacement, true, OptionL).
 
 replace_last_literal(Conj, Body, Conj, Body) :- var(Conj), !.
 replace_last_literal((A, Conj), (A, Conj2), Lit, Body) :- !,

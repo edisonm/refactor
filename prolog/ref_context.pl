@@ -26,3 +26,5 @@ refactor_context(pos, File) :-
     b_getval(refactor_pos, File).
 refactor_context(preffix, Px) :-
     b_getval(refactor_preffix, Px).
+refactor_context(text, Text) :-
+    b_getval(refactor_text, Text).

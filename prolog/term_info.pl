@@ -34,7 +34,7 @@
 
 :- module(term_info,
           [ get_term_info/6,
-            with_source_file/2,
+            with_source_file/3,
             fetch_term_info/4
           ]).
 
@@ -44,7 +44,7 @@
 :- use_module(library(module_files)).
 
 :- meta_predicate
-    with_source_file(+, 1),
+    with_source_file(+, -, 0),
     get_term_info(+, ?, ?, 1, -, +),
     transverse_apply_2(1, +, ?, ?, ?).
 
@@ -63,16 +63,17 @@ ti_open_source(Path, In) :-
     prolog_open_source(Path, In),
     b_setval(ti_open_source, no).
 
-with_source_file(File, Goal) :-
+with_source_file(File, In, Goal) :-
     prolog_canonical_source(File, Path),
     print_message(informational, format("Reading ~w", Path)),
     catch(setup_call_cleanup(ti_open_source(Path, In),
-                             call(Goal, In),
+                             call(Goal),
                              prolog_close_source(In)),
-          E0, ( fix_exception(E0, Path, E),
-                print_message(error, E),
-                fail
-              )).
+          E0,
+          ( fix_exception(E0, Path, E),
+            print_message(error, E),
+            fail
+          )).
 
 fetch_term_info(Pattern, Term, Options, In) :-
     ( ( option(line(Line), Options),
@@ -82,11 +83,11 @@ fetch_term_info(Pattern, Term, Options, In) :-
         once(get_term_info_fd(In, Pattern, Term, Options))
       ; get_term_info_fd(In, Pattern, Term, Options)
       )
-    ; fail                      % dont close In up to the next iteration
+    ; fail                      % don't close In up to the next iteration
     ).
 
 get_term_info_file(Pattern, Term, File, Options) :-
-    with_source_file(File, fetch_term_info(Pattern, Term, Options)).
+    with_source_file(File, In, fetch_term_info(Pattern, Term, Options, In)).
 
 get_term_info_fd(In, PatternL, TermL, OptionL0 ) :-
     is_list(PatternL), !,
@@ -121,8 +122,8 @@ get_term_info_fd(In, Pattern, Term, Options0 ) :-
       '$set_source_module'(M, M),
       read_term(In, Term, [module(M)|Options]),
       set_line(SetLine),
-      ( Term == end_of_file ->
-        !,
+      ( Term == end_of_file
+      ->!,
         fail
       ; ( member(ModDecl, [(:- module(CM, _)), (:- module(CM, _, _))]),
           subsumes_term(ModDecl, Term),
