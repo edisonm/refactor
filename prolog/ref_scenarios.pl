@@ -73,9 +73,10 @@
     anonymize_underscore_multi(:),
     remove_underscore_multi(:),
     anonymize_all_singletons(:),
+    anonymize_term_singletons(+,:),
     anonymize_singletons(:),
     fix_multi_singletons(:),
-    rename_variables(:),
+    rename_variables(+,:),
     rename_functor(+,+,:),
     replace_term_id(+,+,:).
 
@@ -113,12 +114,12 @@ apply_var_renamer(Renamer, MO:OptionL0) :-
                  ),
                  MO:[variable_names(Dict)|OptionL]).
 
-%% rename_variable(?Name0:atom, +Name:atom, :Options) is det.
+%% rename_variable(?Name1:atom, +Name:atom, :Options) is det.
 %
 % Rename a variable in a Term, provided that the name is new in such term.
 
-rename_variable(Name0, Name, Options) :-
-    apply_var_renamer([Name0, Name] +\ Name0^Name^true, Options).
+rename_variable(Name1, Name, Options) :-
+    apply_var_renamer([Name1, Name] +\ Name1^Name^true, Options).
 
 underscore_singletons(MO:OptionL1) :-
     foldl(select_option_default,
@@ -172,8 +173,8 @@ anonymize_all_singletons(MO:OptionL1) :-
           [sentence(Sent)-Sent,
            variable_names(Dict)-Dict],
           OptionL1, OptionL),
-    apply_var_renamer([Dict, Sent] +\ Name0^Name
-                     ^( member(Name0=Var, Dict),
+    apply_var_renamer([Dict, Sent] +\ Name1^Name
+                     ^( member(Name1=Var, Dict),
                         occurrences_of_var(Var, Sent, 1),
                         Name = '_'
                       ), MO:[sentence(Sent), variable_names(Dict)|OptionL]).
@@ -183,8 +184,8 @@ anonymize_term_singletons(Term, MO:OptionL1) :-
           [sentence(Sent)-Sent,
            variable_names(Dict)-Dict],
           OptionL1, OptionL),
-    apply_var_renamer([Term, Dict, Sent] +\ Name0^Name
-                     ^( member(Name0=Var, Dict),
+    apply_var_renamer([Term, Dict, Sent] +\ Name1^Name
+                     ^( member(Name1=Var, Dict),
                         occurrences_of_var(Var, Sent, 1),
                         \+ occurrences_of_var(Var, Term, 0 ),
                         Name = '_'
@@ -205,31 +206,31 @@ anonymize_singletons(MO:OptionL1) :-
 :- meta_predicate new_name(1, +, -).
 new_name(AlreadyUsedName, Name, Name) :-
     \+ call(AlreadyUsedName, Name), !.
-new_name(AlreadyUsedName, Name0, Name) :-
-    new_name_rec(AlreadyUsedName, 2, Name0, Name).
+new_name(AlreadyUsedName, Name1, Name) :-
+    new_name_rec(AlreadyUsedName, 2, Name1, Name).
 
-new_name_rec(AlreadyUsedName, Idx, Name0, Name) :-
-    atomic_concat(Name0, Idx, Name),
+new_name_rec(AlreadyUsedName, Idx, Name1, Name) :-
+    atomic_concat(Name1, Idx, Name),
     \+ call(AlreadyUsedName, Name), !.
-new_name_rec(AlreadyUsedName, Idx0, Name0, Name) :-
+new_name_rec(AlreadyUsedName, Idx0, Name1, Name) :-
     succ(Idx0, Idx),
-    new_name_rec(AlreadyUsedName, Idx, Name0, Name).
+    new_name_rec(AlreadyUsedName, Idx, Name1, Name).
 
 fix_multi_singletons(MO:OptionL1) :-
     foldl(select_option_default,
           [sentence(Sent)-Sent,
            variable_names(Dict)-Dict],
           OptionL1, OptionL),
-    apply_var_renamer([Dict, Sent] +\ Name0^Name
-                     ^( member(Name0=Var, Dict),
-                        atom_concat('_', Name1, Name0 ),
+    apply_var_renamer([Dict, Sent] +\ Name1^Name
+                     ^( member(Name1=Var, Dict),
+                        atom_concat('_', Name2, Name1 ),
                         occurrences_of_var(Var, Sent, N),
                         N > 1,
-                        new_name([Dict]+\ X^member(X=_, Dict), Name1, Name)
+                        new_name([Dict]+\ X^member(X=_, Dict), Name2, Name)
                       ), MO:[sentence(Sent), variable_names(Dict)|OptionL]).
 
 rename_variables(RenameL, OptionL) :-
-    apply_var_renamer([RenameL] +\ Name0^Name^member(Name0=Name, RenameL),
+    apply_var_renamer([RenameL] +\ Name1^Name^member(Name1=Name, RenameL),
                       OptionL).
 
 rename_functor(Functor/Arity, NewName, OptionL) :-
@@ -246,9 +247,9 @@ replace_term_id(Term, Into, OptionL) :-
 
 % BUG: This have to be applied only once --EMM
 :- meta_predicate rename_predicate(+,+,:).
-rename_predicate(M:Name0/Arity, Name, OptionL0) :-
-    functor(H0, Name0, Arity),
-    H0 =.. [Name0|Args],
+rename_predicate(M:Name1/Arity, Name, OptionL0) :-
+    functor(H0, Name1, Arity),
+    H0 =.. [Name1|Args],
     H  =.. [Name|Args],
     select_option(module(CM), OptionL0, OptionL1, CM),
     OptionL = [module(CM)|OptionL1],
@@ -260,8 +261,8 @@ rename_predicate(M:Name0/Arity, Name, OptionL0) :-
     % Replace heads:
     replace_head(H0, H, true, OptionL),
     replace_head((M:H0), (M:H), true, OptionL),
-    replace_term(M:Name0/Arity, M:Name/Arity, OptionL),
-    replace_term(Name0/Arity, Name/Arity,
+    replace_term(M:Name1/Arity, M:Name/Arity, OptionL),
+    replace_term(Name1/Arity, Name/Arity,
                  ( catch(absolute_file_name(Alias, File, [file_type(prolog)]),
                          _, fail),
                    current_module(M, File)
@@ -270,7 +271,7 @@ rename_predicate(M:Name0/Arity, Name, OptionL0) :-
     ( CM = M
     ->           % Replace PIs, but only inside the module, although this part
                  % is `complete but not correct'
-      replace_term(Name0/Arity, Name/Arity, OptionL)
+      replace_term(Name1/Arity, Name/Arity, OptionL)
     ; true
     ).
 
@@ -429,6 +430,7 @@ replace_conjunction(Conj, Repl, Expander, MO:OptionL1) :-
               Expander
             ), MO:[decrease_metric(Metric)|OptionL]).
 
+:- public conj_pattern_size/4.
 conj_pattern_size(Conj, Term, _, Size) :-
     ref_replace:pattern_size(Term, Conj, Size).
 

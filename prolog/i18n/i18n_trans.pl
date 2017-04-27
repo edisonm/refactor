@@ -6,7 +6,7 @@
                        i18n_refactor/4]).
 
 :- use_module(library(ref_changes)).
-:- use_module(library(ref_scenarios)).
+:- use_module(library(ref_replacers)).
 :- use_module(library(i18n/i18n_file_utils)).
 :- use_module(library(i18n/i18n_parser)).
 :- use_module(library(i18n/i18n_support)).
