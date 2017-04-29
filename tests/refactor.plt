@@ -1434,6 +1434,56 @@ test(unfold3) :-
     rreset,
     execute_test(unfold3, replace_conjunction(append([E|X], Y, Z), (append(X, Y, T), Z=[E|T])), [fixpoint(true), file(unfold)]).
 
+/* $empty1$
+diff -ruN empty.pl -
+--- empty.pl (source)
++++ empty.pl (target)
+@@ -0,0 +1 @@
++a.
+*/
+
+test(empty1) :-
+    execute_test(empty1, replace_sentence([], [a], true), [file(empty)]).
+
+/* $empty2$
+diff -ruN empty.pl -
+--- empty.pl (source)
++++ empty.pl (target)
+@@ -0,0 +1 @@
++a.
+*/
+
+test(empty2) :-
+    execute_test(empty1, replace_sentence(end_of_file, [a], true), [file(empty)]).
+
+/* $addini$
+diff -ruN ex1.pl -
+--- ex1.pl (source)
++++ ex1.pl (target)
+@@ -1,3 +1,4 @@
++a.
+ :- module(ex1, [g/0]).
+ 
+ g :- same_term(c,a),d,(b   )   .
+*/
+
+test(addini) :-
+    execute_test(addini, replace_sentence([], [a], true), [file(ex1)]).
+
+/* $addend$
+diff -ruN ex1.pl -
+--- ex1.pl (source)
++++ ex1.pl (target)
+@@ -5,3 +5,4 @@
+ b.
+ 
+ d.
++a.
+*/
+
+test(addend) :-
+    execute_test(addend, replace_sentence(end_of_file, [a], true), [file(ex1)]).
+
 :- comment_data:disable.
 
 :- end_tests(refactor).

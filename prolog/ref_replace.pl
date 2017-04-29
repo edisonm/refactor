@@ -479,12 +479,7 @@ collect_singletons(Term, VNL, SVarL) :-
 
 gen_module_command(SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
                    Linear, VNL, Bindings, Term, Into, Expander, Level, M, Cmd, In) :-
-    repeat,
-      prolog_current_choice(CP),
-      ( ref_fetch_term_info(SentPattern, Sent, OptionL, In)
-      ; !,
-        fail
-      ),
+      ref_fetch_term_info(SentPattern, Sent, OptionL, In, Once),
       b_setval('$variable_names', VNL),
       expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
       make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
@@ -493,7 +488,7 @@ gen_module_command(SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
       S = solved(no),
       ( true
       ; arg(1, S, yes)
-      ->prolog_cut_to(CP),
+      ->cond_cut_once(Once),
         fail
       ),
       b_setval(refactor_singletons, SVarL),
@@ -502,18 +497,27 @@ gen_module_command(SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
                             Into, Expander, TermPos, Cmd),
       nb_setarg(1, S, yes).
 
-ref_fetch_term_info(SentPattern, Sent, OptionL, In) :-
+cond_cut_once(once).
+cond_cut_once(mult(CP)) :- prolog_cut_to(CP).
+    
+ref_fetch_term_info(SentPattern, Sent, OptionL, In, once) :-
     nonvar(SentPattern),
-    memberchk(SentPattern, [[], end_of_file]), !,
+    memberchk(SentPattern, [[], end_of_file]),
+    !,
     option(comments([]), OptionL),
-    ref_term_info_file_(SentPattern, Sent, OptionL, In).
-ref_fetch_term_info(SentPattern, Sent, OptionL, In) :-
-    fetch_term_info(SentPattern, Sent, OptionL, In).
+    ref_term_info_file(SentPattern, Sent, OptionL, In).
+ref_fetch_term_info(SentPattern, Sent, OptionL, In, mult(CP)) :-
+    repeat,
+      prolog_current_choice(CP),
+      ( fetch_term_info(SentPattern, Sent, OptionL, In)
+      ; !,
+        fail
+      ).
 
-ref_term_info_file_(end_of_file, end_of_file, OptionL, In) :-
+ref_term_info_file(end_of_file, end_of_file, OptionL, In) :-
     seek(In, 0, eof, Size),
     option(subterm_positions(Size-Size), OptionL).
-ref_term_info_file_([], [], OptionL, _) :-
+ref_term_info_file([], [], OptionL, _) :-
     option(subterm_positions(0-0), OptionL).
 
 expand_if_required(Expand, M, Sent, TermPos, In, Expanded) :-
