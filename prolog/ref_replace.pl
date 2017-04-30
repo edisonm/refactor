@@ -32,11 +32,13 @@
     POSSIBILITY OF SUCH DAMAGE.
 */
 
-:- module(ref_replace, [replace/5,
-                        refactor_message/2,
-                        op(100,xfy,($@)),
-                        op(100,xfy,(@@))
-                       ]).
+:- module(ref_replace,
+          [replace/5,
+           refactor_message/2,
+           refactor_context/2,
+           op(100,xfy,($@)),
+           op(100,xfy,(@@))
+          ]).
 
 /** <module> Basic Term Expansion operations
 
@@ -53,6 +55,7 @@
 :- use_module(library(codesio)).
 :- use_module(library(lists)).
 :- use_module(library(option)).
+:- use_module(library(context_values)).
 :- use_module(library(term_size)).
 :- use_module(library(prolog_source), []). % expand/4
 :- use_module(library(readutil)).
@@ -60,7 +63,6 @@
 :- use_module(library(gcb)).
 :- use_module(library(ref_changes)).
 :- use_module(library(ref_msgtype)).
-:- use_module(library(ref_context)).
 :- use_module(library(term_info)).
 :- use_module(library(clambda)).
 :- use_module(library(mapnlist)).
@@ -88,7 +90,6 @@
     with_pattern_into_termpos(0, ?, ?, +),
     with_from(0, ?),
     with_context(?, ?, ?, ?, ?, ?, ?, ?, 0),
-    with_context_vars(0, +, +),
     fixpoint_loop(+, 0).
 
 
@@ -259,6 +260,10 @@ replace(Level, Term, Into, Expander, MOptionL) :-
 
 replace_meta_option(decrease_metric).
 
+%%      refactor_context(?Name, ?Value) is nondet.
+
+refactor_context(Name, Value) :- get_context_value(Name, Value).
+
 curr_style(Style, CurrStyle) :-
     arg(1, Style, Name),
     ( style_check(?(Name))
@@ -298,12 +303,12 @@ do_goal_expansion(Term, TermPos) :-
     refactor_context(goal_args, ga(Pattern, Into, Expander)),
     '$current_source_module'(M),
     b_getval('$variable_names', VNL),
-    with_context_vars(forall(substitute_term_norec(sub, M, Term, 999, Pattern,
-                                                   Into, Expander, TermPos,
-                                                   TermPos, Command),
-                             assertz(command_db(Command))),
-                      [refactor_variable_names],
-                      [VNL]).
+    with_context_values(
+        forall(substitute_term_norec(sub, M, Term, 999, Pattern, Into, Expander,
+                                     TermPos, TermPos, Command),
+               assertz(command_db(Command))),
+        [variable_names],
+        [VNL]).
 
 do_replace(Level, Term, Into, Expander, OptionL) :-
     setup_call_cleanup(
@@ -330,24 +335,25 @@ with_counters(Goal, OptionL0 ) :-
     foldl(select_option_default,
           [max_tries(MaxTries)-MaxTries],
           OptionL0, OptionL),
-    with_context_vars(( Goal,
-                        b_getval(refactor_count, Count),
-                        b_getval(refactor_tries, Tries),
-                        foldl(select_option_default,
-                              [changes(Count)-Count,
-                               tries(Tries)  -Tries],
-                              OptionL, _),
-                        message_type(Type),
-                        print_message(Type,
-                                      format("~w changes of ~w attempts", [Count, Tries]))
-                      ),
-                      [refactor_count,
-                       refactor_tries,
-                       refactor_max_tries],
-                      [0,
-                       0,
-                       MaxTries]
-                     ).
+    with_context_values(
+        ( Goal,
+          refactor_context(count, Count),
+          refactor_context(tries, Tries),
+          foldl(select_option_default,
+                [changes(Count)-Count,
+                 tries(Tries)  -Tries],
+                OptionL, _),
+          message_type(Type),
+          print_message(Type,
+                        format("~w changes of ~w attempts", [Count, Tries]))
+        ),
+        [count,
+         tries,
+         max_tries],
+        [0,
+         0,
+         MaxTries]
+    ).
 
 :- public clause_file_module/3.
 
@@ -389,7 +395,7 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
         ( '$set_source_module'(OldM, OldM),
           freeze(M, '$set_source_module'(_, M))
         ),
-        with_context_vars(
+        with_context_values(
             ( index_change(Index),
               call(FileMGen),
               prolog_current_choice(CP),
@@ -398,19 +404,19 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
                                   Expanded, LinearTerm, Linear,
                                   Bindings, Level, Term, Into, Expander)
             ),
-            [refactor_sent_pattern,
-             refactor_sentence,
-             refactor_expanded,
-             refactor_options,
-             refactor_comments,
-             refactor_bindings,
-             refactor_subpos,
-             refactor_pos,
-             refactor_file,
-             refactor_preffix,
-             refactor_goal_args,
-             refactor_cleanup_attributes,
-             refactor_modified],
+            [sent_pattern,
+             sentence,
+             expanded,
+             options,
+             comments,
+             bindings,
+             subpos,
+             pos,
+             file,
+             preffix,
+             goal_args,
+             cleanup_attributes,
+             modified],
             [SentPattern,
              Linear,
              Expanded,
@@ -429,9 +435,9 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
 fixpoint_file(none, Goal) :- ignore(Goal).
 fixpoint_file(true, Goal) :-
     repeat,
-      b_setval(refactor_modified, false),
+      set_context_value(modified, false),
       ignore(Goal),
-      ( b_getval(refactor_modified, false)
+      ( refactor_context(modified, false)
       ->!
       ; print_message(informational,
                       format("Restarting expansion", [])),
@@ -450,18 +456,18 @@ fetch_sentence_file(Index, FixPoint, Max, CP, M, File, SentPattern, OptionL,
                     Linear, Bindings, Level, Term, Into, Expander) :-
     level_rec(Level, Rec),
     rec_fixpoint_file(Rec, FixPoint, FPFile),
-    fixpoint_file(FPFile,
-                  apply_commands(Index, File, Level, M, Rec, FixPoint, Max, CP,
-                                 gen_module_command(SentPattern,
-                                                    OptionL, Expand, TermPos,
-                                                    Expanded, LinearTerm,
-                                                    Linear, VNL, Bindings, Term,
-                                                    Into, Expander))).
+    fixpoint_file(
+        FPFile,
+        apply_commands(
+            Index, File, Level, M, Rec, FixPoint, Max, CP,
+            gen_module_command(
+                SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
+                Linear, VNL, Bindings, Term, Into, Expander))).
 
 increase_counter(Max, CP) :-
-    b_getval(refactor_count, Count),
+    refactor_context(count, Count),
     succ(Count, Count1),
-    nb_setval(refactor_count, Count1),
+    set_context_value(count, Count1),
     ( nonvar(Max),
       Count1 >= Max
     ->prolog_cut_to(CP)         % End non-deterministic loop
@@ -497,8 +503,8 @@ gen_module_command(SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
       ->cond_cut_once(Once),
         fail
       ),
-      b_setval(refactor_singletons, SVarL),
-      b_setval(refactor_variable_names, RVNL),
+      set_context_value(singletons, SVarL),
+      set_context_value(variable_names, RVNL),
       substitute_term_level(Level, M, Linear, 1200, Term,
                             Into, Expander, TermPos, Cmd),
       nb_setarg(1, S, yes).
@@ -550,7 +556,7 @@ prolog:xref_open_source(File, Fd) :-
     ; read_file_to_string(File, Text, [])
     ),                          
     open_codes_stream(Text, Fd).
-    % b_setval(refactor_text, Text). % NOTE: update_state/2 have the side effect of
+    % set_context_value(text, Text). % NOTE: update_state/2 have the side effect of
                                      % modify refactor_text
 
 substitute_term_level(goal, _, _, _, _, _, _, _, Cmd) :-
@@ -603,12 +609,7 @@ substitute_term(norec, Level, M, Term, Priority, Pattern, Into, Expander, TermPo
     substitute_term_norec(Level, M, Term, Priority, Pattern, Into, Expander, TermPos, OutPos, Cmd).
 
 with_from(Goal, From) :-
-    with_context_vars(Goal, [refactor_from], [From]).
-
-with_context_vars(Goal, NameL, ValueL) :-
-    setup_call_cleanup(maplist(b_setval, NameL, ValueL),
-                       Goal,
-                       maplist(nb_delete, NameL)).
+    with_context_values(Goal, [from], [From]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% ANCILLARY PREDICATES:
@@ -638,14 +639,14 @@ apply_commands(Index, File, Level, M, Rec, FixPoint, Max, CP, GenMCmd) :-
     ; Text1 = ""
     ),
     rec_fixpoint_term(Rec, FixPoint, FPTerm),
-    with_context_vars(with_source_file(File, In,
-                                       apply_commands_stream(FPTerm, GenMCmd,
-                                                             Level, M, nocs, Max,
-                                                             CP, In, Text1, Text)),
-                      [refactor_text, refactor_file], [Text1, File]),
+    with_context_values(with_source_file(File, In,
+                           apply_commands_stream(FPTerm, GenMCmd,
+                                                 Level, M, nocs, Max,
+                                                 CP, In, Text1, Text)),
+                      [text, file], [Text1, File]),
     save_change(Index, File-Text),
     ( Text1 \= Text
-    ->nb_setval(refactor_modified, true)
+    ->set_context_value(modified, true)
     ; true
     ).
 
@@ -667,8 +668,8 @@ apply_commands_stream(FPTerm, GenMCmd, Level, M, CS, Max, CP, In, Text1, Text) :
                     decreasing_recursion(CS, Command),
                     increase_counter(Max, CP)
                   ),
-                  apply_commands_stream_each(FPTerm, CI, M, Max, CP, Command, Text1,
-                                             IPosText)
+                  apply_commands_stream_each(FPTerm, CI, M, Max, CP, Command,
+                                             Text1, IPosText)
                  )),
     IPosText = Pos-Text6,
     sub_string(Text1, Pos, _, 0, TText),
@@ -681,14 +682,15 @@ apply_commands_stream_each(FPTerm, CI, M, Max, CP, Command, Text1, IPosText) :-
         get_out_pos(Text1, IPosText, From, LPos),
         with_output_to(string(LeftText), line_pos(LPos)),
         atomics_to_string([LeftText, PasteText, "."], Text2),
-        b_setval(refactor_text, Text2),
-        setup_call_cleanup(( open_codes_stream(Text2, In)
-                             % seek(In, Pos, bof, _)
-                           ),
-                           apply_commands_stream(FPTerm, GenMCmd, term, M, CS,
-                                                 Max, CP, In, Text2, Text3),
-                           close(In)),
-        b_setval(refactor_text, Text1),
+        set_context_value(text, Text2),
+        setup_call_cleanup(
+            ( open_codes_stream(Text2, In)
+              % seek(In, Pos, bof, _)
+            ),
+            apply_commands_stream(FPTerm, GenMCmd, term, M, CS, Max, CP, In,
+                                  Text2, Text3),
+            close(In)),
+        set_context_value(text, Text1),
         string_concat(Text4, ".", Text3),
         string_concat(LeftText, Text5, Text4),
         FromToPText = t(From, To, Text5)
@@ -736,7 +738,8 @@ will_occurs(Var, Sent, Pattern, Into, N) :-
     N is SN-PN+IN.
 
 gen_new_variable_names([], _, _, _, _, _, _, _, VNL, VNL).
-gen_new_variable_names([Var|VarL], [Name1|NameL], SVarL, Preffix, Count1, Sent, Pattern, Into, VNL1, VNL) :-
+gen_new_variable_names([Var|VarL], [Name1|NameL], SVarL, Preffix, Count1,
+                       Sent, Pattern, Into, VNL1, VNL) :-
     ( nonvar(Name1)
     ->VNL2 = VNL1,
       Count = Count1
@@ -756,14 +759,15 @@ apply_change(Text, M, subst(TermPos, Priority, Pattern, Term, VNL, Into, _),
              t(From, To, PasteText)) :-
     wr_options(OptionL),
     call_cleanup(
-        with_output_to(string(PasteText),
-            with_context_vars(
+        with_output_to(
+            string(PasteText),
+            with_context_values(
                 print_expansion_0(Into, Pattern, Term, TermPos,
                                   [priority(Priority), module(M),
                                    variable_names(VNL)
-                                  |OptionL],
+                                   |OptionL],
                                   Text, From, To),
-                [refactor_termpos],
+                [termpos],
                 [TermPos])),
         retractall(rportray_pos(_, _))).
 
@@ -785,22 +789,22 @@ print_expansion_0(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
     ).
 
 with_pattern_into_termpos(Goal, Pattern, Into, TermPos) :-
-    nb_getval(refactor_tries, Tries),
-    nb_getval(refactor_max_tries, MaxTries),
+    refactor_context(tries, Tries),
+    refactor_context(max_tries, MaxTries),
     ( nonvar(MaxTries)
     ->Tries < MaxTries
     ; true
     ),
     succ(Tries, Tries1),
-    nb_setval(refactor_tries, Tries1),
-    with_context_vars(catch(once(Goal), Error,
-                            ( refactor_message(error, Error),
-                              fail
-                            )),
-                      [refactor_pattern,
-                       refactor_into,
-                       refactor_termpos],
-                      [Pattern, Into, TermPos]).
+    set_context_value(tries, Tries1),
+    with_context_values(catch(once(Goal), Error,
+                              ( refactor_message(error, Error),
+                                fail
+                              )),
+                        [pattern,
+                         into,
+                         termpos],
+                        [Pattern, Into, TermPos]).
 
 %% refactor_message(+Type, +Message) is det.
 %
@@ -954,8 +958,8 @@ match_vars_with_names(VNL1, Var, Name) :-
 gen_new_variable_names(Sent, Term, Into, VNL) :-
     term_variables(Into, VarL),
     refactor_context(preffix, Preffix),
-    b_getval(refactor_variable_names, VNL1),
-    b_getval(refactor_singletons, SVarL),
+    refactor_context(variable_names, VNL1),
+    refactor_context(singletons, SVarL),
     maplist(match_vars_with_names(VNL1), VarL, NameL),
     trim_hacks(Into, TInto),
     gen_new_variable_names(VarL, NameL, SVarL, Preffix, 1, Sent, Term, TInto, VNL1, VNL2),
@@ -979,9 +983,11 @@ substitute_term_norec(Sub, M, Term, Priority, Pattern, Into, Expander, TermPos, 
     ; refactor_context(file, File),
       option(show_left_bindings(Show), OptionL, false),
       ( Show = true
-      ->print_message(warning,
-                      refactor_message(file_term_position(File, TermPos),
-                                       format("Bindings occurs: ~w \\=@= ~w.", [Sent2, Sent])))
+      ->print_message(
+            warning,
+            refactor_message(
+                file_term_position(File, TermPos),
+                format("Bindings occurs: ~w \\=@= ~w.", [Sent2, Sent])))
       ; true
       )
     ),
@@ -1041,8 +1047,8 @@ perform_substitution(Sub, Priority, M, Term, VNL, Pattern0, Into0,
        The predicate performs destructive assignment (as in imperative
        languages), modifying term position once the predicate is called */
     fix_subtermpos(Pattern, Into1, Sub, OutPos),
-    with_context_vars(subst_term(TermPos, M, Pattern, GTerm, Priority, Term1),
-                      [refactor_bind, refactor_new_varnames], [BindingL, VNL]),
+    with_context_values(subst_term(TermPos, M, Pattern, GTerm, Priority, Term1),
+                        [bind, new_varnames], [BindingL, VNL]),
     shared_variables(VNL, Term1, Into1, V5), % after subst_term, in case some
     maplist(eq, V5, V5, UL5),                % variables from Term3 reappear
     maplist(subst_fvar(M, Term1, TermPos, GTerm), UL5),
@@ -1131,11 +1137,11 @@ subst_list([Pos|Poss], M, To, Tail, [E|Es], [G|Gs], [C|Cs]) :-
     subst_list(Poss, M, To, Tail, Es, Gs, Cs).
 
 subst_var(Pos, M, Var, GTerm, GPriority, CTerm) :-
-    ( b_getval(refactor_new_varnames, VNL),
+    ( refactor_context(new_varnames, VNL),
       member(_=V, VNL),
       V==CTerm
     ->Var = CTerm
-    ; ( b_getval(refactor_bind, BindingL),
+    ; ( refactor_context(bind, BindingL),
         member(V=T, BindingL),
         V==Var
       ->subst_term(Pos, M, T, GTerm, GPriority, CTerm)
@@ -1280,7 +1286,7 @@ textpos_line(Text, CharPos, Line, LinePos) :-
         )).
 
 get_output_position(Pos) :-
-    ( nb_current(refactor_from, From)
+    ( current_context_value(from, From)
     ->true
     ; From = 0
     ),
@@ -1770,20 +1776,10 @@ print_expansion_ne('$,NL', Pattern, Term, RefPos, OptionL, Text) :-
 print_expansion_ne('$NL', _, Term, _, _, Text) :- % Print an indented new line
     Term \== '$NL',
     !,
-    b_getval(refactor_from, From),
+    refactor_context(from, From),
     textpos_line(Text, From, _, LinePos),
     nl,
     line_pos(LinePos).
-/* In quarintine, seems to be that now is useless due to the gcb.pl --EMM
-print_expansion_ne(Into, Pattern, Term0, RefPos0, OptionL, Text) :-
-    compound(Into),
-    Into \== Pattern,
-    subterm_location_eq(L, Into, Pattern),
-    subterm_location(   L, Term, Term0),
-    subpos_location(L, RefPos0, RefPos),
-    !,
-    print_expansion_ne(Into, Into, Term, RefPos, OptionL, Text).
-*/
 print_expansion_ne(Into, SPattern, Term1, _, OptionL, Text) :-
     nonvar(SPattern),
     nonvar(Term1),

@@ -38,6 +38,7 @@
                        ]).
 
 :- use_module(library(apply)).
+:- use_module(library(ref_replace), [refactor_context/2]).
 
 %% term_innerpos(OFrom, OTo, InnerFrom, InnerTo)
 %
@@ -69,7 +70,7 @@ fix_termpos(TermPos) :-
 %
 fix_termouterpos(TermPos) :-
     arg(1, TermPos, From),
-    ( b_getval(refactor_comments, Comments)
+    ( refactor_context(comments, Comments)
     ->true
     ; Comments = []
     ),
@@ -88,7 +89,7 @@ fix_termouterpos(TermPos) :-
     ->To3 = To2
     ; To3 = To
     ),
-    b_getval(refactor_text, Text),
+    refactor_context(text, Text),
     string_length(Text, L),
     once(seek_sub_string(Text, ".", 1, L, To3, OuterTo)),
     nb_setarg(1, TermPos, OuterFrom),
@@ -131,17 +132,17 @@ fix_subtermpos_rec(Pos) :-
 fix_subtermpos_rec(_-_).
 fix_subtermpos_rec(string_position(_, _)).
 fix_subtermpos_rec(brace_term_position(From, _, Arg)) :-
-    b_getval(refactor_text, Text),
+    refactor_context(text, Text),
     succ(From, From1),
     fix_termpos_from_left(Text, Arg, From1, _).
 fix_subtermpos_rec(parentheses_term_position(From, _, Arg)) :-
-    b_getval(refactor_text, Text),
+    refactor_context(text, Text),
     succ(From, From1),
     fix_termpos_from_left(Text, Arg, From1, _).
 % Note: don't assume that a list is between brackets [], because this is also
 % used to process list of clauses:
 fix_subtermpos_rec(list_position(From, To, Elms, Tail)) :-
-    b_getval(refactor_text, Text),
+    refactor_context(text, Text),
     foldl(fix_termpos_from_left_comm(Text), Elms, From, To1),
     ( Tail = none
     ->true
@@ -150,7 +151,7 @@ fix_subtermpos_rec(list_position(From, To, Elms, Tail)) :-
       fix_termpos_from_left(Text, Tail, FromT, _)
     ).
 fix_subtermpos_rec(map_position(_, _, _, TypeTo, KVPos)) :-
-    b_getval(refactor_text, Text),
+    refactor_context(text, Text),
     succ(TypeTo, TypeTo1),
     foldl(fix_termpos_from_left_comm(Text), KVPos, TypeTo1, _).
 
@@ -168,11 +169,11 @@ nl_mark_end(Text, Delta) :-
     ).
 
 comment_bound(From, To) :-
-    b_getval(refactor_comments, CommentL),
+    refactor_context(comments, CommentL),
     comment_bound(CommentL, From, To).
 
 rcomment_bound(From, To) :-
-    b_getval(refactor_comments, CommentL),
+    refactor_context(comments, CommentL),
     reverse(CommentL, CommentR),
     comment_bound(CommentR, From, To).
 
@@ -319,7 +320,7 @@ fix_boundaries_from_right(Text, Pos, To0, From2, To2, From, To) :-
     ( To0 < To1
     ->RL is To1 - To0,
       sub_string(Text, To0, RL, _, TextL),
-      b_getval(refactor_file, File),
+      refactor_context(file, File),
       print_message(warning, at_location(file_term_position(File, Pos),
                                          format("Misplaced text --> `~w'", [TextL])))
     ; true
@@ -359,7 +360,7 @@ fix_boundaries_from_left(Text, Pos, From0, From2, From, To) :-
     ( From1 < From0 ->
       RL is From0 - From1,
       sub_string(Text, From1, RL, _, TextL),
-      b_getval(refactor_file, File),
+      refactor_context(file, File),
       print_message(warning,
                     at_location(file_term_position(File, Pos),
                                 format("Misplaced text <-- `~w' (~w)",
@@ -374,7 +375,7 @@ fix_boundaries_from_left(Text, Pos, From0, From2, From, To) :-
     seekn_parenthesis_right(N, Text, L, To1, To).
 
 fix_subtermpos_from_to(From0, To0, FFrom, FTo, From, To, PosL) :-
-    b_getval(refactor_text, Text),
+    refactor_context(text, Text),
     sub_string(Text, FTo, 1, _, Char),
     ( PosL = [LPos, RPos ],
       arg(2, LPos, ToL),

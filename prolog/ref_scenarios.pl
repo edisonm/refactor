@@ -56,7 +56,6 @@
 
 :- use_module(library(implementation_module)).
 :- use_module(library(option_utils)).
-:- use_module(library(ref_context)).
 :- use_module(library(ref_replace)).
 :- use_module(library(ref_replacers)).
 :- use_module(library(clambda)).
