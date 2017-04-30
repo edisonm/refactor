@@ -291,7 +291,10 @@ do_goal_expansion(Term, TermPos) :-
     \+ ref_position(File, From, To),
     assertz(ref_position(File, From, To)),
     term_variables(Term, Vars),
-    maplist(remove_attribute('$var_info'), Vars),
+    ( refactor_context(cleanup_attributes, yes)
+    ->maplist(remove_attribute('$var_info'), Vars)
+    ; true
+    ),
     refactor_context(goal_args, ga(Pattern, Into, Expander)),
     '$current_source_module'(M),
     b_getval('$variable_names', VNL),
@@ -365,6 +368,7 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
            comments(Comments)-Comments,
            expand(Expand)-DExpand,
            expanded(Expanded)-Expanded,
+           cleanup_attributes(CleanupAttributes)-yes,
            fixpoint(FixPoint)-decreasing,
            max_changes(Max)-Max,
            variable_names(VNL)-VNL,
@@ -405,6 +409,7 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
              refactor_file,
              refactor_preffix,
              refactor_goal_args,
+             refactor_cleanup_attributes,
              refactor_modified],
             [SentPattern,
              Linear,
@@ -417,6 +422,7 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
              File,
              Preffix,
              ga(Term, Into, Expander),
+             CleanupAttributes,
              false]),
         '$set_source_module'(_, OldM)).
 

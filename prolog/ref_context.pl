@@ -62,3 +62,5 @@ refactor_context(preffix, Px) :-
     b_getval(refactor_preffix, Px).
 refactor_context(text, Text) :-
     b_getval(refactor_text, Text).
+refactor_context(cleanup_attributes, CA) :-
+    b_getval(refactor_cleanup_attributes, CA).
