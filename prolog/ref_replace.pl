@@ -391,19 +391,7 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
                subterm_positions(TermPos),
                variable_names(VNL),
                comments(Comments)|OptionL2],
-    setup_call_cleanup(
-        ( '$set_source_module'(OldM, OldM),
-          freeze(M, '$set_source_module'(_, M))
-        ),
-        with_context_values(
-            ( index_change(Index),
-              call(FileMGen),
-              prolog_current_choice(CP),
-              fetch_sentence_file(Index, FixPoint, Max, CP, M, File,
-                                  SentPattern, OptionL, Expand, TermPos, VNL,
-                                  Expanded, LinearTerm, Linear,
-                                  Bindings, Level, Term, Into, Expander)
-            ),
+    maplist(set_context_value,
             [sent_pattern,
              sentence,
              expanded,
@@ -430,6 +418,18 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
              ga(Term, Into, Expander),
              CleanupAttributes,
              false]),
+    setup_call_cleanup(
+        ( '$set_source_module'(OldM, OldM),
+          freeze(M, '$set_source_module'(_, M))
+        ),
+        ( index_change(Index),
+          call(FileMGen),
+          prolog_current_choice(CP),
+          fetch_sentence_file(
+              Index, FixPoint, Max, CP, M, File, SentPattern, OptionL, Expand,
+              TermPos, VNL, Expanded, LinearTerm, Linear, Bindings, Level, Term,
+              Into, Expander)
+        ),
         '$set_source_module'(_, OldM)).
 
 fixpoint_file(none, Goal) :- ignore(Goal).
@@ -467,7 +467,7 @@ fetch_sentence_file(Index, FixPoint, Max, CP, M, File, SentPattern, OptionL,
 increase_counter(Max, CP) :-
     refactor_context(count, Count),
     succ(Count, Count1),
-    set_context_value(count, Count1),
+    nb_set_context_value(count, Count1),
     ( nonvar(Max),
       Count1 >= Max
     ->prolog_cut_to(CP)         % End non-deterministic loop
@@ -646,7 +646,7 @@ apply_commands(Index, File, Level, M, Rec, FixPoint, Max, CP, GenMCmd) :-
                       [text, file], [Text1, File]),
     save_change(Index, File-Text),
     ( Text1 \= Text
-    ->set_context_value(modified, true)
+    ->nb_set_context_value(modified, true)
     ; true
     ).
 
@@ -796,7 +796,7 @@ with_pattern_into_termpos(Goal, Pattern, Into, TermPos) :-
     ; true
     ),
     succ(Tries, Tries1),
-    set_context_value(tries, Tries1),
+    nb_set_context_value(tries, Tries1),
     with_context_values(catch(once(Goal), Error,
                               ( refactor_message(error, Error),
                                 fail
