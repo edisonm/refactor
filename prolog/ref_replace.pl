@@ -90,6 +90,7 @@
     with_pattern_into_termpos(0, ?, ?, +),
     with_from(0, ?),
     with_context(?, ?, ?, ?, ?, ?, ?, ?, 0),
+    refactor_context(?, ?),
     fixpoint_loop(+, 0).
 
 
