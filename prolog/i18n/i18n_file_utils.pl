@@ -73,9 +73,9 @@ read_po_file(File, Entries) :-
     ; Entries = []
     ).
 
-%% subtract_po_file(PoFile1, PoFile2) is det
+%!  subtract_po_file(PoFile1, PoFile2) is det.
 %
-% Subtract from PoFile1 the entries that are the same in PoFile2.
+%   Subtract from PoFile1 the entries that are the same in PoFile2.
 subtract_po_file(PoFile1, PoFile2) :-
     read_po_file(PoFile1, Entries1),
     read_po_file(PoFile2, Entries2),
@@ -83,8 +83,9 @@ subtract_po_file(PoFile1, PoFile2) :-
     save_to_po_file(Entries, PoFile1).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Commands for edit_po_file/_
+% Commands for edit_po_file/_
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 clean(PoFile, ML, Codes) :-
     i18n_tmpl_entries(ML, TmplEntries),
     read_po_file(PoFile, Entries0),
@@ -100,10 +101,10 @@ sort(PoFile, _, Codes) :-
     sort(EntriesU, Entries),
     parse_po_entries(Entries, Codes, []).
 
-%% expand(+PoFIle, ?ModuleList, -Codes) is det
+%!  expand(+PoFIle, ?ModuleList, -Codes) is det
 %
-% Creates or update a po specific language file with empty entries
-% ready to be filled.
+%   Creates or update a po specific language file with empty entries ready to be
+%   filled.
 expand(PoFile, ML, Codes) :-
     read_po_file(PoFile, Entries0),
     i18n_tmpl_entries(ML, TmplEntries),
@@ -113,9 +114,9 @@ expand(PoFile, ML, Codes) :-
                    ), Entries, Entries0),
     parse_po_entries(Entries, Codes, []).
 
-%% compact(+PoFile,-Codes) is det
+%!  compact(+PoFile,-Codes) is det
 %
-% Remove the empty entries in the specified .po language file.
+%   Remove the empty entries in the specified .po language file.
 compact(PoFile, Codes) :-
     read_po_file(PoFile, Entries0),
     findall(Entry,

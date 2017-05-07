@@ -62,10 +62,9 @@ translate(M, Lang, EnglLangL, OptionL) :-
 translate_po(M, Lang, TermEngl, TermLang) :-
     i18n_refactor(update_po_entry(Lang), M, TermLang, TermEngl).
 
-%% rename_id(?Module, +OldTerm, +NewTerm, +Action) is det
+%!  rename_id(?Module, +OldTerm, +NewTerm, +OptionL) is det.
 %
-% Change an English Term by another and update its key in the po
-% files.
+%   Change an English Term by another and update its key in the po files.
 rename_id(M, OldTerm, NewTerm, OptionL) :-
     i18n_refactor(rename_id_lang, M, OldTerm, NewTerm),
     replace_term(OldTerm, NewTerm, [module(M)|OptionL]).

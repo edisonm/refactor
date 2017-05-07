@@ -113,9 +113,9 @@ apply_var_renamer(Renamer, MO:OptionL0) :-
                  ),
                  MO:[variable_names(Dict)|OptionL]).
 
-%% rename_variable(?Name1:atom, +Name:atom, :Options) is det.
+%!  rename_variable(?Name1:atom, +Name:atom, :Options) is det.
 %
-% Rename a variable in a Term, provided that the name is new in such term.
+%   Rename a variable in a Term, provided that the name is new in such term.
 
 rename_variable(Name1, Name, Options) :-
     apply_var_renamer([Name1, Name] +\ Name1^Name^true, Options).

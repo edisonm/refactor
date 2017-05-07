@@ -40,33 +40,33 @@
 :- use_module(library(apply)).
 :- use_module(library(ref_replace), [refactor_context/2]).
 
-%% term_innerpos(OFrom, OTo, InnerFrom, InnerTo)
+%!  term_innerpos(OFrom, OTo, InnerFrom, InnerTo)
 %
-%  Contains the inner positions of a term, that exclude comments and some
-%  extra parenthesis.
+%   Contains the inner positions of a term, that exclude comments and some extra
+%   parenthesis.
 %
 :- dynamic term_innerpos/4.
 
-%% fix_termpos(@TermPos) is det
+%!  fix_termpos(@TermPos) is det
 %
-%  Applies fix_subtermpos recursivelly and extends the boundaries of the first
-%  term position from the first comment up to just before the ending dot.
+%   Applies fix_subtermpos recursivelly and extends the boundaries of the first
+%   term position from the first comment up to just before the ending dot.
 %
-%  Due to performance concerns, this predicate makes a destructive assignment in
-%  the TermPos argument, but preserve the extra positions in the term_innerpos/4
-%  predicate.
+%   Due to performance concerns, this predicate makes a destructive assignment
+%   in the TermPos argument, but preserve the extra positions in the
+%   term_innerpos/4 predicate.
 %
-%  @see fix_subtermpos/1
+%   @see fix_subtermpos/1
 %
 fix_termpos(TermPos) :-
     retractall(term_innerpos(_, _, _, _)),
     fix_subtermpos_rec(TermPos),
     fix_termouterpos(TermPos).
 
-%% fix_termouterpos(@TermPos) is det
+%!  fix_termouterpos(@TermPos) is det
 %
-%  Extends the boundaries of the first term position from the first comment up
-%  to just before the ending dot.
+%   Extends the boundaries of the first term position from the first comment up
+%   to just before the ending dot.
 %
 fix_termouterpos(TermPos) :-
     arg(1, TermPos, From),
@@ -96,17 +96,17 @@ fix_termouterpos(TermPos) :-
     nb_setarg(2, TermPos, OuterTo),
     assertz(term_innerpos(OuterFrom, OuterTo, From, To)).
 
-%% fix_subtermpos(@TermPos) is det
+%!  fix_subtermpos(@TermPos) is det
 %
-%  Takes a subterm position, as returned by the subterm_positions option of
-%  read_term/2 and increases its precision, avoiding some minor mistmatches with
-%  the text, that for a refactoring tool is instrumental.  This method also
-%  ensures that the minimal required parenthesis enclosing a term are contained
-%  in its scope, widening the positions 1 and 2 of the given term position
-%  specifier. The current implementation is aware of comments and extra
-%  parenthesis, asserting such information in term_innerpos/4 facts.
+%   Takes a subterm position, as returned by the subterm_positions option of
+%   read_term/2 and increases its precision, avoiding some minor mistmatches
+%   with the text, that for a refactoring tool is instrumental.  This method
+%   also ensures that the minimal required parenthesis enclosing a term are
+%   contained in its scope, widening the positions 1 and 2 of the given term
+%   position specifier. The current implementation is aware of comments and
+%   extra parenthesis, asserting such information in term_innerpos/4 facts.
 %
-%  @tbd This implementation have performance issues, needs optimization.
+%   @tbd This implementation have performance issues, needs optimization.
 %
 fix_subtermpos(Pos) :- var(Pos), !.
 fix_subtermpos(Pos) :-
@@ -330,14 +330,12 @@ fix_boundaries_from_right(Text, Pos, To0, From2, To2, From, To) :-
     arg(1, Pos, From1),
     seekn_parenthesis_left(N, Text, From1, From2),
     From = From2.
-    % include_comments_left(Text, From2, From).
 
 fix_termpos_from_right(Text, To0, Pos ) :-
     fix_subtermpos_rec(Pos),
     fix_boundaries_from_right(Text, Pos, To0, From2, To2, From, To),
     nb_setarg(1, Pos, From),
     nb_setarg(2, Pos, To),
-    % retractall(term_innerpos(From2, To2, _, _)),
     assertz(term_innerpos(From, To, From2, To2)).
 
 fix_termpos_from_left(Text, Pos, From0, To) :-

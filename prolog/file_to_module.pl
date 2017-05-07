@@ -47,9 +47,9 @@
 :- use_module(library(module_files)).
 :- use_module(library(pretty_decl)).
 
-%% module_to_import_db(F, A, M, CM, File)
+%!  module_to_import_db(F, A, M, CM, File)
 %
-% Predicate M:F/A used in File, in context CM
+%   Predicate M:F/A used in File, in context CM
 
 :- dynamic
     module_to_import_db/5.
@@ -190,11 +190,11 @@ add_modexp_decl(M, PIFx) :-
                        )
                      ), [file(MFile)]).
 
-%% collect_fixable(M, FileL, ExcludeL, PIM) is det
+%!  collect_fixable(M, FileL, ExcludeL, PIM) is det
 %
-% Collect the predicates that preserves its implementation module, even if they
-% have clauses in the file being modularized. That includes multifile predicates
-% whose multifile declaration is outside FileL
+%   Collect the predicates that preserves its implementation module, even if
+%   they have clauses in the file being modularized. That includes multifile
+%   predicates whose multifile declaration is outside FileL
 %
 collect_fixable(M, FileL, ExcludeL, PIM, PIR) :-
     findall(F/A,
@@ -538,10 +538,10 @@ del_export_decl(M, ExFileL, DelExpDeclL) :-
                        )
                      ), [files(ExFileL)]).
 
-%% implem_to_export(FileL, F, A, M, CM)
+%!  implem_to_export(FileL, F, A, M, CM)
 %
-% Predicate M:F/A implemented in FileL, is called outside FileL and therefore
-% should be exported
+%  Predicate M:F/A implemented in FileL, is called outside FileL and therefore
+%  should be exported
 %
 implem_to_export(FileL, F, A, M, CM) :-
     ( loc_dynamic(H, M, dynamic(_, CM, _), FromD),
