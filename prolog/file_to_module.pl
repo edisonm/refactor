@@ -46,6 +46,7 @@
 :- use_module(library(location_utils)).
 :- use_module(library(module_files)).
 :- use_module(library(pretty_decl)).
+:- use_module(library(ref_replace)).
 
 %!  module_to_import_db(F, A, M, CM, File)
 %
