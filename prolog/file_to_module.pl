@@ -38,7 +38,6 @@
 :- use_module(library(clambda)).
 :- use_module(library(infer_alias)).
 :- use_module(library(list_sequence)).
-:- use_module(library(remove_dups)).
 :- use_module(library(sequence_list)).
 :- use_module(library(extra_codewalk)).
 :- use_module(library(extra_location)).
@@ -72,9 +71,7 @@ files_to_move(M, File, [File|FileL]) :-
     findall(IFile, file_includes(File, IFile), FileL).
 
 file_includes(File, IFile) :-
-    findall(Incl, source_file_property(File, includes(Incl, _)), IncD),
-    remove_dups(IncD, IncL),
-    member(Incl, IncL),
+    distinct(Incl, source_file_property(File, includes(Incl, _))),
     ( IFile = Incl
     ; file_includes(Incl, IFile)
     ).
