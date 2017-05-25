@@ -84,15 +84,17 @@
     rportray_skip/0.
 
 :- meta_predicate
-    replace(+,?,?,0,:),
     apply_commands(?, +, +, ?, +, +, +, +, 4),
-    with_styles(0, +),
-    with_pattern_into_termpos(0, ?, ?, +),
-    with_from(0, ?),
-    with_context(?, ?, ?, ?, ?, ?, ?, ?, 0),
+    fixpoint_file(+, 0),
     refactor_context(?, ?),
-    fixpoint_loop(+, 0).
-
+    replace(+,?,?,0,:),
+    rportray_list(+, 2, +, +),
+    with_context(?, ?, ?, ?, ?, ?, ?, ?, 0),
+    with_counters(0, +),
+    with_from(0, ?),
+    with_termpos(0, ?),
+    with_pattern_into_termpos(0, ?, ?, +),
+    with_styles(0, +).
 
 %!  replace(+Level, +Term, -Into, :Expander, :Options) is det
 %
@@ -348,7 +350,6 @@ cleanup_level(_, _).
 apply_ec_term_level(Level, Term, Into, Expander, OptionL) :-
     forall(ec_term_level_each(Level, Term, Into, Expander, OptionL), true).
 
-:- meta_predicate with_counters(0, +).
 with_counters(Goal, OptionL0 ) :-
     foldl(select_option_default,
           [max_tries(MaxTries)-MaxTries],
@@ -773,20 +774,22 @@ gen_new_variable_names([Var|VarL], [Name1|NameL], SVarL, Preffix, Count1,
     ),
     gen_new_variable_names(VarL, NameL, SVarL, Preffix, Count, Sent, Pattern, Into, VNL2, VNL).
 
+with_termpos(Goal, TermPos) :-
+    with_context_values(Goal, [termpos], [TermPos]).
+
 apply_change(Text, M, subst(TermPos, Priority, Pattern, Term, VNL, Into, _),
              t(From, To, PasteText)) :-
     wr_options(OptionL),
     call_cleanup(
         with_output_to(
             string(PasteText),
-            with_context_values(
+            with_termpos(
                 print_expansion_0(Into, Pattern, Term, TermPos,
                                   [priority(Priority), module(M),
                                    variable_names(VNL)
                                    |OptionL],
                                   Text, From, To),
-                [termpos],
-                [TermPos])),
+                TermPos)),
         retractall(rportray_pos(_, _))).
 
 wr_options([portray_goal(ref_replace:rportray),
@@ -1012,6 +1015,9 @@ substitute_term_norec(Sub, M, Term, Priority, Pattern, Into, Expander, TermPos, 
     greatest_common_binding(Pattern1, Into1, Pattern2, Into2, [[]], Unifier, []),
     perform_substitution(Sub, Priority, M, Term, VNL, Pattern2, Into2, Unifier,
                          TermPos, OutPos, Size, Cmd).
+
+:- public
+       pattern_size/3.
 
 pattern_size(Term, Pattern, Size) :-
     findall(S,
@@ -1537,7 +1543,6 @@ rportray_list_nl_comma(L, Pos, Opt) :-
     sep_nl(Pos, ',', Sep),
     rportray_list(L, write_term, Sep, Opt1).
 
-:- meta_predicate rportray_list(+, 2, +, +).
 rportray_list([], _, _, _) :- !.
 rportray_list(L, Writter, Sep, Opt) :-
     term_write_sep_list_2(L, Writter, Sep, Opt).
@@ -1713,6 +1718,9 @@ term_needs_braces_c(Term, M, Pri) :-
 
 cond_display(yes, A) :- write(A).
 cond_display(no,  _).
+
+:- meta_predicate
+       with_cond_braces(5, +, +, +, +, +, +).
 
 print_expansion_sb(Into, Pattern, GTerm, TermPos, GPriority, OptionL, Text) :-
     with_cond_braces(do_print_expansion_sb(Pattern), Into, GTerm, TermPos, GPriority, OptionL, Text).
