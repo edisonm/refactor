@@ -84,7 +84,7 @@
     rportray_skip/0.
 
 :- meta_predicate
-    apply_commands(?, +, +, ?, +, +, +, +, 4),
+    apply_commands(?, +, +, ?, +, +, +, 4),
     fixpoint_file(+, 0),
     refactor_context(?, ?),
     replace(+,?,?,0,:),
@@ -282,7 +282,8 @@ replace_meta_option(decrease_metric).
 
 %!  refactor_context(?Name, ?Value) is nondet.
 
-refactor_context(Name, Value) :- get_context_value(Name, Value).
+refactor_context(Name, Value) :-
+    get_context_value(Name, Value).
 
 curr_style(Style, CurrStyle) :-
     arg(1, Style, Name),
@@ -443,19 +444,24 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
         ),
         ( index_change(Index),
           call(FileMGen),
-          prolog_current_choice(CP),
           fetch_sentence_file(
-              Index, FixPoint, Max, CP, M, File, SentPattern, OptionL, Expand,
+              Index, FixPoint, Max, M, File, SentPattern, OptionL, Expand,
               TermPos, VNL, Expanded, LinearTerm, Linear, Bindings, Level, Term,
               Into, Expander)
         ),
         '$set_source_module'(_, OldM)).
 
-fixpoint_file(none, Goal) :- ignore(Goal).
-fixpoint_file(true, Goal) :-
+fixpoint_file(none, _, Goal) :- ignore(Goal).
+fixpoint_file(true, Max, Goal) :-
     repeat,
       set_context_value(modified, false),
       ignore(Goal),
+      refactor_context(count, Count),
+      ( nonvar(Max),
+        Count >= Max
+      ->!
+      ; true
+      ),
       ( refactor_context(modified, false)
       ->!
       ; print_message(informational,
@@ -470,28 +476,18 @@ norec_ff(decreasing, none).
 norec_ff(true,       true).
 norec_ff(none,       none).
 
-fetch_sentence_file(Index, FixPoint, Max, CP, M, File, SentPattern, OptionL,
+fetch_sentence_file(Index, FixPoint, Max, M, File, SentPattern, OptionL,
                     Expand, TermPos, VNL, Expanded, LinearTerm,
                     Linear, Bindings, Level, Term, Into, Expander) :-
     level_rec(Level, Rec),
     rec_fixpoint_file(Rec, FixPoint, FPFile),
     fixpoint_file(
-        FPFile,
+        FPFile, Max,
         apply_commands(
-            Index, File, Level, M, Rec, FixPoint, Max, CP,
+            Index, File, Level, M, Rec, FixPoint, Max,
             gen_module_command(
                 SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
                 Linear, VNL, Bindings, Term, Into, Expander))).
-
-increase_counter(Max, CP) :-
-    refactor_context(count, Count),
-    succ(Count, Count1),
-    nb_set_context_value(count, Count1),
-    ( nonvar(Max),
-      Count1 >= Max
-    ->prolog_cut_to(CP)         % End non-deterministic loop
-    ; true
-    ).
 
 binding_varname(VNL, Var=Term) -->
     ( { member(Name=Var1, VNL),
@@ -650,7 +646,7 @@ rec_ft(none,       not).
 rec_ft(true,       rec).
 
 % This is weird due to the operators
-apply_commands(Index, File, Level, M, Rec, FixPoint, Max, CP, GenMCmd) :-
+apply_commands(Index, File, Level, M, Rec, FixPoint, Max, GenMCmd) :-
     ( pending_change(_, File, Text1)
     ->true
     ; exists_file(File)
@@ -658,16 +654,17 @@ apply_commands(Index, File, Level, M, Rec, FixPoint, Max, CP, GenMCmd) :-
     ; Text1 = ""
     ),
     rec_fixpoint_term(Rec, FixPoint, FPTerm),
-    with_context_values(with_source_file(File, In,
-                           apply_commands_stream(FPTerm, GenMCmd,
-                                                 Level, M, nocs, Max,
-                                                 CP, In, Text1, Text)),
-                      [text, file], [Text1, File]),
-    save_change(Index, File-Text),
-    ( Text1 \= Text
-    ->nb_set_context_value(modified, true)
-    ; true
-    ).
+    with_context_values(
+        with_source_file(
+            File, In,
+            apply_commands_stream(
+                FPTerm, GenMCmd, Level, M, nocs, Max, In, Text1, Text)),
+        [text, file], [Text1, File]),
+        save_change(Index, File-Text),
+        ( Text1 \= Text
+        ->nb_set_context_value(modified, true)
+        ; true
+        ).
 
 decreasing_recursion(nocs, _).
 decreasing_recursion(subst(_, _, _, _, _, _, S1),
@@ -680,21 +677,33 @@ rec_command_info(not, _, not).
 rec_command_info(rec, G, rec(C)) :- copy_term(G, C).
 rec_command_info(dec, G, dec(C)) :- copy_term(G, C).
 
-apply_commands_stream(FPTerm, GenMCmd, Level, M, CS, Max, CP, In, Text1, Text) :-
+increase_counter(Count1) :-
+    refactor_context(count, Count),
+    succ(Count, Count1),
+    nb_set_context_value(count, Count1).
+
+do_genmcmd(GenMCmd, Level, M, CS, Command, In, Max) :-
+    call(GenMCmd, Level, M, Command, In),
+    decreasing_recursion(CS, Command),
+    increase_counter(Count1),
+    ( nonvar(Max),
+      Count1 >= Max
+    ->!
+    ; true
+    ).
+
+apply_commands_stream(FPTerm, GenMCmd, Level, M, CS, Max, In, Text1, Text) :-
     IPosText = 0-"",
     rec_command_info(FPTerm, GenMCmd, CI),
-    ignore(forall(( call(GenMCmd, Level, M, Command, In),
-                    decreasing_recursion(CS, Command),
-                    increase_counter(Max, CP)
-                  ),
-                  apply_commands_stream_each(FPTerm, CI, M, Max, CP, Command,
+    ignore(forall(do_genmcmd(GenMCmd, Level, M, CS, Command, In, Max),
+                  apply_commands_stream_each(FPTerm, CI, M, Max, Command,
                                              Text1, IPosText)
                  )),
     IPosText = Pos-Text6,
     sub_string(Text1, Pos, _, 0, TText),
     string_concat(Text6, TText, Text).
 
-apply_commands_stream_each(FPTerm, CI, M, Max, CP, Command, Text1, IPosText) :-
+apply_commands_stream_each(FPTerm, CI, M, Max, Command, Text1, IPosText) :-
     ( apply_change(Text1, M, Command, FromToPText1),
       ( do_recursion(CI, Command, GenMCmd, CS)
       ->FromToPText1 = t(From, To, PasteText),
@@ -706,7 +715,7 @@ apply_commands_stream_each(FPTerm, CI, M, Max, CP, Command, Text1, IPosText) :-
             ( open_codes_stream(Text2, In)
               % seek(In, Pos, bof, _)
             ),
-            apply_commands_stream(FPTerm, GenMCmd, term, M, CS, Max, CP, In,
+            apply_commands_stream(FPTerm, GenMCmd, term, M, CS, Max, In,
                                   Text2, Text3),
             close(In)),
         set_context_value(text, Text1),
