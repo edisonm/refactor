@@ -1484,6 +1484,24 @@ diff -ruN ex1.pl -
 test(addend) :-
     execute_test(addend, replace_sentence(end_of_file, [a], true), [file(ex1)]).
 
+/* $maxchg$
+diff -ruN maxchg.pl -
+--- maxchg.pl (source)
++++ maxchg.pl (target)
+@@ -8,7 +8,7 @@
+ p(c).
+ 
+ s(A, B) :-
+-    r(A, B).
++    rr(A, B).
+ 
+ r(A, B) :-
+     q(A, B).
+*/
+
+test(maxchg) :-
+    execute_test(maxchg, replace_term(r(A,B), rr(A,B)), [max_changes(1), file(maxchg)]).
+
 :- comment_data:disable.
 
 :- end_tests(refactor).
