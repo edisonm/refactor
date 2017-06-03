@@ -882,7 +882,7 @@ test(save_changes) :-
     copy_file(Ex1, File),
     [File],
     rreset,
-    replace_term((((same_term(c,a),d,b))),(((d,b))), [module(ex1_)]),
+    replace_term((same_term(c,a),d,b),((d,b)), [module(ex1_)]),
     with_output_to(string(Result), rshow),
     assertion(Result\==""),
     rcommit.

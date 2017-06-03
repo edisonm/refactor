@@ -1,8 +1,8 @@
 :- module(ex1_, []).
 
-:- public g/0.
+:- public gg/0.
 
-g :- same_term(c,a),d,(b   )   .
+gg :- same_term(c,a),d,(b   )   .
 
 b.
 
