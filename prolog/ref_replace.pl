@@ -2058,8 +2058,29 @@ write_b1(Term, OptL, Pos) :-
 write_b1(Term, OptL, Pos) :-
     and_layout(Term), !,
     write_b_layout(Term, OptL, and, Pos).
-write_b1(Term, OptL, _) :-
-    write_term(Term, OptL).
+write_b1(Term, OptL, _Pos) :-
+    option(module(M), OptL),
+    ( nonvar(Term),
+      predicate_property(M:Term, meta_predicate(Meta)),
+      arg(Idx, Meta, 0),
+      arg(Idx, Term, Arg),
+      nonvar(Arg),
+      \+ memberchk(Arg, ['$BODYB'(_), '$BODYB'(_, _)])
+    ->body_meta_arg(Term, Meta, TMeta)
+    ; TMeta = Term
+    ),
+    write_term(TMeta, OptL).
+
+body_meta_arg(Term, Meta, TMeta) :-
+    functor(Term, F, N),
+    Term =.. [F|ArgL],
+    Meta =.. [F|SpecL],
+    functor(TMeta, F, N),
+    TMeta =.. [F|MetaL],
+    maplist(body_meta_each, SpecL, ArgL, MetaL).
+
+body_meta_each(0, Arg, '$BODYB'(Arg)) :- nonvar(Arg), !.
+body_meta_each(_, Arg, Arg).
 
 write_b_layout(Term, OptL0, Layout, Pos) :-
     bin_op(Term, Op, Left, Right, A, B),
