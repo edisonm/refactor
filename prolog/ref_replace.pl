@@ -60,6 +60,7 @@
 :- use_module(library(prolog_source), []). % expand/4
 :- use_module(library(readutil)).
 :- use_module(library(fix_termpos)).
+:- use_module(library(mapargs)).
 :- use_module(library(gcb)).
 :- use_module(library(ref_changes)).
 :- use_module(library(ref_msgtype)).
@@ -260,6 +261,10 @@
 %     transformed term contains more terms that could potentially match to avoid
 %     loops.  If the level is a non recursive one (see level_rec/2), such value
 %     is equivalent to none.
+%
+%     Value=file means that the recursion is performed over the hole file.
+%
+%     Value=term means that the recursion is performed over the transformed term.
 %
 %     Value=true means that the recursion is applied up to reach the fixpoint
 %     without decreasing control. If Level is a non recursive one, the recursion
@@ -469,10 +474,18 @@ fixpoint_file(true, Max, Goal) :-
         fail
       ).
 
-rec_fixpoint_file(rec,   _, none).
+rec_fixpoint_file(rec,   P, F) :- rec_ff(P, F).
 rec_fixpoint_file(norec, P, F) :- norec_ff(P, F).
 
+rec_ff(decreasing, none).
+rec_ff(file,       true).
+rec_ff(term,       none).
+rec_ff(true,       none).
+rec_ff(none,       none).
+
 norec_ff(decreasing, none).
+norec_ff(file,       true).
+norec_ff(term,       none).
 norec_ff(true,       true).
 norec_ff(none,       none).
 
@@ -642,8 +655,10 @@ rec_fixpoint_term(norec, _, not).
 rec_fixpoint_term(rec,   P, F) :- rec_ft(P, F).
 
 rec_ft(decreasing, dec).
-rec_ft(none,       not).
+rec_ft(file,       not).
+rec_ft(term,       rec).
 rec_ft(true,       rec).
+rec_ft(none,       not).
 
 % This is weird due to the operators
 apply_commands(Index, File, Level, M, Rec, FixPoint, Max, GenMCmd) :-
@@ -707,8 +722,11 @@ apply_commands_stream_each(FPTerm, CI, M, Max, Command, Text1, IPosText) :-
     ( apply_change(Text1, M, Command, FromToPText1),
       ( do_recursion(CI, Command, GenMCmd, CS)
       ->FromToPText1 = t(From, To, PasteText),
-        get_out_pos(Text1, IPosText, From, LPos),
-        with_output_to(string(LeftText), line_pos(LPos)),
+        get_out_pos(Text1, IPosText, From, Line, LPos),
+        with_output_to(string(LeftText),
+                       ( forall(between(2, Line, _), nl),
+                         line_pos(LPos)
+                       )),
         atomics_to_string([LeftText, PasteText, "."], Text2),
         set_context_value(text, Text2),
         setup_call_cleanup(
@@ -729,11 +747,11 @@ apply_commands_stream_each(FPTerm, CI, M, Max, Command, Text1, IPosText) :-
       nb_setarg(2, IPosText, Text6)
     ).
 
-get_out_pos(RText, Pos-Text0, From, LPos) :-
+get_out_pos(RText, Pos-Text0, From, Line, LPos) :-
     Length is max(0, From - Pos),
     sub_string(RText, Pos, Length, _, Text1),
     string_concat(Text0, Text1, Text2),
-    textpos_line(Text2, From, _, LPos).
+    textpos_line(Text2, From, Line, LPos).
 
 string_concat_to(RText, t(From, To, PasteText), Pos-Text0, To-Text) :-
     Length is max(0, From - Pos),
@@ -791,15 +809,21 @@ apply_change(Text, M, subst(TermPos, Priority, Pattern, Term, VNL, Into, _),
     wr_options(OptionL),
     call_cleanup(
         with_output_to(
-            string(PasteText),
-            with_termpos(
-                print_expansion_0(Into, Pattern, Term, TermPos,
-                                  [priority(Priority), module(M),
-                                   variable_names(VNL)
-                                   |OptionL],
-                                  Text, From, To),
-                TermPos)),
-        retractall(rportray_pos(_, _))).
+            string(OutputText),
+            ( stream_property(current_output, position(Pos1)),
+              with_termpos(
+                  print_expansion_0(Into, Pattern, Term, TermPos,
+                                    [priority(Priority), module(M),
+                                     variable_names(VNL)
+                                     |OptionL],
+                                    Text, From, To),
+                  TermPos),
+              stream_property(current_output, position(Pos2))
+            )),
+        retractall(rportray_pos(_, _))),
+    stream_position_data(char_count, Pos1, B1),
+    stream_position_data(char_count, Pos2, B2),
+    get_subtext(OutputText, B1, B2, PasteText).
 
 wr_options([portray_goal(ref_replace:rportray),
             spacing(next_argument),
@@ -973,7 +997,8 @@ trim_hacks(Term, Trim) :-
 
 trim_hack(Term, Trim) :-
     nonvar(Term),
-    do_trim_hack(Term, Trim).
+    do_trim_hack(Term, Trim1),
+    trim_hacks(Trim1, Trim).
 
 do_trim_hack('$@'(Term, _), Term).
 do_trim_hack('@@'(Term, _), Term).
@@ -1598,7 +1623,7 @@ write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), Writter, SepIn, Opt)
     arg(2, Pos0, To0),
     !,
     refactor_context(text, Text),
-    display_subtext(Text, From0, IFrom),
+    print_subtext(Text, From0, IFrom),
     ( Pos0 = list_position(_, _, PosL, Tail)
     ->write(SepIn),
       PosL = [LPos|_],
@@ -1612,7 +1637,7 @@ write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), Writter, SepIn, Opt)
                          GPriority, Opt, Text)
     ; term_write_sep_list_inner_rec(Term, Writter, SepIn, Opt)
     ),
-    display_subtext(Text, ITo, To0).
+    print_subtext(Text, ITo, To0).
 write_tail(T, Writter, _, Opt) :-
     write('|'),
     call(Writter, T, Opt).
@@ -1713,7 +1738,7 @@ comp_priority(M, GTerm, GPriority, Term, Priority) :-
     term_needs_braces(M:Term, Priority).
 
 % :- meta_predicate term_needs_braces(:, +).
-% If Term is a replacement, '$sb'/6, we assume that the substitution will nor
+% If Term is a replacement, '$sb'/6, we assume that the substitution will not
 % require braces (not sure if this is correct, but it works)
 term_needs_braces(M:Term, Pri) :-
     term_needs_braces_c(Term, M, Pri).
@@ -1741,7 +1766,48 @@ do_print_expansion_sb(Pattern, Into, GTerm, TermPos, OptionL, Text) :-
 print_subtext_sb(Into, GTerm, TermPos, GPriority, OptionL, Text) :-
     with_cond_braces(print_subtext, Into, GTerm, TermPos, GPriority, OptionL, Text).
 
-print_subtext(_, _, TermPos, _, Text) :- print_subtext(TermPos, Text).
+print_subtext(_, Term, TermPos, OptionL, Text) :-
+    get_subtext(TermPos, Text, SubText),
+    ( sub_string(SubText, 0, 1, _, C),
+      char_type(C, space)
+    ->true
+    ; fix_if_partial_term(Term, _, OptionL)
+    ),
+    format("~s", [SubText]).
+
+fix_if_partial_term(Term, Offset, OptionL) :-
+    fix_if_partial_term_(Term, Offset, OptionL).
+% writeln(user_error, fix_if_partial_term(Term, Offset, OptionL)).
+
+fix_if_partial_term_(Term, Offset, OptionL) :-
+    nonvar(Term),
+    Term = '$sb'(_, _, _, GTerm, _, _), !,
+    fix_if_partial_term_(GTerm, Offset, OptionL).
+fix_if_partial_term_(Term, Offset, OptionL) :-
+    ( nonvar(Term)
+    ->functor(Term, F, A),
+      functor(Func, F, A),
+      numbervars(Func, 0, _),
+      select_option(portray_goal(_), OptionL, OptionL2),
+      with_output_to(
+          string(_),
+          ( stream_property(current_output, position(SPos1)),
+            write_term(Func, OptionL2),
+            stream_property(current_output, position(SPos2))
+          )),
+      stream_property(current_output, position(Pos1)),
+      write_term(Func, OptionL2),
+      stream_property(current_output, position(Pos2)),
+      stream_position_data(char_count, Pos1, B1),
+      stream_position_data(char_count, Pos2, B2),
+      stream_position_data(char_count, SPos1, S1),
+      stream_position_data(char_count, SPos2, S2),
+      Offset is B2-B1+S1-S2,
+      write(''), % kludge to reset partial(true) logic
+      set_stream_position(current_output, Pos1),
+      seek(current_output, Offset, current, _)
+    ; Offset = 0
+    ).
 
 with_cond_braces(Call, Into, GTerm, TermPos, GPriority, OptionL, Text) :-
     option(module(M), OptionL),
@@ -1839,7 +1905,7 @@ print_expansion_elem(OptionL, Text, From-To, RefPos, Into, Pattern-GTerm) :-
       GTerm \== '$RM'
     ->true
     ; print_expansion(Into, Pattern, GTerm, RefPos, OptionL, Text),
-      display_subtext(Text, From, To)
+      print_subtext(Text, From, To)
     ).
 
 escape_term($@(_)).
@@ -1934,9 +2000,9 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT),
     succ(A, N),
     nth1(N, PosKL, E),
     arg(2, E, To2),
-    display_subtext(Text, From, To1),
+    print_subtext(Text, From, To1),
     maplist(print_expansion_arg(M, Into, OptionL, Text), FromToL, ValL),
-    display_subtext(Text, To2, To).
+    print_subtext(Text, To2, To).
 print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, OptionL0, Text) :-
     maplist(normalize_pos, PosL, PosN),
     from_to_pairs(PosN, From, To1, To2, FromToL, []),
@@ -1962,7 +2028,7 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, O
     ; Delta = 1 ->write(' ')    % Only if [...] ---> (...)
     ; true
     ),
-    display_subtext(Text, From1, To1),
+    print_subtext(Text, From1, To1),
     ( PosT \= none ->
       arg(1, PosT, PTo),
       term_priority(Into, M, 2, Priority2),
@@ -1977,7 +2043,7 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, O
       term_priority(Into, M, 2, Priority2),
       OptionL2=[priority(Priority2)|OptionL],
       term_write_sep_list_inner_rec(ATail, write_term, ', ', OptionL2),
-      display_subtext(Text, To2, To)
+      print_subtext(Text, To2, To)
     ),
     ( comp_priority(M, GTerm, Priority, Into, Priority)
     ->write(')')
@@ -1987,37 +2053,42 @@ print_expansion_pos(brace_term_position(From, To, TermPos), {Into}, {Pattern},
                     {GTerm}, OptionL, Text) :-
     arg(1, TermPos, AFrom),
     arg(2, TermPos, ATo),
-    display_subtext(Text, From, AFrom),
+    print_subtext(Text, From, AFrom),
     option(module(M), OptionL),
     print_expansion_arg(M, {Into}, OptionL, Text, ATo-To, v(1, TermPos, Into, Pattern, GTerm)).
 print_expansion_pos(parentheses_term_position(From, To, TermPos), Into, Pattern,
                     GTerm, OptionL1, Text) :-
     arg(1, TermPos, AFrom),
     arg(2, TermPos, ATo),
-    display_subtext(Text, From, AFrom),
+    print_subtext(Text, From, AFrom),
     merge_options([priority(1200)], OptionL1, OptionL),
     print_expansion_elem(OptionL, Text, ATo-To, TermPos, Into, Pattern-GTerm).
 print_expansion_pos(TermPos, Into, _Pattern, GTerm, _, Text) :-
     Into==GTerm,
     arg(1, TermPos, From),
     arg(2, TermPos, To),
-    display_subtext(Text, From, To).
+    print_subtext(Text, From, To).
 
 print_subtext(RefPos, Text) :-
-    arg(1, RefPos, From),
-    arg(2, RefPos, To),
-    display_subtext(Text, From, To).
+    get_subtext(RefPos, Text, SubText),
+    print_text(SubText).
+
+print_text(Text) :-
+    format("~s", [Text]),
+    write(''). % reset partial(true) logic
 
 trim_list(N, L0, L, T) :-
     length(L, N),
     append(L, T, L0).
 
-display_subtext(Text0, From, To) :-
-    ( From == To
-    ->true
-    ; get_subtext(Text0, From, To, Text),
-      format('~s', [Text])
-    ).
+print_subtext(Text, From, To) :-
+    get_subtext(Text, From, To, SubText),
+    print_text(SubText).
+
+get_subtext(RefPos, Text, SubText) :-
+    arg(1, RefPos, From),
+    arg(2, RefPos, To),
+    get_subtext(Text, From, To, SubText).
 
 get_subtext(Text0, From, To, Text) :-
     LPaste is To - From,
@@ -2032,10 +2103,12 @@ bin_op(Term, Op, Left, Right, A, B) :-
     arg(2, Term, B).
 
 rportray_bodyb(B, Pos, OptL) :-
-    write_b(B, OptL, Pos).
+    fix_if_partial_term(B, D, OptL),
+    write_b(B, OptL, Pos+D).
 
 rportray_body(B, Pos, OptL) :-
-    write_b1(B, OptL, Pos).
+    fix_if_partial_term(B, D, OptL),
+    write_b1(B, OptL, Pos+D).
 
 write_b(Term, OptL, Pos0) :-
     ( option(priority(N), OptL),
@@ -2047,7 +2120,7 @@ write_b(Term, OptL, Pos0) :-
       nl,
       line_pos(Pos0 ),
       write(')')
-    ; write_b1(Term, OptL, Pos0 )
+    ; write_b1(Term, OptL, Pos0)
     ).
 
 and_layout(T) :- T = (_,_).
@@ -2065,22 +2138,44 @@ write_b1(Term, OptL, _Pos) :-
       arg(Idx, Meta, 0),
       arg(Idx, Term, Arg),
       nonvar(Arg),
+      ctrl(Arg),
       \+ memberchk(Arg, ['$BODYB'(_), '$BODYB'(_, _)])
-    ->body_meta_arg(Term, Meta, TMeta)
+    ->body_meta_args(Term, Meta, TMeta)
     ; TMeta = Term
     ),
     write_term(TMeta, OptL).
 
-body_meta_arg(Term, Meta, TMeta) :-
+body_meta_args(Term, Spec, Meta) :-
     functor(Term, F, N),
-    Term =.. [F|ArgL],
-    Meta =.. [F|SpecL],
-    functor(TMeta, F, N),
-    TMeta =.. [F|MetaL],
-    maplist(body_meta_each, SpecL, ArgL, MetaL).
+    functor(Meta, F, N),
+    stream_property(current_output, position(Pos)),
+    ID='$body_meta_args'(Pos), % Trick to get a unique ID
+    mapargs(body_meta_arg(ID, Arg1, Meta1), Term, Spec, Meta),
+    ( var(Meta1) -> Meta1 = Arg1 ; true ).
 
-body_meta_each(0, Arg, '$BODYB'(Arg)) :- nonvar(Arg), !.
-body_meta_each(_, Arg, Arg).
+ctrl((_,_)).
+ctrl((_;_)).
+ctrl((_->_)).
+ctrl((_*->_)).
+ctrl(\+(_)).
+
+body_meta_arg(ID, Arg1, Meta1, I, Arg, Spec, Meta) :-
+    ( Spec = 0,
+      nonvar(Arg),
+      ctrl(Arg),
+      \+ memberchk(Arg, ['$BODYB'(_), '$BODYB'(_, _)])
+    ->( I \= 1
+      ->Meta = '$NL'('$BODYB'(Arg), ID),
+        Meta1 = '$POS'(ID, Arg1)
+      ; Meta1 = Meta,
+        Arg1 = '$BODYB'(Arg)
+      )
+    ; ( I = 1
+      ->Meta1 = Meta,
+        Arg1 = Arg
+      ; Meta = Arg
+      )
+    ).
 
 write_b_layout(Term, OptL0, Layout, Pos) :-
     bin_op(Term, Op, Left, Right, A, B),
