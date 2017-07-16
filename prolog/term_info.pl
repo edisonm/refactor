@@ -121,18 +121,19 @@ get_term_info_fd(In, Pattern, Term, Options0 ) :-
     repeat,
       '$set_source_module'(M, M),
       read_term(In, Term, [module(M)|Options]),
-      set_line(SetLine),
       ( Term == end_of_file
       ->!,
         fail
-      ; ( member(ModDecl, [(:- module(CM, _)), (:- module(CM, _, _))]),
-          subsumes_term(ModDecl, Term),
-          Term = ModDecl
-        ->'$set_source_module'(_, CM)
-        ; true
-        ),
-        subsumes_term(Pattern, Term)
-      ).
+      ; true
+      ),
+      set_line(SetLine),
+      ( member(ModDecl, [(:- module(CM, _)), (:- module(CM, _, _))]),
+        subsumes_term(ModDecl, Term),
+        Term = ModDecl
+      ->'$set_source_module'(_, CM)
+      ; true
+      ),
+      subsumes_term(Pattern, Term).
 
 should_set_line(posline(Pos, Line), Options, [term_position(Pos)|Options]) :-
     option(line(Line), Options), !.

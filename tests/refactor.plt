@@ -316,7 +316,13 @@ diff -ruN ex13.pl -
 */
 
 test(ex13) :-
-    execute_test(ex13, replace_term(T, T1$@T, (nonvar(T), T=q(_B,A),var(A),substitute_value(A, a, T, T1)))).
+    once(clause(ex13:ex13(_,_), _, Ref)),
+    execute_test(ex13, replace_term(T, T1$@T,
+                                    ( nonvar(T),
+                                      T=q(_B,A),
+                                      var(A),
+                                      substitute_value(A, a, T, T1)
+                                    )), [clause(Ref)]).
 
 :- use_module(ex14).
 
