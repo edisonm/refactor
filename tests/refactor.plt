@@ -1528,15 +1528,15 @@ diff -ruN meta1.pl -
 -              )), RL),
 +            order_by(asc(E),
 +               distinct(E, 
-+                         ( member(E, L),
-+                           E= ~a,
-+                           \+ ( member(E, L2),
-+                                member(E, L3)
-+                              ),
-+                           ( once(sub_string(E, _, _, _, a))
-+                           ; once(sub_string(E, _, _, _, b))
-+                           )
-+                         ))), RL),
++                        ( member(E, L),
++                          E= ~a,
++                          \+ ( member(E, L2),
++                               member(E, L3)
++                             ),
++                          ( once(sub_string(E, _, _, _, a))
++                          ; once(sub_string(E, _, _, _, b))
++                          )
++                        ))), RL),
      writeln(user_error, RL).
 */
 

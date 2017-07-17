@@ -1496,6 +1496,7 @@ rportray('$NL'(Term, Offs), Opt) :-
     offset_pos(Offs, Pos), !,
     nl,
     line_pos(Pos),
+    write(''),
     write_term(Term, Opt).
 rportray('$LISTB,NL'(L), Opt) :- !,
     offset_pos('$OUTPOS'+1, Pos), !,
@@ -2189,7 +2190,9 @@ write_b_layout(Term, OptL0, Layout, Pos) :-
 nl_indent(or, Op, LinePos) :-
     nl,
     line_pos(LinePos - 2),
-    format('~|~a~2+',[Op]).
+    format(atom(A), '~|~a~2+',[Op]),
+    % Kludge to reset logic of partial(true):
+    write(A).
 nl_indent(and, Op, LinePos) :-
     write(Op),
     nl,
