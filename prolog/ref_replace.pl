@@ -1402,15 +1402,19 @@ rportray(\\(Term), OptionL) :-
     assertz(rportray_skip),
     write_term(Term, OptionL).
 % rportray('$sb'(_, _, _, _), _) :- !.
-rportray(@@(Term, '$sb'(TermPos, IFrom, ITo, _, _, _)), OptionL) :-
+rportray(@@(Term, STerm), OptionL) :-
     \+ retract(rportray_skip),
     !,
-    arg(1, TermPos, From),
-    arg(2, TermPos, To),
-    refactor_context(text, Text),
-    print_subtext(From-IFrom, Text),
-    write_term(Term, OptionL),
-    print_subtext(ITo-To, Text).
+    ( nonvar(STerm),
+      STerm = '$sb'(TermPos, IFrom, ITo, _, _, _)
+    ->arg(1, TermPos, From),
+      arg(2, TermPos, To),
+      refactor_context(text, Text),
+      print_subtext(From-IFrom, Text),
+      write_term(Term, OptionL),
+      print_subtext(ITo-To, Text)
+    ; write_term(Term, OptionL)
+    ).
 rportray('$@'(Into, '$sb'(ArgPos, _IFrom, _ITo, GTerm, GPriority, Pattern)), OptionL) :-
     !,
     % Use a different pattern to guide the printing of Term
