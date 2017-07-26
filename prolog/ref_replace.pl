@@ -789,15 +789,17 @@ gen_new_variable_names([Var|VarL], [Name1|NameL], SVarL, Preffix, Count1,
     ( nonvar(Name1)
     ->VNL2 = VNL1,
       Count = Count1
-    ; member(Var1, SVarL),
-      Var1 == Var,
-      will_occurs(Var, Sent, Pattern, Into, VNL1, N),
-      N =:= 1
-    ->VNL2 = VNL1,
-      Count = Count1
-    ; gen_new_variable_name(VNL1, Preffix, Count1, Name),
+    ; will_occurs(Var, Sent, Pattern, Into, VNL1, N),
+      N > 1
+    ->gen_new_variable_name(VNL1, Preffix, Count1, Name),
       succ(Count1, Count),
       VNL2 = [Name=Var|VNL1]
+    ; ( member(Var1, SVarL),
+        Var1 == Var
+      ->VNL2 = VNL1
+      ; VNL2 = ['_'=Var|VNL1]
+      ),
+      Count = Count1
     ),
     gen_new_variable_names(VarL, NameL, SVarL, Preffix, Count, Sent, Pattern, Into, VNL2, VNL).
 
@@ -1011,12 +1013,12 @@ match_vars_with_names(VNL1, Var, Name) :-
            )).
 
 gen_new_variable_names(Sent, Term, Into, VNL) :-
-    term_variables(Into, VarL),
     refactor_context(preffix, Preffix),
     refactor_context(variable_names, VNL1),
     refactor_context(singletons, SVarL),
-    maplist(match_vars_with_names(VNL1), VarL, NameL),
     trim_hacks(Into, TInto),
+    term_variables(TInto, VarL),
+    maplist(match_vars_with_names(VNL1), VarL, NameL),
     gen_new_variable_names(VarL, NameL, SVarL, Preffix, 1, Sent, Term, TInto, VNL1, VNL2),
     once(append(VNL, VNL1, VNL2)).
 
