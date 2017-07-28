@@ -1376,9 +1376,11 @@ rportray_clause(Clause, OptL) :-
 
 rportray_clause(C, Pos, OptL) :-
     ( nonvar(C),
-      C = (H :- B)
+      memberchk(C, [(H :- B), (H --> B)])
     ->write_term(H, OptL),
-      write(' :-\n'),
+      functor(C, Neck, _),
+      write(' '),
+      writeln(Neck),
       line_pos(4 + Pos),
       write_b(B, OptL, 4 + Pos)
     ; write_term(C, OptL)
