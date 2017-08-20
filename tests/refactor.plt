@@ -31,6 +31,10 @@ execute_test(Test, Goal, OptionL) :-
                          with_output_to(string(Result), rshow)
                        )),
     comment_data(Test, Pattern),
+    ( Pattern \== Result
+    ->format("~s", [Result])
+    ; true
+    ),
     assertion(Pattern == Result).
 
 :- redefine_system_predicate(current_op(_,_,_)).
@@ -813,22 +817,22 @@ diff -ruN exapp.pl -
  :- style_check(-singleton).
  exls(L) :-
 -    append([a], /* 0 */ [ /* 1 */ ] /* 2 */, L).
-+    L=[a/* 0 */  /* 1 */  /* 2 */].
++    L = [a/* 0 */  /* 1 */  /* 2 */].
  exls(L) :-
 -    append([a], [f(_B) /* 1 */] /*2*/, L).
-+    L=[a, f(_B) /* 1 */ /*2*/].
++    L = [a, f(_B) /* 1 */ /*2*/].
  exls(L) :-
 -    append([a], [f(b)], L).
-+    L=[a, f(b)].
++    L = [a, f(b)].
  
  exapp(A, T, C) :-
 -    append([ /*1*/A,
 -             /*2*/A], /*3*/ T, C).
-+    C=[/*1*/A, /*2*/A|/*3*/ T].
++    C = [/*1*/A, /*2*/A|/*3*/ T].
  exapp(A1-A2, T, C) :-
 -    append([ [ _, [ A1 ] ] ], [ [ _, [ A2 ] ], [ _, [ T ] ] ],
 -           C).
-+    C=[[ _, [ A1 ] ],  [ _, [ A2 ] ], [ _, [ T ] ] ].
++    C = [[ _, [ A1 ] ],  [ _, [ A2 ] ], [ _, [ T ] ] ].
 */
 
 test(exapp_1) :-
@@ -845,23 +849,23 @@ diff -ruN exapp.pl -
  :- style_check(-singleton).
  exls(L) :-
 -    append([a], /* 0 */ [ /* 1 */ ] /* 2 */, L).
-+    L=[a/* 0 */  /* 2 */].
++    L = [a/* 0 */  /* 2 */].
  exls(L) :-
 -    append([a], [f(_B) /* 1 */] /*2*/, L).
-+    L=[a, f(_B) /* 1 */ /*2*/].
++    L = [a, f(_B) /* 1 */ /*2*/].
  exls(L) :-
 -    append([a], [f(b)], L).
-+    L=[a, f(b)].
++    L = [a, f(b)].
  
  exapp(A, T, C) :-
 -    append([ /*1*/A,
 -             /*2*/A], /*3*/ T, C).
-+    C=[ /*1*/A,
++    C = [ /*1*/A,
 +             /*2*/A|/*3*/ T].
  exapp(A1-A2, T, C) :-
 -    append([ [ _, [ A1 ] ] ], [ [ _, [ A2 ] ], [ _, [ T ] ] ],
 -           C).
-+    C=[ [ _, [ A1 ] ], [ _, [ A2 ] ], [ _, [ T ] ] ].
++    C = [ [ _, [ A1 ] ], [ _, [ A2 ] ], [ _, [ T ] ] ].
 */
 
 test(exapp_2) :-
@@ -1385,10 +1389,10 @@ diff -ruN unfold.pl -
  
  f(A, B) :-
 -    append([1,2,3,4], A, X),
-+    X=[1|V1],
-+    V1=[2|V2],
-+    V2=[3|V3],
-+    V3=[4|V1],
++    X = [1|V1],
++    V1 = [2|V2],
++    V2 = [3|V3],
++    V3 = [4|V1],
 +    append([], A, V1),
      X = B.
 */
@@ -1405,10 +1409,10 @@ diff -ruN unfold.pl -
  f(A, B) :-
 -    append([1,2,3,4], A, X),
 +    append([], A, V4),
-+    V3=[4|V4],
-+    V2=[3|V3],
-+    V1=[2|V2],
-+    X=[1|V1],
++    V3 = [4|V4],
++    V2 = [3|V3],
++    V1 = [2|V2],
++    X = [1|V1],
      X = B.
 */
 
@@ -1426,10 +1430,10 @@ diff -ruN unfold.pl -
  f(A, B) :-
 -    append([1,2,3,4], A, X),
 +    append([], A, V4),
-+    V3=[4|V4],
-+    V2=[3|V3],
-+    V1=[2|V2],
-+    X=[1|V1],
++    V3 = [4|V4],
++    V2 = [3|V3],
++    V1 = [2|V2],
++    X = [1|V1],
      X = B.
 */
 
@@ -1527,9 +1531,9 @@ diff -ruN meta1.pl -
 -                )
 -              )), RL),
 +            order_by(asc(E),
-+               distinct(E, 
++               distinct(E,
 +                        ( member(E, L),
-+                          E= ~a,
++                          E = ~a,
 +                          \+ ( member(E, L2),
 +                               member(E, L3)
 +                             ),
@@ -1562,6 +1566,14 @@ diff -ruN singl.pl -
 
 test(singl) :-
     execute_test(singl, replace_sentence(f(A,B),f(A,B,_)), [file(singl)]).
+
+% not aded since it is too noisy:
+% test(indent) :-
+%     execute_test(indent, replace_sentence((A:-B), '$CLAUSE'(C),
+%                                           ( duplicate_term((A:-B),C),
+%                                             C=(A:-B)
+%                                           )),
+%                  [file('refactor.plt')]).
 
 :- comment_data:disable.
 

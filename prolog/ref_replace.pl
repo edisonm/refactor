@@ -165,7 +165,7 @@
 %
 %   * X @@ Y
 %     Print the term X with the surroundings of Y (comments, etc.).  This is
-%     useful to preserve comments in X, if X is going to dissapear in the
+%     useful to preserve comments in Y, if Y is going to dissapear in the
 %     transformed code.
 %
 %   * X $@ Y
@@ -1374,16 +1374,30 @@ rportray_clause(Clause, OptL) :-
 % portray_clause_(OptL, Clause) :-
 %     portray_clause(current_output, Clause, OptL).
 
-rportray_clause(C, Pos, OptL) :-
+rportray_clause(C, Pos, OptL1) :-
+    option(module(M), OptL1),
+    stream_property(current_output, position(SPos1)),
+    write_term(C, OptL1),
+    stream_property(current_output, position(SPos2)),
     ( nonvar(C),
-      memberchk(C, [(H :- B), (H --> B)])
-    ->write_term(H, OptL),
+      memberchk(C, [(H :- B), (H --> B)]),
+      has_meta(B, M, 0, _),
+      ( stream_position_data(line_count, SPos1, Line1),
+        stream_position_data(line_count, SPos2, Line2),
+        Line1 \= Line2
+      ; stream_position_data(line_position, SPos2, Pos2),
+        Pos2 > 80
+      )
+    ->set_stream_position(current_output, SPos1),
+      write_term(H, OptL1),
       functor(C, Neck, _),
       write(' '),
       writeln(Neck),
       line_pos(4 + Pos),
-      write_b(B, OptL, 4 + Pos)
-    ; write_term(C, OptL)
+      term_priority((_, _), M, 2, Priority),
+      merge_options([priority(Priority)], OptL1, OptL2),
+      write_b(B, OptL2, 4 + Pos)
+    ; true
     ).
 
 :- public rportray/2.
@@ -1506,6 +1520,10 @@ rportray('$NL'(Term, Offs), Opt) :-
     line_pos(Pos),
     write(''),
     write_term(Term, Opt).
+rportray('$SEEK'(Term, Offs), Opt) :-
+    offset_pos(Offs, Pos),
+    seek(current_output, Pos, current, _),
+    write_term(Term, Opt).
 rportray('$LISTB,NL'(L), Opt) :- !,
     offset_pos('$OUTPOS'+1, Pos), !,
     rportray_list_nl_b(L, Pos, Opt).
@@ -1551,6 +1569,36 @@ rportray((:- Decl), Opt) :- !,
     write(':- '),
     merge_options([priority(1200)], Opt, Opt1),
     write_term(Decl, Opt1).
+% Better formatting:
+rportray(Term, OptL) :-
+    callable(Term),
+    \+ escape_term(Term),
+    \+ current_arithmetic_function(Term),
+    \+ ctrl(Term),
+    Term \= (_:_),
+    Term =.. [Name, Left, Right],
+    option(module(M), OptL),
+    \+ arithmetic:evaluable(Term, M),
+    current_op(OptPri, Type, M:Name),
+    valid_op_type_arity(Type, 2),
+    !,
+    option(priority(Pri), OptL),
+    ( OptPri > Pri
+    ->Display = yes
+    ; Display = no
+    ),
+    term_priority_gnd(Term, M, 1, LP),
+    merge_options([priority(LP)], OptL, OptL1),
+    cond_display(Display, '('),
+    write_term(Left, OptL1),
+    write(' '),
+    write(Name),
+    write(' '),
+    term_priority_gnd(Term, M, 2, RP),
+    merge_options([priority(RP)], OptL, OptL2),
+    write(''),
+    write_term(Right, OptL2),
+    cond_display(Display, ')').
 
 pos_value(Pos, Value) :-
     ( rportray_pos(Pos, Value)
@@ -1727,11 +1775,8 @@ print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
 % if the term have been in parentheses, in a place where that was
 % required, include it!!!
 %
-fix_position_if_braced(term_position(From, _, FFrom, FTo, _), M,
-                       Term, GPriority, Into, Priority, Text, Display) :-
-    \+ ( From==FFrom,
-         sub_string(Text, FTo, 1, _, "(")
-       ),
+fix_position_if_braced(term_position(_, _, _, _, _), M,
+                       Term, GPriority, Into, Priority, Display) :-
     ( \+ term_needs_braces(M:Term, GPriority),
       ( nonvar(Into),
         term_needs_braces(M:Into, Priority)
@@ -1740,7 +1785,7 @@ fix_position_if_braced(term_position(From, _, FFrom, FTo, _), M,
     ->Display=yes
     ),
     !.
-fix_position_if_braced(_, _, _, _, _, _, _, no). % fail-safe
+fix_position_if_braced(_, _, _, _, _, _, no). % fail-safe
 
 comp_priority(M, GTerm, GPriority, Term, Priority) :-
     \+ term_needs_braces(M:GTerm, GPriority),
@@ -1749,11 +1794,16 @@ comp_priority(M, GTerm, GPriority, Term, Priority) :-
 % :- meta_predicate term_needs_braces(:, +).
 % If Term is a replacement, '$sb'/6, we assume that the substitution will not
 % require braces (not sure if this is correct, but it works)
+term_needs_braces(_:Term, _) :-
+    \+ callable(Term),
+    !,
+    fail.
+% term_needs_braces(M:'$sb'(_, _, _, _, _, Into), Pri) :- !,
+%     term_needs_braces(M:Into, Pri).
 term_needs_braces(M:Term, Pri) :-
-    term_needs_braces_c(Term, M, Pri).
+    term_needs_braces(Term, M, Pri).
 
-term_needs_braces_c(Term, M, Pri) :-
-    callable(Term),
+term_needs_braces(Term, M, Pri) :-
     functor(Term, Name, Arity),
     valid_op_type_arity(Type, Arity),
     current_op(OpPri, Type, M:Name),
@@ -1782,11 +1832,15 @@ print_subtext(_, Term, TermPos, OptionL, Text) :-
     ->true
     ; fix_if_partial_term(Term, _, OptionL)
     ),
+    ( sub_string(SubText, _, 1, 0, E),
+      char_type(E, space)
+    ->write('')
+    ; true
+    ),
     format("~s", [SubText]).
 
 fix_if_partial_term(Term, Offset, OptionL) :-
     fix_if_partial_term_(Term, Offset, OptionL).
-% writeln(user_error, fix_if_partial_term(Term, Offset, OptionL)).
 
 fix_if_partial_term_(Term, Offset, OptionL) :-
     nonvar(Term),
@@ -1821,7 +1875,7 @@ fix_if_partial_term_(Term, Offset, OptionL) :-
 with_cond_braces(Call, Into, GTerm, TermPos, GPriority, OptionL, Text) :-
     option(module(M), OptionL),
     option(priority(Priority), OptionL),
-    fix_position_if_braced(TermPos, M, GTerm, GPriority, Into, Priority, Text, Display),
+    fix_position_if_braced(TermPos, M, GTerm, GPriority, Into, Priority, Display),
     cond_display(Display, '('),
     call(Call, Into, GTerm, TermPos, OptionL, Text),
     cond_display(Display, ')').
@@ -1933,6 +1987,7 @@ escape_term('$LIST,NL'(_)).
 escape_term('$LIST,NL'(_, _)).
 escape_term('$NL'(_, _)).
 escape_term('$POS'(_, _)).
+escape_term('$SEEK'(_, _)).
 escape_term('$LISTC.NL'(_)).
 escape_term('$LISTB,NL'(_)).
 escape_term('$LISTB,NL'(_, _)).
@@ -2143,16 +2198,32 @@ write_b1(Term, OptL, Pos) :-
 write_b1(Term, OptL, _Pos) :-
     option(module(M), OptL),
     ( nonvar(Term),
-      predicate_property(M:Term, meta_predicate(Meta)),
-      arg(Idx, Meta, 0),
-      arg(Idx, Term, Arg),
-      nonvar(Arg),
-      ctrl(Arg),
-      \+ memberchk(Arg, ['$BODYB'(_), '$BODYB'(_, _)])
-    ->body_meta_args(Term, Meta, TMeta)
+      has_meta(Term, M, 0, Spec)
+    ->body_meta_args(Term, Spec, TMeta)
     ; TMeta = Term
     ),
     write_term(TMeta, OptL).
+
+has_meta(Term, _, _, _) :-
+    var(Term), !, fail.
+has_meta(M:Term, _, Meta, Spec) :- !,
+    has_meta(Term, M, Meta, Spec).
+has_meta(Term, M, Meta, Spec) :-
+    \+ memberchk(Term, ['$BODYB'(_),
+                        '$BODYB'(_, _)]),
+    predicate_property(M:Term, meta_predicate(Spec)),
+    ( findall(Arg,
+              ( arg(Idx, Spec, Meta),
+                arg(Idx, Term, Arg),
+                nonvar(Arg)
+              ), ArgL),
+      ( ArgL = [_, _, _|_]
+      ; member(Arg, ArgL),
+        has_meta(Arg, M, 0, _)
+      )
+    ->true
+    ; ctrl(Term)
+    ).
 
 body_meta_args(Term, Spec, Meta) :-
     functor(Term, F, N),
@@ -2162,27 +2233,24 @@ body_meta_args(Term, Spec, Meta) :-
     mapargs(body_meta_arg(ID, Arg1, Meta1), Term, Spec, Meta),
     ( var(Meta1) -> Meta1 = Arg1 ; true ).
 
-ctrl((_,_)).
-ctrl((_;_)).
-ctrl((_->_)).
-ctrl((_*->_)).
-ctrl(\+(_)).
+ctrl((_ ,   _)).
+ctrl((_ ;   _)).
+ctrl((_ ->  _)).
+ctrl((_ *-> _)).
 
-body_meta_arg(ID, Arg1, Meta1, I, Arg, Spec, Meta) :-
+body_meta_arg(ID, Arg1, Meta1, I, Term, Spec, Meta) :-
     ( Spec = 0,
-      nonvar(Arg),
-      ctrl(Arg),
-      \+ memberchk(Arg, ['$BODYB'(_), '$BODYB'(_, _)])
+      nonvar(Term)
     ->( I \= 1
-      ->Meta = '$NL'('$BODYB'(Arg), ID),
+      ->Meta = '$SEEK'('$NL'('$BODYB'(Term), ID), -1),
         Meta1 = '$POS'(ID, Arg1)
       ; Meta1 = Meta,
-        Arg1 = '$BODYB'(Arg)
+        Arg1 = '$BODYB'(Term)
       )
     ; ( I = 1
       ->Meta1 = Meta,
-        Arg1 = Arg
-      ; Meta = Arg
+        Arg1 = Term
+      ; Meta = Term
       )
     ).
 
@@ -2202,8 +2270,7 @@ nl_indent(or, Op, LinePos) :-
     % Kludge to reset logic of partial(true):
     write(A).
 nl_indent(and, Op, LinePos) :-
-    write(Op),
-    nl,
+    writeln(Op),
     line_pos(LinePos).
 
 line_pos(LinePos) :-
@@ -2218,6 +2285,7 @@ line_pos(LinePos) :-
     LinePos > 0,
     !,
     write(' '),
+    write(''),
     LinePos1 is LinePos - 1,
     line_pos(LinePos1).
 line_pos(_).
