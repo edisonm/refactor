@@ -356,9 +356,9 @@ diff -ruN ex14.pl -
 -    f(A, 'b') = f(a, B),
 -    \+ A,
 -    \+ B.
-+ex14(a, 'b') :-
++ex14(a, b) :-
 +    \+ a,
-+    \+ 'b'.
++    \+ b.
  
 -ex14(A, B) :-
 -    B = [x|T],
@@ -1574,6 +1574,23 @@ test(singl) :-
 %                                             C=(A:-B)
 %                                           )),
 %                  [file('refactor.plt')]).
+
+/* $atomic$
+diff -ruN atomic.pl -
+--- atomic.pl (source)
++++ atomic.pl (target)
+@@ -1,4 +1,3 @@
+ 
+ a :-
+-    t(T),
+-    l([T,e(n)]).
++    l([[t/n],e(n)]).
+*/
+
+test(atomic) :-
+    execute_test(atomic,
+                 replace_term((t(T), B), C$@B,
+                              substitute_value(T, [t/n], B, C)), [file(atomic)]).
 
 :- comment_data:disable.
 

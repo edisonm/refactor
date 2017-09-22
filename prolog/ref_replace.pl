@@ -898,18 +898,19 @@ with_context(Sent, Term, TermPos, Pattern0, Into0, Pattern, Into, VNL, Goal) :-
     map_subterms(p(Triplets, Pattern0, Pattern, Term2, VNL, Into1, Into2), Into0, Into1, Into).
 
 map_subterms(Params, T0, T1, T) :-
-    Params = p(Pairs, P0, P1, P2, VNL, Into1, Into2),
-    ( member(X0-X1-X2, Pairs),
+    Params = p(Triplets, P0, P1, P2, VNL, Into1, Into2),
+    ( member(X0-X1-X2, Triplets),
       X1 == T1
-    ; member(X0-X1-X2, Pairs),
+    ; member(X0-X1-X2, Triplets),
       same_term(X0, T0)         % ===/2
     ; sub_term(P0, P1, P2, X0, X1, X2),
-      X0 \== [], % Special case: ignore []
+      \+ atomic(X0), % Special case: ignore atomics
       same_term(X0, T0)         % ===/2
     ; sub_term(P0, P1, P2, X0, X1, X2),
-      X0 \== [], % Special case: ignore []
+      \+ atomic(X0), % Special case: ignore atomics
       X1 == T1
-    ), !,
+    ),
+    !,
     ( T0 == T1
     ->T = X0
     ; \+ ( member(_=V1, VNL),
@@ -959,16 +960,16 @@ map_compound(Params,
              '$@'(X0, Y0),
              '$@'(X1, Y1),
              '$@'(X,  Y)) :- !,
-        map_subterms(Params, X0, X1, X),
-        Params=p(Pairs, P0, P1, P2, _, Into1, Into2),
-        map_subterms(p(Pairs, P0, P1, P2, [], Into1, Into2), Y0, Y1, Y).
+    map_subterms(Params, X0, X1, X),
+    Params=p(Triplets, P0, P1, P2, _, Into1, Into2),
+    map_subterms(p(Triplets, P0, P1, P2, [], Into1, Into2), Y0, Y1, Y).
 map_compound(Params,
              '@@'(X0, Y0),
              '@@'(X1, Y1),
              '@@'(X,  Y)) :- !,
-        map_subterms(Params, X0, X1, X),
-        Params=p(Pairs, P0, P1, P2, _, Into1, Into2),
-        map_subterms(p(Pairs, P0, P1, P2, [], Into1, Into2), Y0, Y1, Y).
+    map_subterms(Params, X0, X1, X),
+    Params=p(Triplets, P0, P1, P2, _, Into1, Into2),
+    map_subterms(p(Triplets, P0, P1, P2, [], Into1, Into2), Y0, Y1, Y).
 map_compound(Params, T0, T1, T) :-
     functor(T0, F, N),
     functor(T1, F, N),
