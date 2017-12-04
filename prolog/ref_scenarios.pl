@@ -510,4 +510,7 @@ call_to_predicate(Term, Suffix, OptL) :-
                      retract(new_pred(File, Sent, S)),
                      [file(F), files(FileL), sentence(Sent)|OptL]).
 
+:- public
+       ctp_1/4.
+
 ctp_1(F, (H:-_), S, _) :- assertz(new_pred(F, (H:-_), S)), fail.
