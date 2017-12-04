@@ -50,11 +50,13 @@
            remove_underscore_multi/1,
            replace_conjunction/3,
            replace_conjunction/4,
+           call_to_predicate/3,
            remove_call/2,
            remove_call/3
           ]).
 
 :- use_module(library(implementation_module)).
+:- use_module(library(substitute)).
 :- use_module(library(option_utils)).
 :- use_module(library(ref_replace)).
 :- use_module(library(ref_replacers)).
@@ -482,3 +484,30 @@ bind_lit_body(Term, Conj2, CLit, CBody, RLit, RBody) :-
     Term = t(Conj, PCLit, PCBody, Repl, PRLit, PRBody),
     refactor_context(pattern, Conj),
     refactor_context(into,    Repl).
+
+:- dynamic
+       new_pred/3.
+
+call_to_predicate(Term, Suffix, OptL) :-
+    replace(body_rec, Term,
+            '$LIST'([Pred,
+                     '$NOOP'('$G'('$PRIORITY'('$CLAUSE'(Pred :- Term), 1200),
+                                  ref_scenarios:ctp_1(F, Sent)))]),
+            ( substitute_value(Term, -, Sent, STrm),
+              term_variables(STrm, SVarU),
+              term_variables(Term, TVarU),
+              sort(SVarU, SVarL),
+              sort(TVarU, TVarL),
+              ord_intersect(SVarL, TVarL, ArgL),
+              Sent = (Head :- _),
+              functor(Head, Preffix, _),
+              atomic_list_concat([Preffix, '_', Suffix], Name),
+              Pred =.. [Name|ArgL]
+            ), [file(F), fixpoint(none), sentence(Sent)|OptL]),
+    findall(File, new_pred(File, _, _), FileU),
+    sort(FileU, FileL),
+    replace_sentence(Sent, ['$TEXT'(S), Sent],
+                     retract(new_pred(File, Sent, S)),
+                     [file(F), files(FileL), sentence(Sent)|OptL]).
+
+ctp_1(F, (H:-_), S, _) :- assertz(new_pred(F, (H:-_), S)), fail.
