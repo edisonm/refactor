@@ -393,6 +393,7 @@ unfold_goal(MGoal, MO:OptionL1) :-
 
 :- meta_predicate remove_call(+,0,:).
 remove_call(Call, Expander, OptionL) :-
+    replace_sentence(Head :- Call, Head, Expander, OptionL),
     replace(body_rec, Term, _, (do_remove_call(Term, Call), Expander),
             OptionL).
 
