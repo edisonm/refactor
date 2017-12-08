@@ -391,11 +391,14 @@ unfold_goal(MGoal, MO:OptionL1) :-
                      rsum(Module, UML),
                      MO:[module(Module)|OptionL]).
 
+%%  remove_call(Call, :Expander, :OptionL) is det
+%
+%   Remove occurrences of Call in the matching term. Note that to be fully
+%   effective should be used in conjunction with the option fixpoint(file).
+
 :- meta_predicate remove_call(+,0,:).
 remove_call(Call, Expander, OptionL) :-
-    replace_sentence(Head :- Call, Head, Expander, OptionL),
-    replace(body_rec, Term, _, (do_remove_call(Term, Call), Expander),
-            OptionL).
+    replace_term(Term, _, (do_remove_call(Term, Call), Expander), OptionL).
 
 :- meta_predicate remove_call(+,:).
 remove_call(Call, OptionL) :-
@@ -411,7 +414,9 @@ do_remove_call(Term, Call) :-
     ; subsumes_term((_, Call), Term)
     ->refactor_context(pattern, (X, _)),
       Term = (_, Call)
-    ; subsumes_term(Call, Term)
+    ; subsumes_term(Call, Term),
+      refactor_context(sentence, Sent),
+      Term \== Sent
     ->X = true,
       Term = Call
     ),
