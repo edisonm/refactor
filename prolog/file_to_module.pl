@@ -597,7 +597,7 @@ collect_movable(M, FileL, ExcludeL, PIL) :-
     prolog_walk_code([autoload(false),
                       source(false),
                       infer_meta_predicates(true)]),
-    extra_walk_code([on_etrace(collect_file_to_module)|OptionL]),
+    extra_walk_code([on_trace(collect_file_to_module)|OptionL]),
     findall(F/A, ( module_to_import_db(F, A, M, _, IFile),
                    \+ memberchk(IFile, FileL),
                    implemented_in_file(F, A, M, File),
