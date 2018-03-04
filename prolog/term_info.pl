@@ -89,13 +89,13 @@ fetch_term_info(Pattern, Term, Options, In) :-
 get_term_info_file(Pattern, Term, File, Options) :-
     with_source_file(File, In, fetch_term_info(Pattern, Term, Options, In)).
 
-get_term_info_fd(In, PatternL, TermL, OptionL0 ) :-
+get_term_info_fd(In, PatternL, TermL, Options0 ) :-
     is_list(PatternL), !,
     foldl(\ (H-D)^O0^O^select_option(H, O0, O, D),
                 [subterm_positions(TermPos)-TermPos,
                  comments(Comments)-Comments,
                  variable_names(VN)-VN
-                ], OptionL0, OptionT),
+                ], Options0, OptionT),
     PatternL = [_|PatternT],
     length(PatternT, TN),
     length(TA, TN),

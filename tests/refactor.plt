@@ -21,13 +21,13 @@
 execute_test(Module, Goal) :-
     execute_test(Module, Module, Goal, []).
 
-execute_test(Module, Test, Goal, OptionL) :-
-    execute_test(Test, Goal, [module(Module)|OptionL]).
+execute_test(Module, Test, Goal, Options) :-
+    execute_test(Test, Goal, [module(Module)|Options]).
 
-execute_test(Test, Goal, OptionL) :-
+execute_test(Test, Goal, Options) :-
     rreset,
     call_in_module_dir(ex1,
-                       ( call(Goal, OptionL),
+                       ( call(Goal, Options),
                          with_output_to(string(Result), rshow)
                        )),
     comment_data(Test, Pattern),
@@ -1236,15 +1236,15 @@ diff -ruN newvars.pl -
 
 test(newvars) :-
     execute_test(newvars,
-                  \ OptionL
+                  \ Options
                  ^( replace_sentence((H1 :- B1), (H2 :- B2),
                                      (H1 = p(a(X), B),
                                       H2 = p(X, Y, B),
                                       B1 = (R = g(_, "b")),
                                       B2 = (R = g(f(X), Y, A, A, _D, "b"))
-                                     ), OptionL),
-                    remove_underscore_multi(OptionL),
-                    anonymize_all_singletons(OptionL)
+                                     ), Options),
+                    remove_underscore_multi(Options),
+                    anonymize_all_singletons(Options)
                   ),
                   [file(newvars), vars_preffix('A')]).
 
@@ -1263,12 +1263,12 @@ diff -ruN autovn.pl -
 
 test(autovn) :-
     execute_test(autovn,
-                  \ OptionL
+                  \ Options
                  ^( replace_sentence(f(A1, _A2, A3, A4, A5, A6, A7),
                                      f(A1, A3, A3, A4, A5, A5, A6, A7),
-                                     OptionL),
-                    remove_underscore_multi(OptionL),
-                    underscore_singletons(OptionL)
+                                     Options),
+                    remove_underscore_multi(Options),
+                    underscore_singletons(Options)
                   ),
                   [file(autovn)]).
 
@@ -1286,9 +1286,9 @@ diff -ruN autovn.pl -
 
 test(autovn2) :-
     execute_test(autovn2,
-                  \ OptionL
-                 ^( replace_sentence(p(C,X), p(C,X), (X=f(_A)), OptionL),
-                    anonymize_singletons(OptionL)
+                  \ Options
+                 ^( replace_sentence(p(C,X), p(C,X), (X=f(_A)), Options),
+                    anonymize_singletons(Options)
                   ),
                   [file(autovn)]).
 

@@ -89,11 +89,11 @@ collect_def_files(M, PIL, FileL) :-
             ), FileU),
     sort(FileU, FileL).
 
-file_to_module(Alias, OptionL0 ) :-
-    select_option(module(M),         OptionL0, OptionL1, M),
-    select_option(exclude(ExcludeL), OptionL1, OptionL2, []),
-    select_option(addcl(AddL),       OptionL2, OptionL3, []),
-    select_option(delcl(DelL),       OptionL3, _OptionL, []),
+file_to_module(Alias, Options0 ) :-
+    select_option(module(M),         Options0, Options1, M),
+    select_option(exclude(ExcludeL), Options1, Options2, []),
+    select_option(addcl(AddL),       Options2, Options3, []),
+    select_option(delcl(DelL),       Options3, _, []),
     absolute_file_name(Alias, File, [file_type(prolog), access(read)]),
     files_to_move(M, File, FileL),
     format('% from context ~a~n', [M]),
@@ -221,13 +221,13 @@ preserve_module(M, FileL, F/A) :-
            \+ memberchk(MFile, FileL)
          )).
 
-add_qualification_head(M, PIM, OptionL) :-
+add_qualification_head(M, PIM, Options) :-
     forall(member(F/A, PIM),
            ( functor(H, F, A),
-             replace_head(H, M:H, OptionL)
+             replace_head(H, M:H, Options)
            )).
 
-add_qualification_decl(M, PIM, OptionL) :-
+add_qualification_decl(M, PIM, Options) :-
     forall(( implementation_decl(DeclN),
              DeclN \= clause(_)
            ),
@@ -236,16 +236,16 @@ add_qualification_decl(M, PIM, OptionL) :-
                                         integer(A),
                                         memberchk(F/A, PIM)
                                       ),
-                          [sentence((:- Decl))|OptionL])
+                          [sentence((:- Decl))|Options])
            )).
 
-ren_qualification_head(M, NewM, PIL, OptionL) :-
+ren_qualification_head(M, NewM, PIL, Options) :-
     forall(member(F/A, PIL),
            ( functor(H, F, A),
-             replace_head(M:H, NewM:H, OptionL)
+             replace_head(M:H, NewM:H, Options)
            )).
 
-ren_qualification_decl(M, NewM, PIL, OptionL) :-
+ren_qualification_decl(M, NewM, PIL, Options) :-
     forall(( implementation_decl(DeclN),
              DeclN \= clause(_)
            ),
@@ -254,7 +254,7 @@ ren_qualification_decl(M, NewM, PIL, OptionL) :-
                                              integer(A),
                                              memberchk(F/A, PIL)
                                            ),
-                          [sentence((:- Decl))|OptionL])
+                          [sentence((:- Decl))|Options])
            )).
 
 add_use_module(M, FileL, Alias, AddL, ExcludeL) :-
@@ -596,10 +596,10 @@ collect_dispersed_assertions(PIL, FileL, M, PIA) :-
     sort(PIUA, PIA).
 
 collect_movable(M, FileL, ExcludeL, PIL) :-
-    OptionL = [source(false), trace_reference(_)],
+    Options = [source(false), trace_reference(_)],
     retractall(module_to_import_db(_, _, _, _, _)),
     infer_meta_if_required,
-    walk_code([on_trace(collect_file_to_module)|OptionL]),
+    walk_code([on_trace(collect_file_to_module)|Options]),
     findall(F/A, ( module_to_import_db(F, A, M, _, IFile),
                    \+ memberchk(IFile, FileL),
                    implemented_in_file(F, A, M, File),

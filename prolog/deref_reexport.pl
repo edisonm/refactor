@@ -39,7 +39,7 @@
 :- use_module(library(infer_alias)).
 :- use_module(library(pretty_decl)).
 
-deref_reexport(Alias, OptionL) :-
+deref_reexport(Alias, Options) :-
     absolute_file_name(Alias, AFile, [file_type(prolog), access(read)]),
     module_property(M, file(AFile)),
     module_property(M, exports(ExL)),
@@ -49,7 +49,7 @@ deref_reexport(Alias, OptionL) :-
          )
     ->print_message(information, format("~w does not have reexports", [Alias]))
     ; freeze(H1, once((member(F/A, ExL), functor(H1, F, A)))),
-      collect_called_from(H1, RM, _, _, OptionL),
+      collect_called_from(H1, RM, _, _, Options),
       findall(File/CM, called_from_w(_, M, RM, CM, File), FileCMU),
       sort(FileCMU, FileCML),
       findall(File/CM-RMPIG,

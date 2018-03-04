@@ -278,11 +278,11 @@
 %     predicate(+Term, +Pattern, -Size) to define the metric used to perform the
 %     decreasing control (by default pattern_size/3).
 
-replace(Level, Term, Into, Expander, MOptionL) :-
+replace(Level, Term, Into, Expander, MOptions) :-
     %% At this point we are not interested in styles
-    meta_options(replace_meta_option, MOptionL, OptionL),
-    with_styles(with_counters(do_replace(Level, Term, Into, Expander, OptionL),
-                              OptionL), [-singleton]).
+    meta_options(replace_meta_option, MOptions, Options),
+    with_styles(with_counters(do_replace(Level, Term, Into, Expander, Options),
+                              Options), [-singleton]).
 
 replace_meta_option(decrease_metric).
 
@@ -337,10 +337,10 @@ do_goal_expansion(Term, TermPos) :-
         [variable_names],
         [VNL]).
 
-do_replace(Level, Term, Into, Expander, OptionL) :-
+do_replace(Level, Term, Into, Expander, Options) :-
     setup_call_cleanup(
         prepare_level(Level, Ref),
-        apply_ec_term_level(Level, Term, Into, Expander, OptionL),
+        apply_ec_term_level(Level, Term, Into, Expander, Options),
         cleanup_level(Level, Ref)).
 
 prepare_level(goal, Ref) :-
@@ -354,13 +354,13 @@ cleanup_level(goal, Ref) :- !,
     retractall(ref_position(_, _, _)).
 cleanup_level(_, _).
 
-apply_ec_term_level(Level, Term, Into, Expander, OptionL) :-
-    forall(ec_term_level_each(Level, Term, Into, Expander, OptionL), true).
+apply_ec_term_level(Level, Term, Into, Expander, Options) :-
+    forall(ec_term_level_each(Level, Term, Into, Expander, Options), true).
 
-with_counters(Goal, OptionL0 ) :-
+with_counters(Goal, Options0 ) :-
     foldl(select_option_default,
           [max_tries(MaxTries)-MaxTries],
-          OptionL0, OptionL),
+          Options0, Options),
     with_context_values(
         ( Goal,
           refactor_context(count, Count),
@@ -368,7 +368,7 @@ with_counters(Goal, OptionL0 ) :-
           foldl(select_option_default,
                 [changes(Count)-Count,
                  tries(Tries)  -Tries],
-                OptionL, _),
+                Options, _),
           message_type(Type),
           print_message(Type,
                         format("~w changes of ~w attempts", [Count, Tries]))
@@ -387,7 +387,7 @@ clause_file_module(CRef, File, M) :-
     clause_property(CRef, file(File)),
     clause_property(CRef, module(M)).
 
-ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
+ec_term_level_each(Level, Term, Into, Expander, Options0) :-
     (Level = goal -> DExpand=yes ; DExpand = no),
     (Level = sent -> SentPattern = Term ; true), % speed up
     foldl(select_option_default,
@@ -406,17 +406,17 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
            variable_names(VNL)-VNL,
            vars_preffix(Preffix)-'V'
           ],
-          OptionL0, OptionL1),
-    ( option(clause(CRef), OptionL1)
+          Options0, Options1),
+    ( option(clause(CRef), Options1)
     ->FileMGen = clause_file_module(CRef, File, M),
       clause_property(CRef, line_count(Line)),
-      merge_options([line(Line)], OptionL1, OptionL2)
-    ; option_allchk(M, File, FileMGen-OptionL1, true-OptionL2)
+      merge_options([line(Line)], Options1, Options2)
+    ; option_allchk(M, File, FileMGen-Options1, true-Options2)
     ),
-    OptionL = [syntax_errors(SE),
+    Options = [syntax_errors(SE),
                subterm_positions(TermPos),
                variable_names(VNL),
-               comments(Comments)|OptionL2],
+               comments(Comments)|Options2],
     maplist(set_context_value,
             [sent_pattern,
              sentence,
@@ -434,7 +434,7 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
             [SentPattern,
              Linear,
              Expanded,
-             OptionL,
+             Options,
              Comments,
              Bindings,
              TermPos,
@@ -451,7 +451,7 @@ ec_term_level_each(Level, Term, Into, Expander, OptionL0) :-
         ( index_change(Index),
           call(FileMGen),
           fetch_sentence_file(
-              Index, FixPoint, Max, M, File, SentPattern, OptionL, Expand,
+              Index, FixPoint, Max, M, File, SentPattern, Options, Expand,
               TermPos, VNL, Expanded, LinearTerm, Linear, Bindings, Level, Term,
               Into, Expander)
         ),
@@ -490,7 +490,7 @@ norec_ff(term,       none).
 norec_ff(true,       true).
 norec_ff(none,       none).
 
-fetch_sentence_file(Index, FixPoint, Max, M, File, SentPattern, OptionL,
+fetch_sentence_file(Index, FixPoint, Max, M, File, SentPattern, Options,
                     Expand, TermPos, VNL, Expanded, LinearTerm,
                     Linear, Bindings, Level, Term, Into, Expander) :-
     level_rec(Level, Rec),
@@ -500,7 +500,7 @@ fetch_sentence_file(Index, FixPoint, Max, M, File, SentPattern, OptionL,
         apply_commands(
             Index, File, Level, M, Rec, FixPoint, Max,
             gen_module_command(
-                SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
+                SentPattern, Options, Expand, TermPos, Expanded, LinearTerm,
                 Linear, VNL, Bindings, Term, Into, Expander))).
 
 binding_varname(VNL, Var=Term) -->
@@ -518,9 +518,9 @@ collect_singletons(Term, VNL, SVarL) :-
     sort(UnnU, UnnL),
     ord_subtract(VarL, UnnL, SVarL).
 
-gen_module_command(SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
+gen_module_command(SentPattern, Options, Expand, TermPos, Expanded, LinearTerm,
                    Linear, VNL, Bindings, Term, Into, Expander, Level, M, Cmd, In) :-
-      ref_fetch_term_info(SentPattern, Sent, OptionL, In, Once),
+      ref_fetch_term_info(SentPattern, Sent, Options, In, Once),
       b_setval('$variable_names', VNL),
       expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
       make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
@@ -541,25 +541,25 @@ gen_module_command(SentPattern, OptionL, Expand, TermPos, Expanded, LinearTerm,
 cond_cut_once(once).
 cond_cut_once(mult(CP)) :- prolog_cut_to(CP).
     
-ref_fetch_term_info(SentPattern, Sent, OptionL, In, once) :-
+ref_fetch_term_info(SentPattern, Sent, Options, In, once) :-
     nonvar(SentPattern),
     memberchk(SentPattern, [[], end_of_file]),
     !,
-    option(comments([]), OptionL),
-    ref_term_info_file(SentPattern, Sent, OptionL, In).
-ref_fetch_term_info(SentPattern, Sent, OptionL, In, mult(CP)) :-
+    option(comments([]), Options),
+    ref_term_info_file(SentPattern, Sent, Options, In).
+ref_fetch_term_info(SentPattern, Sent, Options, In, mult(CP)) :-
     repeat,
       prolog_current_choice(CP),
-      ( fetch_term_info(SentPattern, Sent, OptionL, In)
+      ( fetch_term_info(SentPattern, Sent, Options, In)
       ; !,
         fail
       ).
 
-ref_term_info_file(end_of_file, end_of_file, OptionL, In) :-
+ref_term_info_file(end_of_file, end_of_file, Options, In) :-
     seek(In, 0, eof, Size),
-    option(subterm_positions(Size-Size), OptionL).
-ref_term_info_file([], [], OptionL, _) :-
-    option(subterm_positions(0-0), OptionL).
+    option(subterm_positions(Size-Size), Options).
+ref_term_info_file([], [], Options, _) :-
+    option(subterm_positions(0-0), Options).
 
 expand_if_required(Expand, M, Sent, TermPos, In, Expanded) :-
     ( Expand = no
@@ -813,7 +813,7 @@ with_termpos(Goal, TermPos) :-
 
 apply_change(Text, M, subst(TermPos, Priority, Pattern, Term, VNL, Into, _),
              t(From, To, PasteText)) :-
-    wr_options(OptionL),
+    wr_options(Options),
     call_cleanup(
         with_output_to(
             string(OutputText),
@@ -822,7 +822,7 @@ apply_change(Text, M, subst(TermPos, Priority, Pattern, Term, VNL, Into, _),
                   print_expansion_0(Into, Pattern, Term, TermPos,
                                     [priority(Priority), module(M),
                                      variable_names(VNL)
-                                     |OptionL],
+                                     |Options],
                                     Text, From, To),
                   TermPos),
               stream_property(current_output, position(Pos2))
@@ -838,15 +838,15 @@ wr_options([portray_goal(ref_replace:rportray),
             quoted(true),
             partial(true)]).
 
-print_expansion_0(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
+print_expansion_0(Into, Pattern, Term, TermPos, Options, Text, From, To) :-
     arg(1, TermPos, OFrom),
     arg(2, TermPos, OTo),
     get_innerpos(OFrom, OTo, IFrom, ITo),
     nb_setarg(1, TermPos, IFrom),
     nb_setarg(2, TermPos, ITo),
     ( nonvar(Into)
-    ->print_expansion_1(Into, Pattern, Term, TermPos, OptionL, Text, From, To)
-    ; print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To)
+    ->print_expansion_1(Into, Pattern, Term, TermPos, Options, Text, From, To)
+    ; print_expansion_2(Into, Pattern, Term, TermPos, Options, Text, From, To)
     ).
 
 with_pattern_into(Goal, Pattern, Into) :-
@@ -1041,20 +1041,20 @@ substitute_term_norec(Sub, M, Term, Priority, Pattern, Into1, Expander, TermPos1
     refactor_context(sent_pattern, SentPattern),
     subsumes_term(SentPattern-Pattern, Sent-Term),
     copy_term(Sent, Sent2),
-    refactor_context(options, OptionL),
-    option(decrease_metric(Metric), OptionL, ref_replace:pattern_size),
+    refactor_context(options, Options),
+    option(decrease_metric(Metric), Options, ref_replace:pattern_size),
     call(Metric, Term, Pattern, Size),
     with_termpos(( with_context(Sent, Term, Pattern, Into1, Pattern1, Into2, VNL, Expander),
-                   check_bindings(Sent, Sent2, OptionL)
+                   check_bindings(Sent, Sent2, Options)
                  ), TermPos1),
     greatest_common_binding(Pattern1, Into2, Pattern2, Into3, [[]], Unifier, []),
     perform_substitution(Sub, Priority, M, Term, VNL, Pattern2, Into3, Unifier,
                          TermPos1, OutPos, TermPos, Pattern3, GTerm, Into).
 
-check_bindings(Sent, Sent2, OptionL) :-
+check_bindings(Sent, Sent2, Options) :-
     ( Sent=@=Sent2
     ->true
-    ; option(show_left_bindings(Show), OptionL, false),
+    ; option(show_left_bindings(Show), Options, false),
       ( Show = true
       ->refactor_message(warning, format("Bindings occurs: ~w \\=@= ~w.", [Sent2, Sent]))
       ; true
@@ -1414,21 +1414,21 @@ rportray('$sb'(TermPos), _) :-
     !,
     refactor_context(text, Text),
     print_subtext(TermPos, Text).
-rportray('$sb'(ArgPos, _IFrom, _ITo, GTerm, GPriority, Into), OptionL) :-
+rportray('$sb'(ArgPos, _IFrom, _ITo, GTerm, GPriority, Into), Options) :-
     \+ retract(rportray_skip),
     !,
     ignore((refactor_context(text, Text),
-            print_subtext_sb(Into, GTerm, ArgPos, GPriority, OptionL, Text)
+            print_subtext_sb(Into, GTerm, ArgPos, GPriority, Options, Text)
            )).
-rportray('$@'(Term), OptionL) :-
-    write_term(Term, OptionL).
-rportray(\\(Term), OptionL) :-
+rportray('$@'(Term), Options) :-
+    write_term(Term, Options).
+rportray(\\(Term), Options) :-
     \+ retract(rportray_skip),
     !,
     assertz(rportray_skip),
-    write_term(Term, OptionL).
+    write_term(Term, Options).
 % rportray('$sb'(_, _, _, _), _) :- !.
-rportray(@@(Term, STerm), OptionL) :-
+rportray(@@(Term, STerm), Options) :-
     \+ retract(rportray_skip),
     !,
     ( nonvar(STerm),
@@ -1437,15 +1437,15 @@ rportray(@@(Term, STerm), OptionL) :-
       arg(2, TermPos, To),
       refactor_context(text, Text),
       print_subtext(From-IFrom, Text),
-      write_term(Term, OptionL),
+      write_term(Term, Options),
       print_subtext(ITo-To, Text)
-    ; write_term(Term, OptionL)
+    ; write_term(Term, Options)
     ).
-rportray('$@'(Into, '$sb'(ArgPos, _IFrom, _ITo, GTerm, GPriority, Pattern)), OptionL) :-
+rportray('$@'(Into, '$sb'(ArgPos, _IFrom, _ITo, GTerm, GPriority, Pattern)), Options) :-
     !,
     % Use a different pattern to guide the printing of Term
     refactor_context(text, Text),
-    print_expansion_sb(Into, Pattern, GTerm, ArgPos, GPriority, OptionL, Text),
+    print_expansion_sb(Into, Pattern, GTerm, ArgPos, GPriority, Options, Text),
     !.
 rportray('$G'(Into, Goal), Opt) :-
     !,
@@ -1728,57 +1728,57 @@ print_expansion_rm_dot(TermPos, Text, From, To) :-
 
 print_expansion_1('$RM', _, _, TermPos, _, Text, From, To) :- !,
     print_expansion_rm_dot(TermPos, Text, From, To).
-print_expansion_1('$TEXT'(Into), _, _, TermPos, OptionL, _, From, To) :- !,
+print_expansion_1('$TEXT'(Into), _, _, TermPos, Options, _, From, To) :- !,
     arg(1, TermPos, From),
     arg(2, TermPos, To),
     % quoted(false)
-    write_t(Into, OptionL).
-print_expansion_1('$TEXT'(Into, Delta), _, _, TermPos, OptionL, _, From, To) :- !,
+    write_t(Into, Options).
+print_expansion_1('$TEXT'(Into, Delta), _, _, TermPos, Options, _, From, To) :- !,
     arg(1, TermPos, From),
     arg(2, TermPos, To0),
     % quoted(false)
-    write_t(Into, OptionL),
+    write_t(Into, Options),
     To is To0 + Delta.
-print_expansion_1('$TEXTQ'(Into), _, _, TermPos, OptionL, _, From, To) :- !,
+print_expansion_1('$TEXTQ'(Into), _, _, TermPos, Options, _, From, To) :- !,
     arg(1, TermPos, From),
     arg(2, TermPos, To),
-    write_q(Into, OptionL).
-print_expansion_1('$TEXTQ'(Into, Delta), _, _, TermPos, OptionL, _, From, To) :- !,
+    write_q(Into, Options).
+print_expansion_1('$TEXTQ'(Into, Delta), _, _, TermPos, Options, _, From, To) :- !,
     arg(1, TermPos, From),
     arg(2, TermPos, To0),
-    write_q(Into, OptionL),
+    write_q(Into, Options),
     To is To0 + Delta.
-print_expansion_1('$LIST.NL'(IntoL), Pattern, Term, TermPos, OptionL0,
+print_expansion_1('$LIST.NL'(IntoL), Pattern, Term, TermPos, Options0,
                   Text, From, To) :- !,
-    merge_options([priority(1200)], OptionL0, OptionL),
+    merge_options([priority(1200)], Options0, Options),
     print_expansion_rm_dot(TermPos, Text, From, To),
-    with_from(term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, OptionL,
+    with_from(term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, Options,
                                       Text), From).
-print_expansion_1(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
-    print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To).
+print_expansion_1(Into, Pattern, Term, TermPos, Options, Text, From, To) :-
+    print_expansion_2(Into, Pattern, Term, TermPos, Options, Text, From, To).
 
-term_write_stop_nl_list([Into|IntoL], Pattern, Term, TermPos, OptionL, Text) :-
-    term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL, Text),
-    term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, OptionL, Text).
+term_write_stop_nl_list([Into|IntoL], Pattern, Term, TermPos, Options, Text) :-
+    term_write_stop_nl__(Into, Pattern, Term, TermPos, Options, Text),
+    term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, Options, Text).
 term_write_stop_nl_list('$sb'(_, _, _, _, _, IntoL), Pattern, Term, TermPos,
-                        OptionL, Text) :-
-    term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, OptionL, Text).
+                        Options, Text) :-
+    term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, Options, Text).
 term_write_stop_nl_list([], _, _, _, _, _).
 
-term_write_stop_nl__('$NOOP'(Into), Pattern, Term, TermPos, OptionL, Text) :- !,
+term_write_stop_nl__('$NOOP'(Into), Pattern, Term, TermPos, Options, Text) :- !,
     with_output_to(string(_),   %Ignore, but process
-                   term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL,
+                   term_write_stop_nl__(Into, Pattern, Term, TermPos, Options,
                                         Text)).
-term_write_stop_nl__('$NODOT'(Into), Pattern, Term, TermPos, OptionL, Text) :- !,
-    print_expansion(Into, Pattern, Term, TermPos, OptionL, Text).
-term_write_stop_nl__(Into, Pattern, Term, TermPos, OptionL, Text) :-
-    print_expansion(Into, Pattern, Term, TermPos, OptionL, Text),
+term_write_stop_nl__('$NODOT'(Into), Pattern, Term, TermPos, Options, Text) :- !,
+    print_expansion(Into, Pattern, Term, TermPos, Options, Text).
+term_write_stop_nl__(Into, Pattern, Term, TermPos, Options, Text) :-
+    print_expansion(Into, Pattern, Term, TermPos, Options, Text),
     write('.'), nl.
 
-print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
+print_expansion_2(Into, Pattern, Term, TermPos, Options, Text, From, To) :-
     arg(1, TermPos, From),
     arg(2, TermPos, To),
-    with_from(print_expansion(Into, Pattern, Term, TermPos, OptionL, Text), From).
+    with_from(print_expansion(Into, Pattern, Term, TermPos, Options, Text), From).
 
 % if the term have been in parentheses, in a place where that was
 % required, include it!!!
@@ -1823,22 +1823,22 @@ cond_display(no,  _).
 :- meta_predicate
        with_cond_braces(5, +, +, +, +, +, +).
 
-print_expansion_sb(Into, Pattern, GTerm, TermPos, GPriority, OptionL, Text) :-
-    with_cond_braces(do_print_expansion_sb(Pattern), Into, GTerm, TermPos, GPriority, OptionL, Text).
+print_expansion_sb(Into, Pattern, GTerm, TermPos, GPriority, Options, Text) :-
+    with_cond_braces(do_print_expansion_sb(Pattern), Into, GTerm, TermPos, GPriority, Options, Text).
 
-do_print_expansion_sb(Pattern, Into, GTerm, TermPos, OptionL, Text) :-
+do_print_expansion_sb(Pattern, Into, GTerm, TermPos, Options, Text) :-
     arg(1, TermPos, From),
-    with_from(print_expansion_ne(Into, Pattern, GTerm, TermPos, OptionL, Text), From).
+    with_from(print_expansion_ne(Into, Pattern, GTerm, TermPos, Options, Text), From).
 
-print_subtext_sb(Into, GTerm, TermPos, GPriority, OptionL, Text) :-
-    with_cond_braces(print_subtext, Into, GTerm, TermPos, GPriority, OptionL, Text).
+print_subtext_sb(Into, GTerm, TermPos, GPriority, Options, Text) :-
+    with_cond_braces(print_subtext, Into, GTerm, TermPos, GPriority, Options, Text).
 
-print_subtext(_, Term, TermPos, OptionL, Text) :-
+print_subtext(_, Term, TermPos, Options, Text) :-
     get_subtext(TermPos, Text, SubText),
     ( sub_string(SubText, 0, 1, _, C),
       char_type(C, space)
     ->true
-    ; fix_if_partial_term(Term, _, OptionL)
+    ; fix_if_partial_term(Term, _, Options)
     ),
     ( sub_string(SubText, _, 1, 0, E),
       char_type(E, space)
@@ -1847,27 +1847,27 @@ print_subtext(_, Term, TermPos, OptionL, Text) :-
     ),
     format("~s", [SubText]).
 
-fix_if_partial_term(Term, Offset, OptionL) :-
-    fix_if_partial_term_(Term, Offset, OptionL).
+fix_if_partial_term(Term, Offset, Options) :-
+    fix_if_partial_term_(Term, Offset, Options).
 
-fix_if_partial_term_(Term, Offset, OptionL) :-
+fix_if_partial_term_(Term, Offset, Options) :-
     nonvar(Term),
     Term = '$sb'(_, _, _, GTerm, _, _), !,
-    fix_if_partial_term_(GTerm, Offset, OptionL).
-fix_if_partial_term_(Term, Offset, OptionL) :-
+    fix_if_partial_term_(GTerm, Offset, Options).
+fix_if_partial_term_(Term, Offset, Options) :-
     ( nonvar(Term)
     ->functor(Term, F, A),
       functor(Func, F, A),
       numbervars(Func, 0, _),
-      select_option(portray_goal(_), OptionL, OptionL2),
+      select_option(portray_goal(_), Options, Options2),
       with_output_to(
           string(_),
           ( stream_property(current_output, position(SPos1)),
-            write_term(Func, OptionL2),
+            write_term(Func, Options2),
             stream_property(current_output, position(SPos2))
           )),
       stream_property(current_output, position(Pos1)),
-      write_term(Func, OptionL2),
+      write_term(Func, Options2),
       stream_property(current_output, position(Pos2)),
       stream_position_data(char_count, Pos1, B1),
       stream_position_data(char_count, Pos2, B2),
@@ -1880,12 +1880,12 @@ fix_if_partial_term_(Term, Offset, OptionL) :-
     ; Offset = 0
     ).
 
-with_cond_braces(Call, Into, GTerm, TermPos, GPriority, OptionL, Text) :-
-    option(module(M), OptionL),
-    option(priority(Priority), OptionL),
+with_cond_braces(Call, Into, GTerm, TermPos, GPriority, Options, Text) :-
+    option(module(M), Options),
+    option(priority(Priority), Options),
     fix_position_if_braced(TermPos, M, GTerm, GPriority, Into, Priority, Display),
     cond_display(Display, '('),
-    call(Call, Into, GTerm, TermPos, OptionL, Text),
+    call(Call, Into, GTerm, TermPos, Options, Text),
     cond_display(Display, ')').
 
 % TODO: stream position would be biased --EMM
@@ -1897,12 +1897,12 @@ with_str_hook(Command, StrHook) :-
     ),
     format('~s', [S]).
 
-%!  print_expansion(?Into:term, ?Pattern:term, ?Term:Term, RefPos, Priority:integer, OptionL:list, Text:string) is det
+%!  print_expansion(?Into:term, ?Pattern:term, ?Term:Term, RefPos, Priority:integer, Options:list, Text:string) is det
 %
-print_expansion(Var, _, _, RefPos, OptionL, Text) :-
+print_expansion(Var, _, _, RefPos, Options, Text) :-
     var(Var),
     !,
-    option(variable_names(VNL), OptionL, []),
+    option(variable_names(VNL), Options, []),
     ( member(Name=Var1, VNL),
       Var1==Var
     ->write(Name)
@@ -1914,37 +1914,37 @@ print_expansion('$sb'(RefPos), _, Term, _, _, Text) :-
        ),
     !,
     print_subtext(RefPos, Text).
-print_expansion('$sb'(RefPos, _IFrom, _ITo, GTerm, Priority, Into), _Pattern, Term, _RPos, OptionL, Text) :-
+print_expansion('$sb'(RefPos, _IFrom, _ITo, GTerm, Priority, Into), _Pattern, Term, _RPos, Options, Text) :-
     nonvar(RefPos),
     \+ ( nonvar(Term),
          Term = '$sb'(_, _, _, _, _, _),
          Into \= '$sb'(_, _, _, _, _, _)
        ),
     !,
-    print_subtext_sb(Into, GTerm, RefPos, Priority, OptionL, Text).
-print_expansion(Into, Pattern, Term, RefPos, OptionL, Text) :-
-    print_expansion_ne(Into, Pattern, Term, RefPos, OptionL, Text).
+    print_subtext_sb(Into, GTerm, RefPos, Priority, Options, Text).
+print_expansion(Into, Pattern, Term, RefPos, Options, Text) :-
+    print_expansion_ne(Into, Pattern, Term, RefPos, Options, Text).
 
-print_expansion_ne('$G'(Into, Goal), Pattern, Term, RefPos, OptionL, Text) :-
+print_expansion_ne('$G'(Into, Goal), Pattern, Term, RefPos, Options, Text) :-
     \+ ( nonvar(Term),
          Term = '$G'(_, _)
        ),
     !,
-    with_str_hook(print_expansion(Into, Pattern, Term, RefPos, OptionL, Text),
+    with_str_hook(print_expansion(Into, Pattern, Term, RefPos, Options, Text),
                   Goal).
-print_expansion_ne('$C'(Goal, Into), Pattern, Term, RefPos, OptionL, Text) :-
+print_expansion_ne('$C'(Goal, Into), Pattern, Term, RefPos, Options, Text) :-
     \+ ( nonvar(Term),
          Term = '$C'(_, _)
        ),
     !,
     call(Goal),
-    print_expansion(Into, Pattern, Term, RefPos, OptionL, Text).
-print_expansion_ne('$,NL', Pattern, Term, RefPos, OptionL, Text) :-
+    print_expansion(Into, Pattern, Term, RefPos, Options, Text).
+print_expansion_ne('$,NL', Pattern, Term, RefPos, Options, Text) :-
     Term \=='$,NL',
     !,
     %% Print a comma + indented new line
     write(','),
-    print_expansion('$NL', Pattern, Term, RefPos, OptionL, Text).
+    print_expansion('$NL', Pattern, Term, RefPos, Options, Text).
 print_expansion_ne('$NL', _, Term, _, _, Text) :- % Print an indented new line
     Term \== '$NL',
     !,
@@ -1952,30 +1952,30 @@ print_expansion_ne('$NL', _, Term, _, _, Text) :- % Print an indented new line
     textpos_line(Text, From, _, LinePos),
     nl,
     line_pos(LinePos).
-print_expansion_ne(Into, SPattern, Term1, _, OptionL, Text) :-
+print_expansion_ne(Into, SPattern, Term1, _, Options, Text) :-
     nonvar(SPattern),
     nonvar(Term1),
     Term1\='$sb'(_, _, _, _, _, _), % is not a read term, but a command
     SPattern='$sb'(RefPos, _, _, Term, _, Pattern),
     !,
-    print_expansion_ne(Into, Pattern, Term, RefPos, OptionL, Text).
-print_expansion_ne(Into, Pattern, Term, RefPos, OptionL, Text) :-
+    print_expansion_ne(Into, Pattern, Term, RefPos, Options, Text).
+print_expansion_ne(Into, Pattern, Term, RefPos, Options, Text) :-
     ( \+ escape_term(Into),
-      print_expansion_pos(RefPos, Into, Pattern, Term, OptionL, Text)
+      print_expansion_pos(RefPos, Into, Pattern, Term, Options, Text)
     ->true
-    ; write_term(Into, OptionL)
+    ; write_term(Into, Options)
     ).
 
-print_expansion_arg(M, MInto, OptionL0, Text, FromTo, v(N, RefPos, Into, Pattern, GTerm)) :-
+print_expansion_arg(M, MInto, Options0, Text, FromTo, v(N, RefPos, Into, Pattern, GTerm)) :-
     term_priority(MInto, M, N, Priority),
-    merge_options([priority(Priority)], OptionL0, OptionL),
-    print_expansion_elem(OptionL, Text, FromTo, RefPos, Into, Pattern-GTerm).
+    merge_options([priority(Priority)], Options0, Options),
+    print_expansion_elem(Options, Text, FromTo, RefPos, Into, Pattern-GTerm).
 
-print_expansion_elem(OptionL, Text, From-To, RefPos, Into, Pattern-GTerm) :-
+print_expansion_elem(Options, Text, From-To, RefPos, Into, Pattern-GTerm) :-
     ( Into == '$RM',
       GTerm \== '$RM'
     ->true
-    ; print_expansion(Into, Pattern, GTerm, RefPos, OptionL, Text),
+    ; print_expansion(Into, Pattern, GTerm, RefPos, Options, Text),
       print_subtext(Text, From, To)
     ).
 
@@ -2032,17 +2032,17 @@ normalize_pos(Pos, F-T) :-
     arg(2, Pos, T).
 
 print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT),
-                    Into, Pattern, GTerm, OptionL, Text) :-
+                    Into, Pattern, GTerm, Options, Text) :-
     compound(Into),
     Into \= [_|_],
     functor(Into,    FT, A),
     nonvar(Pattern),
     functor(Pattern, FP, A),
-    option(module(M), OptionL),
+    option(module(M), Options),
     ( FT == FP
     ->NT = FT % preserve layout
     ; NT = '$TEXTQ'(FT),
-      ( option(priority(Priority), OptionL),
+      ( option(priority(Priority), Options),
         current_op(PrP, TypeOpP, M:FP),
         valid_op_type_arity(TypeOpP, A),
         current_op(PrT, TypeOpT, M:FT),
@@ -2053,7 +2053,7 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT),
                  ( term_priority_gnd(Into, M, AP, PrA),
                    \+ term_needs_braces(M:Arg, PrA)))
         )
-      ; option(module(M), OptionL),
+      ; option(module(M), Options),
         \+ current_op(_, _, M:FT),
         \+ current_op(_, _, M:FP)
       )
@@ -2073,9 +2073,9 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT),
     nth1(N, PosKL, E),
     arg(2, E, To2),
     print_subtext(Text, From, To1),
-    maplist(print_expansion_arg(M, Into, OptionL, Text), FromToL, ValL),
+    maplist(print_expansion_arg(M, Into, Options, Text), FromToL, ValL),
     print_subtext(Text, To2, To).
-print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, OptionL0, Text) :-
+print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, Options0, Text) :-
     maplist(normalize_pos, PosL, PosN),
     from_to_pairs(PosN, From, To1, To2, FromToL, []),
     length(PosL, N),
@@ -2091,10 +2091,10 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, O
     pairs_keys_values(PatGTrL, PatL, GTrL),
     !,
     From1 is From + Delta,
-    option(module(M), OptionL0),
+    option(module(M), Options0),
     term_priority(Into, M, 1, Priority1),
-    select_option(priority(Priority), OptionL0, OptionL, Priority),
-    OptionL1=[priority(Priority1)|OptionL],
+    select_option(priority(Priority), Options0, Options, Priority),
+    Options1=[priority(Priority1)|Options],
     ( comp_priority(M, GTerm, Priority, Into, Priority)
     ->write('(')
     ; Delta = 1 ->write(' ')    % Only if [...] ---> (...)
@@ -2105,16 +2105,16 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, O
       arg(1, PosT, PTo),
       term_priority(Into, M, 2, Priority2),
       To2 is PTo + Delta,
-      maplist(print_expansion_elem(OptionL1, Text), FromToL, PosL, ArgL, PatGTrL),
+      maplist(print_expansion_elem(Options1, Text), FromToL, PosL, ArgL, PatGTrL),
       arg(2, PosT, PFrom),
-      OptionL2=[priority(Priority2)|OptionL],
-      print_expansion_elem(OptionL2, Text, PFrom-To, PosT, ATail, PTail-GTail)
+      Options2=[priority(Priority2)|Options],
+      print_expansion_elem(Options2, Text, PFrom-To, PosT, ATail, PTail-GTail)
     ; nth1(N, PosL, E),
       arg(2, E, To2),
-      maplist(print_expansion_elem(OptionL1, Text), FromToL, PosL, ArgL, PatGTrL),
+      maplist(print_expansion_elem(Options1, Text), FromToL, PosL, ArgL, PatGTrL),
       term_priority(Into, M, 2, Priority2),
-      OptionL2=[priority(Priority2)|OptionL],
-      term_write_sep_list_inner_rec(ATail, write_term, ', ', OptionL2),
+      Options2=[priority(Priority2)|Options],
+      term_write_sep_list_inner_rec(ATail, write_term, ', ', Options2),
       print_subtext(Text, To2, To)
     ),
     ( comp_priority(M, GTerm, Priority, Into, Priority)
@@ -2122,19 +2122,19 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, O
     ; true
     ).
 print_expansion_pos(brace_term_position(From, To, TermPos), {Into}, {Pattern},
-                    {GTerm}, OptionL, Text) :-
+                    {GTerm}, Options, Text) :-
     arg(1, TermPos, AFrom),
     arg(2, TermPos, ATo),
     print_subtext(Text, From, AFrom),
-    option(module(M), OptionL),
-    print_expansion_arg(M, {Into}, OptionL, Text, ATo-To, v(1, TermPos, Into, Pattern, GTerm)).
+    option(module(M), Options),
+    print_expansion_arg(M, {Into}, Options, Text, ATo-To, v(1, TermPos, Into, Pattern, GTerm)).
 print_expansion_pos(parentheses_term_position(From, To, TermPos), Into, Pattern,
-                    GTerm, OptionL1, Text) :-
+                    GTerm, Options1, Text) :-
     arg(1, TermPos, AFrom),
     arg(2, TermPos, ATo),
     print_subtext(Text, From, AFrom),
-    merge_options([priority(1200)], OptionL1, OptionL),
-    print_expansion_elem(OptionL, Text, ATo-To, TermPos, Into, Pattern-GTerm).
+    merge_options([priority(1200)], Options1, Options),
+    print_expansion_elem(Options, Text, ATo-To, TermPos, Into, Pattern-GTerm).
 print_expansion_pos(TermPos, Into, _Pattern, GTerm, _, Text) :-
     Into==GTerm,
     arg(1, TermPos, From),
@@ -2298,10 +2298,10 @@ line_pos(LinePos) :-
     line_pos(LinePos1).
 line_pos(_).
 
-write_t(Term, OptionL0) :-
-    merge_options([quoted(false), priority(1200)], OptionL0, OptionL),
-    write_term(Term, OptionL).
+write_t(Term, Options0) :-
+    merge_options([quoted(false), priority(1200)], Options0, Options),
+    write_term(Term, Options).
 
-write_q(Term, OptionL0) :-
-    merge_options([quoted(true), priority(1200)], OptionL0, OptionL),
-    write_term(Term, OptionL).
+write_q(Term, Options0) :-
+    merge_options([quoted(true), priority(1200)], Options0, Options),
+    write_term(Term, Options).

@@ -46,28 +46,28 @@
 :- use_module(library(i18n/i18n_support)).
 
 % :- pred translate(+,+,?,?,+).
-translate(M, Lang, TermEngl, TermLang, OptionL) :-
+translate(M, Lang, TermEngl, TermLang, Options) :-
     translate_po(M, Lang, TermEngl, TermLang),
-    replace_term(TermLang, TermEngl, [module(M)|OptionL]).
+    replace_term(TermLang, TermEngl, [module(M)|Options]).
 
-translate(M, Lang, EnglLangL, OptionL) :-
+translate(M, Lang, EnglLangL, Options) :-
     forall(member(Engl-Lang, EnglLangL),
            translate_po(M, Lang, Engl, Lang)),
     replace_term(TermLang, TermEngl,
                  ( member(TermEngl-Lang, EnglLangL),
                    TermLang=@=Lang,
                    TermLang=Lang
-                 ), [module(M)|OptionL]).
+                 ), [module(M)|Options]).
 
 translate_po(M, Lang, TermEngl, TermLang) :-
     i18n_refactor(update_po_entry(Lang), M, TermLang, TermEngl).
 
-%!  rename_id(?Module, +OldTerm, +NewTerm, +OptionL) is det.
+%!  rename_id(?Module, +OldTerm, +NewTerm, +Options) is det.
 %
 %   Change an English Term by another and update its key in the po files.
-rename_id(M, OldTerm, NewTerm, OptionL) :-
+rename_id(M, OldTerm, NewTerm, Options) :-
     i18n_refactor(rename_id_lang, M, OldTerm, NewTerm),
-    replace_term(OldTerm, NewTerm, [module(M)|OptionL]).
+    replace_term(OldTerm, NewTerm, [module(M)|Options]).
 
 % TODO: optimize
 :- meta_predicate replace_entry_po(+,+,+,2).
