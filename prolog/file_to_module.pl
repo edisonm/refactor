@@ -32,20 +32,24 @@
     POSSIBILITY OF SUCH DAMAGE.
 */
 
-:- module(file_to_module, [file_to_module/1, file_to_module/2]).
+:- module(file_to_module,
+          [file_to_module/1, % +Alias
+           file_to_module/2  % +Alias, +Options
+          ]).
 
 :- use_module(library(prolog_metainference)).
 :- use_module(library(clambda)).
 :- use_module(library(infer_alias)).
 :- use_module(library(list_sequence)).
 :- use_module(library(sequence_list)).
-:- use_module(library(extra_codewalk)).
+:- use_module(library(codewalk)).
 :- use_module(library(extra_location)).
 :- use_module(library(from_utils)).
 :- use_module(library(location_utils)).
 :- use_module(library(module_files)).
 :- use_module(library(pretty_decl)).
 :- use_module(library(ref_replace)).
+:- use_module(library(infer_meta_if_required)).
 
 %!  module_to_import_db(F, A, M, CM, File)
 %
@@ -594,10 +598,8 @@ collect_dispersed_assertions(PIL, FileL, M, PIA) :-
 collect_movable(M, FileL, ExcludeL, PIL) :-
     OptionL = [source(false), trace_reference(_)],
     retractall(module_to_import_db(_, _, _, _, _)),
-    prolog_walk_code([autoload(false),
-                      source(false),
-                      infer_meta_predicates(true)]),
-    extra_walk_code([on_trace(collect_file_to_module)|OptionL]),
+    infer_meta_if_required,
+    walk_code([on_trace(collect_file_to_module)|OptionL]),
     findall(F/A, ( module_to_import_db(F, A, M, _, IFile),
                    \+ memberchk(IFile, FileL),
                    implemented_in_file(F, A, M, File),
