@@ -36,6 +36,7 @@
           [replace/5,
            refactor_message/2,
            refactor_context/2,
+           with_termpos/2,
            op(100,xfy,($@)),
            op(100,xfy,(@@))
           ]).
@@ -94,7 +95,7 @@
     with_counters(0, +),
     with_from(0, ?),
     with_termpos(0, ?),
-    with_pattern_into_termpos(0, ?, ?, +),
+    with_pattern_into(0, ?, ?),
     with_styles(0, +).
 
 %!  replace(+Level, +Term, -Into, :Expander, :Options) is det
@@ -620,7 +621,8 @@ substitute_term_head(Rec, M, Clause, Priority, Term, Into, Expander, TermPos, Cm
       ->term_priority(IM:Head, M, 2, HPriority),
         term_position(_, _, _, _, [MHPos, _]) = TermPos,
         mhead_pos(MHPos, HeadPos)
-      ; term_priority(Clause, M, 1, HPriority),
+      ; Head = MHead,
+        term_priority(Clause, M, 1, HPriority),
         term_position(_, _, _, _, [HeadPos, _]) = TermPos
       )
     ; Clause \= (:- _),
@@ -685,7 +687,8 @@ apply_commands(Index, File, Level, M, Rec, FixPoint, Max, GenMCmd) :-
 
 decreasing_recursion(nocs, _).
 decreasing_recursion(subst(_, _, _, _, _, _, S1),
-                     subst(_, _, _, _, _, _, S2)) :- S1 > S2.
+                     subst(_, _, _, _, _, _, S2)) :-
+    freeze(S2, S1 > S2).
 
 do_recursion(dec(G), C, G, C).
 do_recursion(rec(G), _, G, nocs).
@@ -700,8 +703,8 @@ increase_counter(Count1) :-
     nb_set_context_value(count, Count1).
 
 do_genmcmd(GenMCmd, Level, M, CS, Command, In, Max) :-
-    call(GenMCmd, Level, M, Command, In),
     decreasing_recursion(CS, Command),
+    call(GenMCmd, Level, M, Command, In),
     increase_counter(Count1),
     ( nonvar(Max),
       Count1 >= Max
@@ -725,7 +728,7 @@ apply_commands_stream_each(FPTerm, CI, M, Max, Command, Text1, IPosText) :-
       ( do_recursion(CI, Command, GenMCmd, CS)
       ->FromToPText1 = t(From, To, PasteText),
         get_out_pos(Text1, IPosText, From, Line, LPos),
-        with_output_to(string(LeftText),
+        with_output_to(atom(LeftText),
                        ( forall(between(2, Line, _), nl),
                          line_pos(LPos)
                        )),
@@ -846,7 +849,7 @@ print_expansion_0(Into, Pattern, Term, TermPos, OptionL, Text, From, To) :-
     ; print_expansion_2(Into, Pattern, Term, TermPos, OptionL, Text, From, To)
     ).
 
-with_pattern_into_termpos(Goal, Pattern, Into, TermPos) :-
+with_pattern_into(Goal, Pattern, Into) :-
     refactor_context(tries, Tries),
     refactor_context(max_tries, MaxTries),
     ( nonvar(MaxTries)
@@ -859,10 +862,8 @@ with_pattern_into_termpos(Goal, Pattern, Into, TermPos) :-
                               ( refactor_message(error, Error),
                                 fail
                               )),
-                        [pattern,
-                         into,
-                         termpos],
-                        [Pattern, Into, TermPos]).
+                        [pattern, into],
+                        [Pattern, Into]).
 
 %!  refactor_message(+Type, +Message) is det.
 %
@@ -877,19 +878,24 @@ refactor_location(From) :-
     refactor_context(file, File),
     ( refactor_context(termpos, TermPos),
       TermPos \= none
-    ->From = file_term_position(File, TermPos)
-    ; refactor_context(pos, Pos),
-      stream_position_data(line_count, Pos, Line),
+    ->( refactor_context(text, Text)
+      ->arg(1, TermPos, CharPos),
+        textpos_line(Text, CharPos, Line, Pos),
+        From = file(File, Line, Pos, _)
+      ; From = file_term_position(File, TermPos)
+      )
+    ; refactor_context(pos, CharPos),
+      stream_position_data(line_count, CharPos, Line),
       From = file(File, Line, -1, _)
     ).
 
-with_context(Sent, Term, TermPos, Pattern0, Into0, Pattern, Into, VNL, Goal) :-
+with_context(Sent, Term, Pattern0, Into0, Pattern, Into, VNL, Goal) :-
     copy_term(Pattern0-Into0, Pattern-Into1),
     refactor_context(sentence, Sent),
     refactor_context(sent_pattern, Sent),
     Pattern0 = Term,
     copy_term(Term-Into0, Term2-Into2),
-    with_pattern_into_termpos(Goal, Pattern, Into1, TermPos), % Allow changes in Pattern1/Into1
+    with_pattern_into(Goal, Pattern, Into1), % Allow changes in Pattern1/Into1
     term_variables(Pattern, Vars1), % Variable bindings in Pattern
     %% Apply changes to Pattern/Into and bind Vars:
     copy_term(t(Pattern, Into1, Vars1), t(Pattern0, Into0, Vars0)),
@@ -1029,7 +1035,8 @@ gen_new_variable_names(Sent, Term, Into, VNL) :-
 %
 %   Non-recursive version of substitute_term_rec//6.
 
-substitute_term_norec(Sub, M, Term, Priority, Pattern, Into, Expander, TermPos, OutPos, Cmd) :-
+substitute_term_norec(Sub, M, Term, Priority, Pattern, Into1, Expander, TermPos1, OutPos,
+                      subst(TermPos, Priority, Pattern3, GTerm, VNL, Into, Size)) :-
     refactor_context(sentence,     Sent),
     refactor_context(sent_pattern, SentPattern),
     subsumes_term(SentPattern-Pattern, Sent-Term),
@@ -1037,23 +1044,22 @@ substitute_term_norec(Sub, M, Term, Priority, Pattern, Into, Expander, TermPos, 
     refactor_context(options, OptionL),
     option(decrease_metric(Metric), OptionL, ref_replace:pattern_size),
     call(Metric, Term, Pattern, Size),
-    with_context(Sent, Term, TermPos, Pattern, Into, Pattern1, Into1, VNL, Expander),
+    with_termpos(( with_context(Sent, Term, Pattern, Into1, Pattern1, Into2, VNL, Expander),
+                   check_bindings(Sent, Sent2, OptionL)
+                 ), TermPos1),
+    greatest_common_binding(Pattern1, Into2, Pattern2, Into3, [[]], Unifier, []),
+    perform_substitution(Sub, Priority, M, Term, VNL, Pattern2, Into3, Unifier,
+                         TermPos1, OutPos, TermPos, Pattern3, GTerm, Into).
+
+check_bindings(Sent, Sent2, OptionL) :-
     ( Sent=@=Sent2
     ->true
-    ; refactor_context(file, File),
-      option(show_left_bindings(Show), OptionL, false),
+    ; option(show_left_bindings(Show), OptionL, false),
       ( Show = true
-      ->print_message(
-            warning,
-            refactor_message(
-                file_term_position(File, TermPos),
-                format("Bindings occurs: ~w \\=@= ~w.", [Sent2, Sent])))
+      ->refactor_message(warning, format("Bindings occurs: ~w \\=@= ~w.", [Sent2, Sent]))
       ; true
       )
-    ),
-    greatest_common_binding(Pattern1, Into1, Pattern2, Into2, [[]], Unifier, []),
-    perform_substitution(Sub, Priority, M, Term, VNL, Pattern2, Into2, Unifier,
-                         TermPos, OutPos, Size, Cmd).
+    ).
 
 :- public
        pattern_size/3.
@@ -1080,7 +1086,7 @@ fix_subtermpos(top,    Into, TermPos) :-
     ; fix_subtermpos(TermPos)
     ).
 
-%!  perform_substitution(+Sub, +Priority, +M, +Term, +VNL, +Pattern, +Into, +BindingL, +TermPos, +OutPos, -Cmd)
+%!  perform_substitution(+Sub, +Priority, +M, +Term, +VNL, +Pattern1, +Into1, +BindingL, +TermPos1, +OutPos, -TermPos, -Pattern, -GTerm, -Into)
 %
 %   Substitute occurences of Pattern with Into after calling
 %   expansion.
@@ -1090,18 +1096,18 @@ fix_subtermpos(top,    Into, TermPos) :-
 %   @param OutPos layout of the term that includes SrcTerm
 %   @param Priority is the environment operator priority
 %
-perform_substitution(Sub, Priority, M, Term, VNL, Pattern0, Into0,
-                     BindingL, TermPos0, OutPos0, Size, Cmd) :-
-    ( trim_fake_pos(TermPos0, TermPos, N)
-    ->substitute_value(TermPos0, TermPos, OutPos0, OutPos),
-      trim_fake_args(N, Pattern0, Pattern),
-      trim_fake_args(N, Into0, Into1),
+perform_substitution(Sub, Priority, M, Term, VNL, Pattern1, Into1, BindingL, TermPos1, OutPos1,
+                     TermPos, Pattern, GTerm, Into) :-
+    ( trim_fake_pos(TermPos1, TermPos, N)
+    ->substitute_value(TermPos1, TermPos, OutPos1, OutPos),
+      trim_fake_args(N, Pattern1, Pattern),
+      trim_fake_args(N, Into1, Into2),
       trim_fake_args(N, Term,  Term1)
-    ; Pattern = Pattern0,
-      Into1 = Into0,
+    ; Pattern = Pattern1,
+      Into2 = Into1,
       Term1 = Term,
-      TermPos = TermPos0,
-      OutPos = OutPos0
+      TermPos = TermPos1,
+      OutPos = OutPos1
     ),
     copy_term(t(Term1), t(GTerm)),
     /* Note: fix_subtermpos/1 is a very expensive predicate, due to that we
@@ -1109,16 +1115,15 @@ perform_substitution(Sub, Priority, M, Term, VNL, Pattern0, Into0,
        apply it to the subterm positions being affected by the refactoring.
        The predicate performs destructive assignment (as in imperative
        languages), modifying term position once the predicate is called */
-    fix_subtermpos(Pattern, Into1, Sub, OutPos),
+    fix_subtermpos(Pattern, Into2, Sub, OutPos),
     with_context_values(subst_term(TermPos, M, Pattern, GTerm, Priority, Term1),
                         [bind, new_varnames], [BindingL, VNL]),
-    shared_variables(VNL, Term1, Into1, V5), % after subst_term, in case some
+    shared_variables(VNL, Term1, Into2, V5), % after subst_term, in case some
     maplist(eq, V5, V5, UL5),                % variables from Term3 reappear
     maplist(subst_fvar(M, Term1, TermPos, GTerm), UL5),
-    special_term(Sub, Pattern, Into1, Into2),
+    special_term(Sub, Pattern, Into2, Into),
     maplist(collapse_bindings, BindingL), % This looks like a kludge (test bind1)
-    !,
-    Cmd=subst(TermPos, Priority, Pattern, GTerm, VNL, Into2, Size).
+    !.
 
 collapse_bindings(A=B) :- ignore(A=B).
 

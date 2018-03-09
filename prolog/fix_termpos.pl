@@ -38,7 +38,7 @@
                        ]).
 
 :- use_module(library(apply)).
-:- use_module(library(ref_replace), [refactor_context/2]).
+:- use_module(library(ref_replace)).
 
 %!  term_innerpos(OFrom, OTo, InnerFrom, InnerTo)
 %
@@ -320,9 +320,7 @@ fix_boundaries_from_right(Text, Pos, To0, From2, To2, From, To) :-
     ( To0 < To1
     ->RL is To1 - To0,
       sub_string(Text, To0, RL, _, TextL),
-      refactor_context(file, File),
-      print_message(warning, at_location(file_term_position(File, Pos),
-                                         format("Misplaced text --> `~w'", [TextL])))
+      with_termpos(refactor_message(warning, format("Misplaced text --> `~w'", [TextL])), Pos)
     ; true
     ),
     count_sub_string(Text, To1, To0, ")", 1, _, To2, N),
@@ -358,12 +356,13 @@ fix_boundaries_from_left(Text, Pos, From0, From2, From, To) :-
     ( From1 < From0 ->
       RL is From0 - From1,
       sub_string(Text, From1, RL, _, TextL),
-      refactor_context(file, File),
-      print_message(warning,
-                    at_location(file_term_position(File, Pos),
-                                format("Misplaced text <-- `~w' (~w)",
-                                       [TextL,
-                                        fix_boundaries_from_left(_, Pos, From0, From2, From, To)])))
+      with_termpos(
+          refactor_message(
+              warning,
+              format("Misplaced text <-- `~w' (~w)",
+                     [TextL,
+                      fix_boundaries_from_left(_, Pos, From0, From2, From, To)])),
+          Pos)
     ; true
     ),
     count_sub_string(Text, From0, From1, "(", 1, From2, _, N),
