@@ -614,13 +614,15 @@ substitute_term_head(Rec, M, Clause, Priority, Term, Into, Expander,
                      parentheses_term_position(_, _, TermPos), Cmd) :- !,
     substitute_term_head(Rec, M, Clause, Priority, Term, Into, Expander, TermPos, Cmd).
 substitute_term_head(Rec, M, Clause, Priority, Term, Into, Expander, TermPos, Cmd) :-
-    ( Clause = (Head :- _)
-    ->term_priority(Clause, M, 1, HPriority),
-      term_position(_, _, _, _, [HeadPos, _]) = TermPos
-    ; Clause = (M:Head :- _)
-    ->term_priority(M:Head, M, 2, HPriority),
-      term_position(_, _, _, _, [MHPos, _]) = TermPos,
-      mhead_pos(MHPos, HeadPos)
+    ( Clause = (MHead :- _)
+    ->( nonvar(MHead),
+        MHead = IM:Head
+      ->term_priority(IM:Head, M, 2, HPriority),
+        term_position(_, _, _, _, [MHPos, _]) = TermPos,
+        mhead_pos(MHPos, HeadPos)
+      ; term_priority(Clause, M, 1, HPriority),
+        term_position(_, _, _, _, [HeadPos, _]) = TermPos
+      )
     ; Clause \= (:- _),
       Head = Clause,
       HPriority = Priority,
