@@ -56,6 +56,7 @@
           ]).
 
 :- use_module(library(implementation_module)).
+:- use_module(library(assertions)).
 :- use_module(library(substitute)).
 :- use_module(library(option_utils)).
 :- use_module(library(ref_replace)).
@@ -353,12 +354,17 @@ match_clause_head_body((Head :- Body),   _:Head, Body) :- !.
 match_clause_head_body((M:Head :- Body), M:Head, Body) :- !.
 match_clause_head_body(Head, Head, true).
 
+:- meta_predicate qualify_meta_call(0, ?, -).
+:- pred qualify_meta_call(0, ?, -callable).
+qualify_meta_call(M:Goal1, CM, M:Goal) :-
+    qualify_meta_call(Goal1, M, CM, true, Goal).
+
 % NOTE: Only works if exactly one clause match
 unfold_goal(MGoal, MO:Options1) :-
     MGoal = M:Goal,
+    strip_module(MGoal, M, Goal),
     select_option(module(Module), Options1, Options, Module),
-    qualify_meta_goal(Goal, M, Module, Meta),
-    MMeta = M:Meta,
+    qualify_meta_call(MGoal, Module, MMeta),
     retractall(add_import(_, _, _, _)),
     replace_goal(Goal, '$BODY'(Body),
                  ( findall(clause(MMeta, Body1, CM, VNBody),
