@@ -90,7 +90,7 @@ greatest_common_binding(SubTerm1, SubTerm, Term1, Into1, Term, Into, Skip) -->
         [Var=SubTerm]
       ; {Term2=Term1, Into2 = Into1 }
       ),
-      ( {compound(SubTerm1 )},
+      ( {compound(SubTerm1)},
         greatest_common_binding(1, SubTerm1, SubTerm, Term2, Into2, Term, Into, Skip),
         {Into2\==Into}
       ->[]

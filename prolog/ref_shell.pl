@@ -77,7 +77,7 @@ rdiff(Action, Index1, Index) :-
 
 apply_diff(Action, Index1, File) :-
     once(pending_change(_, File, Content)), % Take the last one
-    ( pending_change(Idx1, File, Content1 ),
+    ( pending_change(Idx1, File, Content1),
       Idx1 =< Index1
     ->setup_call_cleanup(tmp_file_stream(text, File1, Stream),
                          format(Stream, '~s', [Content1 ]),
@@ -95,6 +95,6 @@ apply_diff(Action, Index1, File) :-
     ; true
     ),
     ( TmpFile = true
-    ->delete_file(File1 )
+    ->delete_file(File1)
     ; true
     ).

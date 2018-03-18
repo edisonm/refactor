@@ -357,7 +357,7 @@ cleanup_level(_, _).
 apply_ec_term_level(Level, Term, Into, Expander, Options) :-
     forall(ec_term_level_each(Level, Term, Into, Expander, Options), true).
 
-with_counters(Goal, Options1 ) :-
+with_counters(Goal, Options1) :-
     foldl(select_option_default,
           [max_tries(MaxTries)-MaxTries],
           Options1, Options),
@@ -1138,10 +1138,10 @@ subst_fvar(M, Term, Pos, GTerm, V=T) :-
 %!  trim_fake_pos(+TermPos, -Pos, -N)
 %
 %   remove fake arguments that would be added by dcg
-trim_fake_pos(term_position(F, T, FF, FT, PosL1 ), Pos, N) :-
-    nonvar(PosL1 ),
+trim_fake_pos(term_position(F, T, FF, FT, PosL1), Pos, N) :-
+    nonvar(PosL1),
     once(( member(FE, [0-0, T-T]),
-           append(PosL, [FE|E], PosL1 ),
+           append(PosL, [FE|E], PosL1),
            maplist('='(FE), E)
          )),
     length([_|E], N),
@@ -1150,7 +1150,7 @@ trim_fake_pos(term_position(F, T, FF, FT, PosL1 ), Pos, N) :-
 trim_fake_args(N, Term1, Term) :-
     ( Term1 =.. ATerm1,
       length(TE, N),
-      append(ATerm, TE, ATerm1 ),
+      append(ATerm, TE, ATerm1),
       Term =.. ATerm
     ->true
     ; Term = Term1
@@ -2190,7 +2190,7 @@ write_b(Term, OptL, Pos1) :-
       Pos is Pos1 + 2,
       write_b1(Term, OptL, Pos),
       nl,
-      line_pos(Pos1 ),
+      line_pos(Pos1),
       write(')')
     ; write_b1(Term, OptL, Pos1)
     ).

@@ -225,7 +225,7 @@ fix_multi_singletons(MO:Options1) :-
           Options1, Options),
     apply_var_renamer([Dict, Sent] +\ Name1^Name
                      ^( member(Name1=Var, Dict),
-                        atom_concat('_', Name2, Name1 ),
+                        atom_concat('_', Name2, Name1),
                         occurrences_of_var(Var, Sent, N),
                         N > 1,
                         new_name([Dict]+\ X^member(X=_, Dict), Name2, Name)

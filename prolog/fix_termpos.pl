@@ -237,7 +237,7 @@ seek_sub_string(Text, SubText, SubTextN, F, T1, T) :-
     ).
 
 seek1_parenthesis_left(Text, F1, F) :-
-    comment_bound(F2, F1 ),
+    comment_bound(F2, F1),
     !,
     seek1_parenthesis_left(Text, F2, F).
 seek1_parenthesis_left(Text, F1, F) :-
@@ -257,7 +257,7 @@ seekn_parenthesis_left(N1, Text, F1, F) :-
 include_comments_left(Text, To, From) :-
     S = s(To),
     ( rcomment_bound(FromC, ToC),
-      arg(1, S, From1 ),
+      arg(1, S, From1),
       ToC =< From1,
       ( L is From1 - ToC,
         sub_string(Text, ToC, L, _, Text1),
@@ -281,7 +281,7 @@ include_comments_left(Text, To, From) :-
 include_comments_right(Text, From, To) :-
     S = s(From),
     ( comment_bound(FromC, ToC),
-      arg(1, S, To1 ),
+      arg(1, S, To1),
       To1 =< FromC,
       ( L is FromC - To1,
         sub_string(Text, To1, L, _, Text1),

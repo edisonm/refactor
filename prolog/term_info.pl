@@ -89,7 +89,7 @@ fetch_term_info(Pattern, Term, Options, In) :-
 get_term_info_file(Pattern, Term, File, Options) :-
     with_source_file(File, In, fetch_term_info(Pattern, Term, Options, In)).
 
-get_term_info_fd(In, PatternL, TermL, Options1 ) :-
+get_term_info_fd(In, PatternL, TermL, Options1) :-
     is_list(PatternL), !,
     foldl(\ (H-D)^O1^O^select_option(H, O1, O, D),
                 [subterm_positions(TermPos)-TermPos,
@@ -116,7 +116,7 @@ get_term_info_fd(In, PatternL, TermL, Options1 ) :-
             FromL),
     min_list(FromL, From),
     TermPos = list_position(From, To, TermPosL, none).
-get_term_info_fd(In, Pattern, Term, Options1 ) :-
+get_term_info_fd(In, Pattern, Term, Options1) :-
     should_set_line(SetLine, Options1, Options),
     repeat,
       '$set_source_module'(M, M),
@@ -149,7 +149,7 @@ transverse_apply(Apply, ListH1, ListT, ListL, _,  EL) :-
     transverse_apply_2(Apply, ListH, ListT, ListL, EL).
 
 transverse_apply_2(Apply, ListH, ListT1, ListL, EL) :-
-    call(Apply, EL1 ),
+    call(Apply, EL1),
     maplist(\ E^[E|L]^L^true, EL1, ListT1, ListT),
     transverse_apply(Apply, ListH, ListT, ListL, EL1, EL).
 

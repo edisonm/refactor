@@ -89,7 +89,7 @@ collect_def_files(M, PIL, FileL) :-
             ), FileU),
     sort(FileU, FileL).
 
-file_to_module(Alias, Options1 ) :-
+file_to_module(Alias, Options1) :-
     select_option(module(M),         Options1, Options2, M),
     select_option(exclude(ExcludeL), Options2, Options3, []),
     select_option(addcl(AddL),       Options3, Options4, []),
