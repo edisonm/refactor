@@ -69,8 +69,8 @@ with_source_file(File, In, Goal) :-
     catch(setup_call_cleanup(ti_open_source(Path, In),
                              call(Goal),
                              prolog_close_source(In)),
-          E0,
-          ( fix_exception(E0, Path, E),
+          E1,
+          ( fix_exception(E1, Path, E),
             print_message(error, E),
             fail
           )).
@@ -89,13 +89,13 @@ fetch_term_info(Pattern, Term, Options, In) :-
 get_term_info_file(Pattern, Term, File, Options) :-
     with_source_file(File, In, fetch_term_info(Pattern, Term, Options, In)).
 
-get_term_info_fd(In, PatternL, TermL, Options0 ) :-
+get_term_info_fd(In, PatternL, TermL, Options1 ) :-
     is_list(PatternL), !,
-    foldl(\ (H-D)^O0^O^select_option(H, O0, O, D),
+    foldl(\ (H-D)^O1^O^select_option(H, O1, O, D),
                 [subterm_positions(TermPos)-TermPos,
                  comments(Comments)-Comments,
                  variable_names(VN)-VN
-                ], Options0, OptionT),
+                ], Options1, OptionT),
     PatternL = [_|PatternT],
     length(PatternT, TN),
     length(TA, TN),
@@ -116,8 +116,8 @@ get_term_info_fd(In, PatternL, TermL, Options0 ) :-
             FromL),
     min_list(FromL, From),
     TermPos = list_position(From, To, TermPosL, none).
-get_term_info_fd(In, Pattern, Term, Options0 ) :-
-    should_set_line(SetLine, Options0, Options),
+get_term_info_fd(In, Pattern, Term, Options1 ) :-
+    should_set_line(SetLine, Options1, Options),
     repeat,
       '$set_source_module'(M, M),
       read_term(In, Term, [module(M)|Options]),
@@ -144,14 +144,14 @@ set_line(posline(Pos, Line)) :-
     stream_position_data(line_count, Pos, Line).
 
 transverse_apply(_,     ListL,  ListT, ListL, EL, EL) :- maplist(=([]), ListT).
-transverse_apply(Apply, ListH0, ListT, ListL, _,  EL) :-
-    maplist(\ [_|L]^L^true, ListH0, ListH),
+transverse_apply(Apply, ListH1, ListT, ListL, _,  EL) :-
+    maplist(\ [_|L]^L^true, ListH1, ListH),
     transverse_apply_2(Apply, ListH, ListT, ListL, EL).
 
-transverse_apply_2(Apply, ListH, ListT0, ListL, EL) :-
-    call(Apply, EL0 ),
-    maplist(\ E^[E|L]^L^true, EL0, ListT0, ListT),
-    transverse_apply(Apply, ListH, ListT, ListL, EL0, EL).
+transverse_apply_2(Apply, ListH, ListT1, ListL, EL) :-
+    call(Apply, EL1 ),
+    maplist(\ E^[E|L]^L^true, EL1, ListT1, ListT),
+    transverse_apply(Apply, ListH, ListT, ListL, EL1, EL).
 
 get_term_info_each(In, Options, [T, P, V, C]) :-
     '$set_source_module'(M, M),
@@ -161,19 +161,19 @@ get_term_info_each(In, Options, [T, P, V, C]) :-
 :- public read_terms/3.
 
 read_terms(In, TermOptsL, Options) :-
-    read_terms_opts(TermOptsL, In, Options, TermOptsL0, TermOptsT),
-    read_terms_opts_rec(In, Options, TermOptsL0, TermOptsT, TermOptsL).
+    read_terms_opts(TermOptsL, In, Options, TermOptsL1, TermOptsT),
+    read_terms_opts_rec(In, Options, TermOptsL1, TermOptsT, TermOptsL).
 
 read_terms_opts([],    _,  _,         TermOptsT,           TermOptsT).
-read_terms_opts([_|T], In, Options0, [TermOpts|TermOptsL], TermOptsT) :-
-    read_term_opts(In, Options0, TermOpts),
-    read_terms_opts(T, In, Options0, TermOptsL, TermOptsT).
+read_terms_opts([_|T], In, Options1, [TermOpts|TermOptsL], TermOptsT) :-
+    read_term_opts(In, Options1, TermOpts),
+    read_terms_opts(T, In, Options1, TermOptsL, TermOptsT).
 
-read_term_opts(In, Options0, Term-Options) :-
-    copy_term(Options0, Options),
+read_term_opts(In, Options1, Term-Options) :-
+    copy_term(Options1, Options),
     read_term(In, Term, Options).
 
 read_terms_opts_rec(_,  _,        TermOptsL,       [],                   TermOptsL).
-read_terms_opts_rec(In, Options0, [_|TermOptsL0 ], [TermOpts|TermOptsT], TermOptsL) :-
-    read_term_opts(In, Options0, TermOpts),
-    read_terms_opts_rec(In, Options0, TermOptsL0, TermOptsT, TermOptsL).
+read_terms_opts_rec(In, Options1, [_|TermOptsL1 ], [TermOpts|TermOptsT], TermOptsL) :-
+    read_term_opts(In, Options1, TermOpts),
+    read_terms_opts_rec(In, Options1, TermOptsL1, TermOptsT, TermOptsL).

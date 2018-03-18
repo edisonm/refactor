@@ -89,11 +89,11 @@ collect_def_files(M, PIL, FileL) :-
             ), FileU),
     sort(FileU, FileL).
 
-file_to_module(Alias, Options0 ) :-
-    select_option(module(M),         Options0, Options1, M),
-    select_option(exclude(ExcludeL), Options1, Options2, []),
-    select_option(addcl(AddL),       Options2, Options3, []),
-    select_option(delcl(DelL),       Options3, _, []),
+file_to_module(Alias, Options1 ) :-
+    select_option(module(M),         Options1, Options2, M),
+    select_option(exclude(ExcludeL), Options2, Options3, []),
+    select_option(addcl(AddL),       Options3, Options4, []),
+    select_option(delcl(DelL),       Options4, _, []),
     absolute_file_name(Alias, File, [file_type(prolog), access(read)]),
     files_to_move(M, File, FileL),
     format('% from context ~a~n', [M]),

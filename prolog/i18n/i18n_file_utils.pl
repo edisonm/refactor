@@ -88,10 +88,10 @@ subtract_po_file(PoFile1, PoFile2) :-
 
 clean(PoFile, ML, Codes) :-
     i18n_tmpl_entries(ML, TmplEntries),
-    read_po_file(PoFile, Entries0),
+    read_po_file(PoFile, Entries1),
     Entry = entry(_, _, Ref, _, MsgId, _),
     findall(Entry,
-            ( member(Entry, Entries0),
+            ( member(Entry, Entries1),
               member(entry(_, _, Ref, _, MsgId, _), TmplEntries)
             ), Entries),
     parse_po_entries(Entries, Codes, []).
@@ -106,21 +106,21 @@ sort(PoFile, _, Codes) :-
 %   Creates or update a po specific language file with empty entries ready to be
 %   filled.
 expand(PoFile, ML, Codes) :-
-    read_po_file(PoFile, Entries0),
+    read_po_file(PoFile, Entries1),
     i18n_tmpl_entries(ML, TmplEntries),
     Entry = entry(_, _, Ref, _, MsgId, _),
     findall(Entry, ( member(Entry, TmplEntries),
-                     \+ member(entry(_, _, Ref, _, MsgId, _), Entries0)
-                   ), Entries, Entries0),
+                     \+ member(entry(_, _, Ref, _, MsgId, _), Entries1)
+                   ), Entries, Entries1),
     parse_po_entries(Entries, Codes, []).
 
 %!  compact(+PoFile,-Codes) is det
 %
 %   Remove the empty entries in the specified .po language file.
 compact(PoFile, Codes) :-
-    read_po_file(PoFile, Entries0),
+    read_po_file(PoFile, Entries1),
     findall(Entry,
-            ( member(Entry, Entries0),
+            ( member(Entry, Entries1),
               Entry \= entry(_, _, _, _, _, [""])
             ), Entries),
     parse_po_entries(Entries, Codes, []).
@@ -173,9 +173,9 @@ expand_pot_files :-
     save_changes(FileChanges).
 
 read_entries(FL, Lang, TEntriesL) :-
-    findall(PotFile, current_pot_file(_, PotFile), FL0),
-    sort(FL0, FL1),
-    read_entries(FL1, [], FL, Lang, TEntriesL).
+    findall(PotFile, current_pot_file(_, PotFile), FL1),
+    sort(FL1, FL2),
+    read_entries(FL2, [], FL, Lang, TEntriesL).
 
 read_time_entries(PotFile, Lang, Time-Entries) :-
     get_lang_file(PotFile, Lang, PoFile),
@@ -184,42 +184,42 @@ read_time_entries(PotFile, Lang, Time-Entries) :-
     time_file(PoFile, Time).
 
 read_entries([],  FL,  FL, _,    []) :- !.
-read_entries(FD0, FL0, FL, Lang, TEntriesL) :-
+read_entries(FD1, FL1, FL, Lang, TEntriesL) :-
     findall(TEntries,
-            ( member(PotFile, FD0),
+            ( member(PotFile, FD1),
               read_time_entries(PotFile, Lang, TEntries)
             ),
             TEntriesL, TEntriesT),
-    append(FL0, FD0, FL1),
+    append(FL1, FD1, FL2),
     findall(PotFile, ( TEntriesT = [], % Temporarily close the list
                        member(_-Entries, TEntriesL),
                        member(Entry, Entries),
                        determine_module(Entry, M),
                        current_pot_file(M, PotFile),
-                       \+ memberchk(PotFile, FL1)
-               ), FD1),
-    sort(FD1, FD2),
-    read_entries(FD2, FL1, FL, Lang, TEntriesT).
+                       \+ memberchk(PotFile, FL2)
+               ), FD2),
+    sort(FD2, FD3),
+    read_entries(FD3, FL2, FL, Lang, TEntriesT).
 
 % Note: if the key is the same, merge will take the entry from the
 % newer file
 merge_entries_list([],                        TEntries, TEntries).
-merge_entries_list([Time-EntriesL|TEntriesL], TEntries0, TEntries) :-
-    merge_entries(EntriesL, Time, TEntries0, TEntries1),
-    merge_entries_list(TEntriesL, TEntries1, TEntries).
+merge_entries_list([Time-EntriesL|TEntriesL], TEntries1, TEntries) :-
+    merge_entries(EntriesL, Time, TEntries1, TEntries2),
+    merge_entries_list(TEntriesL, TEntries2, TEntries).
 
 merge_entries([],               _, TEntries, TEntries).
-merge_entries([Entry0|Entries], Time0, TEntries0, TEntries) :-
-    Entry0 = entry(_, _, Ref, _, MsgId, _),
-    ( select(Time1-entry(_, _, Ref, _, MsgId, _), TEntries0, TEntries1)
+merge_entries([Entry1|Entries], Time1, TEntries1, TEntries) :-
+    Entry1 = entry(_, _, Ref, _, MsgId, _),
+    ( select(Time2-entry(_, _, Ref, _, MsgId, _), TEntries1, TEntries2)
     ->                          % Two entries with same Key
-      ( Time1 < Time0
-      ->TEntries2 = [Time0-Entry0|TEntries1] % Entry1 will be replaced
-      ; TEntries2 = TEntries0                % Entry1 will be preserved
+      ( Time2 < Time1
+      ->TEntries3 = [Time1-Entry1|TEntries2] % Entry1 will be replaced
+      ; TEntries3 = TEntries1                % Entry1 will be preserved
       )
-    ; TEntries2 = [Time0-Entry0|TEntries0]
+    ; TEntries3 = [Time1-Entry1|TEntries1]
     ),
-    merge_entries(Entries, Time0, TEntries2, TEntries).
+    merge_entries(Entries, Time1, TEntries3, TEntries).
 
 save_to_po_file(Entries, PoFile) :-
     parse_po_entries(Entries, Codes, []),

@@ -50,7 +50,7 @@ save_change(Index, File-Content) :-
     asserta(pending_change(Index, File, Content)).
 
 index_change(Index) :-
-    (pending_change(Index0) -> succ(Index0, Index) ; Index = 1),
+    (pending_change(Index1) -> succ(Index1, Index) ; Index = 1),
     asserta(pending_change(Index)).
 
 save_changes(FileContentL) :-

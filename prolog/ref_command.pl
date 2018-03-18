@@ -49,7 +49,7 @@ apply_command(Command) :-
     save_command(Command).
 
 save_command(Command) :-
-    (pending_command(Index0, _) -> succ(Index0, Index) ; Index = 1),
+    (pending_command(Index1, _) -> succ(Index1, Index) ; Index = 1),
     asserta(pending_command(Index, Command)).
 
 undo_command(Index, Command) :-

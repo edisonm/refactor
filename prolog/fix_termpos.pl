@@ -118,15 +118,15 @@ fix_subtermpos(Pos) :-
 
 fix_subtermpos_rec(Pos) :- var(Pos), !. % Nothing to fix
 fix_subtermpos_rec(Pos) :-
-    Pos = term_position(From0, To0, FFrom, FTo, PosL),
+    Pos = term_position(From1, To1, FFrom, FTo, PosL),
     !,
-    fix_subtermpos_from_to(From0, To0, FFrom, FTo, From, To, PosL),
+    fix_subtermpos_from_to(From1, To1, FFrom, FTo, From, To, PosL),
     nb_setarg(1, Pos, From),
     nb_setarg(2, Pos, To).
 fix_subtermpos_rec(Pos) :-
-    Pos = key_value_position(From0, To0, SFrom, STo, _, KPos, VPos),
+    Pos = key_value_position(From1, To1, SFrom, STo, _, KPos, VPos),
     !,
-    fix_subtermpos_from_to(From0, To0, SFrom, STo, From, To, [KPos, VPos]),
+    fix_subtermpos_from_to(From1, To1, SFrom, STo, From, To, [KPos, VPos]),
     nb_setarg(1, Pos, From),
     nb_setarg(2, Pos, To).
 fix_subtermpos_rec(_-_).
@@ -177,96 +177,96 @@ rcomment_bound(From, To) :-
     reverse(CommentL, CommentR),
     comment_bound(CommentR, From, To).
 
-count_sub_string(Text, From0, To0, SubText, SubTextN, From, To, N) :-
-    ( seek_sub_string(Text, SubText, SubTextN, To0, From0, From1)
-    ->From = From1,
-      To1 is From1 + SubTextN,
-      ( To1 =< To0
-      ->S = s(1, To1),
-        forall(seek_sub_string(Text, SubText, SubTextN, To0, To1, To2),
+count_sub_string(Text, From1, To1, SubText, SubTextN, From, To, N) :-
+    ( seek_sub_string(Text, SubText, SubTextN, To1, From1, From2)
+    ->From = From2,
+      To2 is From2 + SubTextN,
+      ( To2 =< To1
+      ->S = s(1, To2),
+        forall(seek_sub_string(Text, SubText, SubTextN, To1, To2, To3),
                ( arg(1, S, N1),
                  succ(N1, N2),
                  nb_setarg(1, S, N2),
-                 To3 is To2 + SubTextN,
-                 nb_setarg(2, S, To3)
+                 To4 is To3 + SubTextN,
+                 nb_setarg(2, S, To4)
                )),
         arg(1, S, N),
         arg(2, S, To)
       ; N = 1,
-        To = To1
+        To = To2
       )
-    ; From = To0,
-      To = From0,
+    ; From = To1,
+      To = From1,
       N = 0
     ).
 
-comment_bound(From0, To0, From, To) :-
+comment_bound(From1, To1, From, To) :-
     comment_bound(FromC, ToC),
-    ( FromC < To0
+    ( FromC < To1
     ->true
-    ; FromC = To0
+    ; FromC = To1
     ->!
     ; !,
       fail
     ),
-    ( ToC < To0
+    ( ToC < To1
     ->To = ToC
     ; !,
-      To = To0
+      To = To1
     ),
-    ( From0 =< FromC
+    ( From1 =< FromC
     ->From = FromC
-    ; From0 =< ToC
-    ->From = From0
+    ; From1 =< ToC
+    ->From = From1
     ).
 
-seek_sub_string(Text, SubText, SubTextN, F, T0, T) :-
-    S = s(T0),
-    ( comment_bound(T0, F, FC, TC)
+seek_sub_string(Text, SubText, SubTextN, F, T1, T) :-
+    S = s(T1),
+    ( comment_bound(T1, F, FC, TC)
     ; FC = F,
       TC = F
     ),
-    arg(1, S, T1),
-    ( D1 is FC - T1,
+    arg(1, S, T2),
+    ( D1 is FC - T2,
       D1 > 0,
-      sub_string(Text, T1, D1, _, Frame),
+      sub_string(Text, T2, D1, _, Frame),
       sub_string(Frame, D, SubTextN, _, SubText),
-      T is T1 + D
+      T is T2 + D
     ; nb_setarg(1, S, TC),
       fail
     ).
 
-seek1_parenthesis_left(Text, F0, F) :-
-    comment_bound(F1, F0 ),
+seek1_parenthesis_left(Text, F1, F) :-
+    comment_bound(F2, F1 ),
     !,
-    seek1_parenthesis_left(Text, F1, F).
-seek1_parenthesis_left(Text, F0, F) :-
-    succ(F1, F0),
-    ( sub_string(Text, F1, _, _, "(")
-    ->F = F1
-    ; seek1_parenthesis_left(Text, F1, F)
+    seek1_parenthesis_left(Text, F2, F).
+seek1_parenthesis_left(Text, F1, F) :-
+    succ(F2, F1),
+    ( sub_string(Text, F2, _, _, "(")
+    ->F = F2
+    ; seek1_parenthesis_left(Text, F2, F)
     ).
 
 seekn_parenthesis_left(0,  _,    F,  F) :- !.
-seekn_parenthesis_left(N0, Text, F0, F) :-
-    N0>0,
-    seek1_parenthesis_left(Text, F0, F1),
-    succ(N, N0),
-    seekn_parenthesis_left(N, Text, F1, F).
+seekn_parenthesis_left(N1, Text, F1, F) :-
+    N1>0,
+    seek1_parenthesis_left(Text, F1, F2),
+    succ(N, N1),
+    seekn_parenthesis_left(N, Text, F2, F).
 
 include_comments_left(Text, To, From) :-
     S = s(To),
     ( rcomment_bound(FromC, ToC),
-      arg(1, S, From0 ),
-      ToC =< From0,
-      ( L is From0 - ToC,
+      arg(1, S, From1 ),
+      ToC =< From1,
+      ( L is From1 - ToC,
         sub_string(Text, ToC, L, _, Text1),
         \+ ( sub_string(Text1, _, 1, _, Char),
              \+ member(Char, [" ", "\t", "\n"])
            )
       ->nb_setarg(1, S, FromC),
         fail
-      ; ToC = From0
+      ; ToC = From1
       ->nb_setarg(1, S, FromC),
         !,
         fail
@@ -281,16 +281,16 @@ include_comments_left(Text, To, From) :-
 include_comments_right(Text, From, To) :-
     S = s(From),
     ( comment_bound(FromC, ToC),
-      arg(1, S, To0 ),
-      To0 =< FromC,
-      ( L is FromC - To0,
-        sub_string(Text, To0, L, _, Text1),
+      arg(1, S, To1 ),
+      To1 =< FromC,
+      ( L is FromC - To1,
+        sub_string(Text, To1, L, _, Text1),
         \+ ( sub_string(Text1, _, 1, _, Char),
              \+ member(Char, [" ", "\t", "\n"])
            )
       ->nb_setarg(1, S, ToC),
         fail
-      ; To0 = FromC
+      ; To1 = FromC
       ->nb_setarg(1, S, ToC),
         !,
         fail
@@ -303,75 +303,75 @@ include_comments_right(Text, From, To) :-
     arg(1, S, To).
 
 seekn_parenthesis_right(0, _, _, T, T) :- !.
-seekn_parenthesis_right(N, Text, L, T0, T) :-
+seekn_parenthesis_right(N, Text, L, T1, T) :-
     S = s(0),
-    ( seek_sub_string(Text, ")", 1, L, T0, T1),
-      arg(1, S, N0),
-      succ(N0, N1),
-      ( N1 = N -> !,
-        succ(T1, T)
-      ; nb_setarg(1, S, N1),
+    ( seek_sub_string(Text, ")", 1, L, T1, T2),
+      arg(1, S, N1),
+      succ(N1, N2),
+      ( N2 = N -> !,
+        succ(T2, T)
+      ; nb_setarg(1, S, N2),
         fail
       )
     ).
 
-fix_boundaries_from_right(Text, Pos, To0, From2, To2, From, To) :-
-    arg(2, Pos, To1),
-    ( To0 < To1
-    ->RL is To1 - To0,
-      sub_string(Text, To0, RL, _, TextL),
+fix_boundaries_from_right(Text, Pos, To1, From2, To3, From, To) :-
+    arg(2, Pos, To2),
+    ( To1 < To2
+    ->RL is To2 - To1,
+      sub_string(Text, To1, RL, _, TextL),
       with_termpos(refactor_message(warning, format("Misplaced text --> `~w'", [TextL])), Pos)
     ; true
     ),
-    count_sub_string(Text, To1, To0, ")", 1, _, To2, N),
-    include_comments_right(Text, To2, To),
+    count_sub_string(Text, To2, To1, ")", 1, _, To3, N),
+    include_comments_right(Text, To3, To),
     arg(1, Pos, From1),
     seekn_parenthesis_left(N, Text, From1, From2),
     From = From2.
 
-fix_termpos_from_right(Text, To0, Pos ) :-
+fix_termpos_from_right(Text, To1, Pos ) :-
     fix_subtermpos_rec(Pos),
-    fix_boundaries_from_right(Text, Pos, To0, From2, To2, From, To),
+    fix_boundaries_from_right(Text, Pos, To1, From2, To2, From, To),
     nb_setarg(1, Pos, From),
     nb_setarg(2, Pos, To),
     assertz(term_innerpos(From, To, From2, To2)).
 
-fix_termpos_from_left(Text, Pos, From0, To) :-
+fix_termpos_from_left(Text, Pos, From1, To) :-
     fix_subtermpos_rec(Pos),
-    fix_boundaries_from_left(Text, Pos, From0, From2, From, To),
+    fix_boundaries_from_left(Text, Pos, From1, From2, From, To),
     nb_setarg(1, Pos, From),    % if using From2 and To2, comments not included
     nb_setarg(2, Pos, To),      % TODO: make this parameterizable
     assertz(term_innerpos(From, To, From2, To)).
 
-fix_termpos_from_left_comm(Text, Pos, From0, To) :-
+fix_termpos_from_left_comm(Text, Pos, From1, To) :-
     fix_subtermpos_rec(Pos),
-    fix_boundaries_from_left(Text, Pos, From0, From2, From, To2),
+    fix_boundaries_from_left(Text, Pos, From1, From2, From, To2),
     include_comments_right(Text, To2, To),
     nb_setarg(1, Pos, From),  % if using From2 and To2, comments not included
     nb_setarg(2, Pos, To),    % TODO: make this parameterizable
     assertz(term_innerpos(From, To, From2, To2)).
 
-fix_boundaries_from_left(Text, Pos, From0, From2, From, To) :-
-    arg(1, Pos, From1),
-    ( From1 < From0 ->
-      RL is From0 - From1,
-      sub_string(Text, From1, RL, _, TextL),
+fix_boundaries_from_left(Text, Pos, From1, From3, From, To) :-
+    arg(1, Pos, From2),
+    ( From2 < From1 ->
+      RL is From1 - From2,
+      sub_string(Text, From2, RL, _, TextL),
       with_termpos(
           refactor_message(
               warning,
               format("Misplaced text <-- `~w' (~w)",
                      [TextL,
-                      fix_boundaries_from_left(_, Pos, From0, From2, From, To)])),
+                      fix_boundaries_from_left(_, Pos, From1, From3, From, To)])),
           Pos)
     ; true
     ),
-    count_sub_string(Text, From0, From1, "(", 1, From2, _, N),
-    include_comments_left(Text, From2, From),
+    count_sub_string(Text, From1, From2, "(", 1, From3, _, N),
+    include_comments_left(Text, From3, From),
     arg(2, Pos, To1),
     string_length(Text, L),
     seekn_parenthesis_right(N, Text, L, To1, To).
 
-fix_subtermpos_from_to(From0, To0, FFrom, FTo, From, To, PosL) :-
+fix_subtermpos_from_to(From1, To1, FFrom, FTo, From, To, PosL) :-
     refactor_context(text, Text),
     sub_string(Text, FTo, 1, _, Char),
     ( PosL = [LPos, RPos ],
@@ -386,10 +386,10 @@ fix_subtermpos_from_to(From0, To0, FFrom, FTo, From, To, PosL) :-
       FTo =< FromR,
       Char \= "("
     ->fix_termpos_from_left(Text, Pos, FTo, _),
-      From = From0,
+      From = From1,
       arg(2, Pos, To)
     ; succ(FTo, FTo1),
       foldl(fix_termpos_from_left_comm(Text), PosL, FTo1, _),
-      From = From0,
-      To = To0
+      From = From1,
+      To = To1
     ).

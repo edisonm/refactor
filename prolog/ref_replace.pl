@@ -357,10 +357,10 @@ cleanup_level(_, _).
 apply_ec_term_level(Level, Term, Into, Expander, Options) :-
     forall(ec_term_level_each(Level, Term, Into, Expander, Options), true).
 
-with_counters(Goal, Options0 ) :-
+with_counters(Goal, Options1 ) :-
     foldl(select_option_default,
           [max_tries(MaxTries)-MaxTries],
-          Options0, Options),
+          Options1, Options),
     with_context_values(
         ( Goal,
           refactor_context(count, Count),
@@ -387,7 +387,7 @@ clause_file_module(CRef, File, M) :-
     clause_property(CRef, file(File)),
     clause_property(CRef, module(M)).
 
-ec_term_level_each(Level, Term, Into, Expander, Options0) :-
+ec_term_level_each(Level, Term, Into, Expander, Options1) :-
     (Level = goal -> DExpand=yes ; DExpand = no),
     (Level = sent -> SentPattern = Term ; true), % speed up
     foldl(select_option_default,
@@ -406,17 +406,17 @@ ec_term_level_each(Level, Term, Into, Expander, Options0) :-
            variable_names(VNL)-VNL,
            vars_preffix(Preffix)-'V'
           ],
-          Options0, Options1),
-    ( option(clause(CRef), Options1)
+          Options1, Options2),
+    ( option(clause(CRef), Options2)
     ->FileMGen = clause_file_module(CRef, File, M),
       clause_property(CRef, line_count(Line)),
-      merge_options([line(Line)], Options1, Options2)
-    ; option_allchk(M, File, FileMGen-Options1, true-Options2)
+      merge_options([line(Line)], Options2, Options3)
+    ; option_allchk(M, File, FileMGen-Options2, true-Options3)
     ),
     Options = [syntax_errors(SE),
                subterm_positions(TermPos),
                variable_names(VNL),
-               comments(Comments)|Options2],
+               comments(Comments)|Options3],
     maplist(set_context_value,
             [sent_pattern,
              sentence,
@@ -752,17 +752,17 @@ apply_commands_stream_each(FPTerm, CI, M, Max, Command, Text1, IPosText) :-
       nb_setarg(2, IPosText, Text6)
     ).
 
-get_out_pos(RText, Pos-Text0, From, Line, LPos) :-
+get_out_pos(RText, Pos-Text1, From, Line, LPos) :-
     Length is max(0, From - Pos),
-    sub_string(RText, Pos, Length, _, Text1),
-    string_concat(Text0, Text1, Text2),
-    textpos_line(Text2, From, Line, LPos).
+    sub_string(RText, Pos, Length, _, Text2),
+    string_concat(Text1, Text2, Text3),
+    textpos_line(Text3, From, Line, LPos).
 
-string_concat_to(RText, t(From, To, PasteText), Pos-Text0, To-Text) :-
+string_concat_to(RText, t(From, To, PasteText), Pos-Text1, To-Text) :-
     Length is max(0, From - Pos),
-    sub_string(RText, Pos, Length, _, Text1),
-    string_concat(Text0, Text1, Text2),
-    string_concat(Text2, PasteText, Text).
+    sub_string(RText, Pos, Length, _, Text2),
+    string_concat(Text1, Text2, Text3),
+    string_concat(Text3, PasteText, Text).
 
 gen_new_variable_name(VNL, Preffix, Count, Name) :-
     atom_concat(Preffix, Count, Name),
@@ -889,103 +889,103 @@ refactor_location(From) :-
       From = file(File, Line, -1, _)
     ).
 
-with_context(Sent, Term, Pattern0, Into0, Pattern, Into, VNL, Goal) :-
-    copy_term(Pattern0-Into0, Pattern-Into1),
+with_context(Sent, Term, Pattern1, Into1, Pattern, Into, VNL, Goal) :-
+    copy_term(Pattern1-Into1, Pattern-Into2),
     refactor_context(sentence, Sent),
     refactor_context(sent_pattern, Sent),
-    Pattern0 = Term,
-    copy_term(Term-Into0, Term2-Into2),
-    with_pattern_into(Goal, Pattern, Into1), % Allow changes in Pattern1/Into1
-    term_variables(Pattern, Vars1), % Variable bindings in Pattern
+    Pattern1 = Term,
+    copy_term(Term-Into1, Term2-Into3),
+    with_pattern_into(Goal, Pattern, Into2), % Allow changes in Pattern1/Into1
+    term_variables(Pattern, Vars2), % Variable bindings in Pattern
     %% Apply changes to Pattern/Into and bind Vars:
-    copy_term(t(Pattern, Into1, Vars1), t(Pattern0, Into0, Vars0)),
-    copy_term(t(Pattern, Into1, Vars1), t(Term2,    Into2, Vars2)),
-    gen_new_variable_names(Sent, Term, Into0, VNL),
-    pairs_keys_values(Pairs01, Vars0, Vars1),
-    pairs_keys_values(Triplets, Pairs01, Vars2),
-    map_subterms(p(Triplets, Pattern0, Pattern, Term2, VNL, Into1, Into2), Into0, Into1, Into).
+    copy_term(t(Pattern, Into2, Vars2), t(Pattern1, Into1, Vars1)),
+    copy_term(t(Pattern, Into2, Vars2), t(Term2,    Into3, Vars3)),
+    gen_new_variable_names(Sent, Term, Into1, VNL),
+    pairs_keys_values(Pairs, Vars1, Vars2),
+    pairs_keys_values(Triplets, Pairs, Vars3),
+    map_subterms(p(Triplets, Pattern1, Pattern, Term2, VNL, Into2, Into3), Into1, Into2, Into).
 
-map_subterms(Params, T0, T1, T) :-
-    Params = p(Triplets, P0, P1, P2, VNL, Into1, Into2),
-    ( member(X0-X1-X2, Triplets),
-      X1 == T1
-    ; member(X0-X1-X2, Triplets),
-      same_term(X0, T0)         % ===/2
-    ; sub_term(P0, P1, P2, X0, X1, X2),
-      \+ atomic(X0), % Special case: ignore atomics
-      same_term(X0, T0)         % ===/2
-    ; sub_term(P0, P1, P2, X0, X1, X2),
-      \+ atomic(X0), % Special case: ignore atomics
-      X1 == T1
+map_subterms(Params, T1, T2, T) :-
+    Params = p(Triplets, P1, P2, P3, VNL, Into1, Into2),
+    ( member(X1-X2-X3, Triplets),
+      X2 == T2
+    ; member(X1-X2-X3, Triplets),
+      same_term(X1, T1)         % ===/2
+    ; sub_term(P1, P2, P3, X1, X2, X3),
+      \+ atomic(X1), % Special case: ignore atomics
+      same_term(X1, T1)         % ===/2
+    ; sub_term(P1, P2, P3, X1, X2, X3),
+      \+ atomic(X1), % Special case: ignore atomics
+      X2 == T2
     ),
     !,
-    ( T0 == T1
-    ->T = X0
+    ( T1 == T2
+    ->T = X1
     ; \+ ( member(_=V1, VNL),
-           sub_term(V2, X0),
+           sub_term(V2, X1),
            var(V2),
            V2 == V1
          )
-    ->( X1 =@= X2,
-        \+ same_term(X0, T0),
-        occurrences_of_var(X1, Into1, N),
-        occurrences_of_var(X2, Into2, N)
-      ->T = X0
-      ; T = X1
+    ->( X2 =@= X3,
+        \+ same_term(X1, T1),
+        occurrences_of_var(X2, Into1, N),
+        occurrences_of_var(X3, Into2, N)
+      ->T = X1
+      ; T = X2
       )
-    ; map_subterms_2(Params, T0, T1, T)
+    ; map_subterms_2(Params, T1, T2, T)
     ).
-map_subterms(Params, T0, T1, T) :-
-    map_subterms_2(Params, T0, T1, T).
+map_subterms(Params, T1, T2, T) :-
+    map_subterms_2(Params, T1, T2, T).
 
-sub_term(P0, P1, P2, P0, P1, P2).
-sub_term(P0, P1, P2, X0, X1, X2) :-
-    compound(P0),
-    functor(P0, F, N),
+sub_term(P1, P2, P3, P1, P2, P3).
+sub_term(P1, P2, P3, X1, X2, X3) :-
+    compound(P1),
     functor(P1, F, N),
     functor(P2, F, N),
-    arg(I, P0, A0),
+    functor(P3, F, N),
     arg(I, P1, A1),
     arg(I, P2, A2),
-    sub_term(A0, A1, A2, X0, X1, X2).
+    arg(I, P3, A3),
+    sub_term(A1, A2, A3, X1, X2, X3).
 
-map_subterms_2(Params, T0, T1, T) :-
-    compound(T0), !,
-    map_compound(Params, T0, T1, T).
+map_subterms_2(Params, T1, T2, T) :-
+    compound(T1), !,
+    map_compound(Params, T1, T2, T).
 map_subterms_2(_, T, _, T).
 
 map_compound(Params,            % Special case: preserve Goal
-             '$G'(T0, G),
-             '$G'(T1, _),
+             '$G'(T1, G),
+             '$G'(T2, _),
              '$G'(T,  G)) :- !,
-    map_subterms(Params, T0, T1, T).
+    map_subterms(Params, T1, T2, T).
 map_compound(Params,            % Special case: preserve Goal
-             '$C'(G, T0),
-             '$C'(_, T1),
+             '$C'(G, T1),
+             '$C'(_, T2),
              '$C'(G, T )) :- !,
-    map_subterms(Params, T0, T1, T).
+    map_subterms(Params, T1, T2, T).
 map_compound(Params,
-             '$@'(X0, Y0),
              '$@'(X1, Y1),
+             '$@'(X2, Y2),
              '$@'(X,  Y)) :- !,
-    map_subterms(Params, X0, X1, X),
-    Params=p(Triplets, P0, P1, P2, _, Into1, Into2),
-    map_subterms(p(Triplets, P0, P1, P2, [], Into1, Into2), Y0, Y1, Y).
+    map_subterms(Params, X1, X2, X),
+    Params=p(Triplets, P1, P2, P3, _, Into1, Into2),
+    map_subterms(p(Triplets, P1, P2, P3, [], Into1, Into2), Y1, Y2, Y).
 map_compound(Params,
-             '@@'(X0, Y0),
              '@@'(X1, Y1),
+             '@@'(X2, Y2),
              '@@'(X,  Y)) :- !,
-    map_subterms(Params, X0, X1, X),
-    Params=p(Triplets, P0, P1, P2, _, Into1, Into2),
-    map_subterms(p(Triplets, P0, P1, P2, [], Into1, Into2), Y0, Y1, Y).
-map_compound(Params, T0, T1, T) :-
-    functor(T0, F, N),
+    map_subterms(Params, X1, X2, X),
+    Params=p(Triplets, P1, P2, P3, _, Into1, Into2),
+    map_subterms(p(Triplets, P1, P2, P3, [], Into1, Into2), Y1, Y2, Y).
+map_compound(Params, T1, T2, T) :-
     functor(T1, F, N),
+    functor(T2, F, N),
     functor(T,  F, N),
-    T0 =.. [F|Args0],
     T1 =.. [F|Args1],
+    T2 =.. [F|Args2],
     T  =.. [F|Args],
-    maplist(map_subterms(Params), Args0, Args1, Args).
+    maplist(map_subterms(Params), Args1, Args2, Args).
 
 special_term(top,    Pattern, Term, '$LISTC'(List)) :-
     nonvar(Pattern),
@@ -996,7 +996,7 @@ special_term(top,    Pattern, Term, '$LISTC'(List)) :-
     ).
 special_term(sub_cw, _, Term,  Term).
 special_term(sub,    _, Term,  Term).
-special_term(top,    _, Term0, Term) :- top_term(Term0, Term).
+special_term(top,    _, Term1, Term) :- top_term(Term1, Term).
 
 top_term(Var, Var) :- var(Var), !.
 top_term(List, '$LISTC.NL'(List)) :- List = [_|_], !.
@@ -1138,22 +1138,22 @@ subst_fvar(M, Term, Pos, GTerm, V=T) :-
 %!  trim_fake_pos(+TermPos, -Pos, -N)
 %
 %   remove fake arguments that would be added by dcg
-trim_fake_pos(term_position(F, T, FF, FT, PosL0 ), Pos, N) :-
-    nonvar(PosL0 ),
+trim_fake_pos(term_position(F, T, FF, FT, PosL1 ), Pos, N) :-
+    nonvar(PosL1 ),
     once(( member(FE, [0-0, T-T]),
-           append(PosL, [FE|E], PosL0 ),
+           append(PosL, [FE|E], PosL1 ),
            maplist('='(FE), E)
          )),
     length([_|E], N),
     Pos = term_position(F, T, FF, FT, PosL).
 
-trim_fake_args(N, Term0, Term) :-
-    ( Term0 =.. ATerm0,
+trim_fake_args(N, Term1, Term) :-
+    ( Term1 =.. ATerm1,
       length(TE, N),
-      append(ATerm, TE, ATerm0 ),
+      append(ATerm, TE, ATerm1 ),
       Term =.. ATerm
     ->true
-    ; Term = Term0
+    ; Term = Term1
     ).
 
 shared_variables(VNL, Term1, Term2, Var) :-
@@ -1174,8 +1174,8 @@ eq(A, B, A=B).
 get_position_gterm(M, Term, Pos, GTerm, T, GPos, G, GPriority) :-
     subterm_location_eq(L, T, Term),
     subpos_location(L, Pos, GPos),
-    ( append(L0, [E], L) ->
-      subterm_location(L0, GP, GTerm),
+    ( append(L1, [E], L) ->
+      subterm_location(L1, GP, GTerm),
       subterm_location([E], G, GP),
       term_priority(GP, M, E, GPriority)
     ; GPriority = 999,
@@ -1333,10 +1333,10 @@ substitute_term_list([], TP, OutPos, M, Tail, Ref, Into, Expander, Cmd) :-
     term_priority([_|_], M, 2, Priority),
     substitute_term_rec(M, Tail, Priority, Ref, Into, Expander, TP, OutPos, Cmd).
 
-compound_positions(Line1, Pos1, Pos0, Pos) :-
+compound_positions(Line1, Pos2, Pos1, Pos) :-
     Line1 =< 1,
     !,
-    Pos is Pos0 + Pos1.
+    Pos is Pos1 + Pos2.
 compound_positions(_, Pos, _, Pos).
 
 textpos_line(Text, CharPos, Line, LinePos) :-
@@ -1362,11 +1362,11 @@ get_output_position(Pos) :-
 
 get_output_position(From, Pos) :-
     refactor_context(text, Text),
-    textpos_line(Text, From, _Line0, Pos0),
+    textpos_line(Text, From, _Line1, Pos1),
     stream_property(current_output, position(StrPos)),
     stream_position_data(line_count, StrPos, Line1),
-    stream_position_data(line_position, StrPos, Pos1),
-    compound_positions(Line1, Pos1, Pos0, Pos).
+    stream_position_data(line_position, StrPos, Pos2),
+    compound_positions(Line1, Pos2, Pos1, Pos).
 
 write_term_dot_nl(Term, OptL) :-
     write_term(Term, OptL),
@@ -1543,18 +1543,18 @@ rportray('$PRIORITY'(T, Priority), Opt) :-
     integer(Priority), !,
     merge_options([priority(Priority)], Opt, Opt1),
     write_term(T, Opt1).
-rportray([E|T0], Opt) :- !,
-    append(H, T1, [E|T0]),
-    ( var(T1)
+rportray([E|T1], Opt) :- !,
+    append(H, T2, [E|T1]),
+    ( var(T2)
     ->!, fail
-    ; T1 = '$sb'(TermPos, IFrom, ITo, GTerm, GPriority, Term),
+    ; T2 = '$sb'(TermPos, IFrom, ITo, GTerm, GPriority, Term),
       is_list(Term),
       compound(TermPos), !,
       arg(1, TermPos, TFrom),
       arg(2, TermPos, TTo),
       term_innerpos(TFrom, TTo, From, To),
-      T2 = '$sb'(From-To, IFrom, ITo, GTerm, GPriority, Term),
-      with_output_to(string(SB), write_term(T2, Opt)),
+      T3 = '$sb'(From-To, IFrom, ITo, GTerm, GPriority, Term),
+      with_output_to(string(SB), write_term(T3, Opt)),
       sub_string(SB, 1, _, 1, SC),
       refactor_context(text, Text),
       get_subtext(Text, TFrom, From, SL),
@@ -1681,15 +1681,15 @@ write_tail('$LIST,NL'(L, Offs), Writter, _, Opt) :-
     offset_pos(Offs, Pos), !,
     sep_nl(Pos, ',', Sep),
     term_write_sep_list_inner(L, Writter, Sep, Opt).
-write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), Writter, SepIn, Opt) :-
+write_tail('$sb'(Pos1, IFrom, ITo, GTerm, GPriority, Term), Writter, SepIn, Opt) :-
     is_list(Term),
-    nonvar(Pos0),
-    arg(1, Pos0, From0),
-    arg(2, Pos0, To0),
+    nonvar(Pos1),
+    arg(1, Pos1, From1),
+    arg(2, Pos1, To1),
     !,
     refactor_context(text, Text),
-    print_subtext(Text, From0, IFrom),
-    ( Pos0 = list_position(_, _, PosL, Tail)
+    print_subtext(Text, From1, IFrom),
+    ( Pos1 = list_position(_, _, PosL, Tail)
     ->write(SepIn),
       PosL = [LPos|_],
       arg(1, LPos, From),
@@ -1702,7 +1702,7 @@ write_tail('$sb'(Pos0, IFrom, ITo, GTerm, GPriority, Term), Writter, SepIn, Opt)
                          GPriority, Opt, Text)
     ; term_write_sep_list_inner_rec(Term, Writter, SepIn, Opt)
     ),
-    print_subtext(Text, ITo, To0).
+    print_subtext(Text, ITo, To1).
 write_tail(T, Writter, _, Opt) :-
     write('|'),
     call(Writter, T, Opt).
@@ -1735,22 +1735,22 @@ print_expansion_1('$TEXT'(Into), _, _, TermPos, Options, _, From, To) :- !,
     write_t(Into, Options).
 print_expansion_1('$TEXT'(Into, Delta), _, _, TermPos, Options, _, From, To) :- !,
     arg(1, TermPos, From),
-    arg(2, TermPos, To0),
+    arg(2, TermPos, To1),
     % quoted(false)
     write_t(Into, Options),
-    To is To0 + Delta.
+    To is To1 + Delta.
 print_expansion_1('$TEXTQ'(Into), _, _, TermPos, Options, _, From, To) :- !,
     arg(1, TermPos, From),
     arg(2, TermPos, To),
     write_q(Into, Options).
 print_expansion_1('$TEXTQ'(Into, Delta), _, _, TermPos, Options, _, From, To) :- !,
     arg(1, TermPos, From),
-    arg(2, TermPos, To0),
+    arg(2, TermPos, To1),
     write_q(Into, Options),
-    To is To0 + Delta.
-print_expansion_1('$LIST.NL'(IntoL), Pattern, Term, TermPos, Options0,
+    To is To1 + Delta.
+print_expansion_1('$LIST.NL'(IntoL), Pattern, Term, TermPos, Options1,
                   Text, From, To) :- !,
-    merge_options([priority(1200)], Options0, Options),
+    merge_options([priority(1200)], Options1, Options),
     print_expansion_rm_dot(TermPos, Text, From, To),
     with_from(term_write_stop_nl_list(IntoL, Pattern, Term, TermPos, Options,
                                       Text), From).
@@ -1890,10 +1890,10 @@ with_cond_braces(Call, Into, GTerm, TermPos, GPriority, Options, Text) :-
 
 % TODO: stream position would be biased --EMM
 with_str_hook(Command, StrHook) :-
-    with_output_to(string(S0), call(Command)),
-    ( call(StrHook, S0, S)
+    with_output_to(string(S1), call(Command)),
+    ( call(StrHook, S1, S)
     ->true
-    ; S = S0
+    ; S = S1
     ),
     format('~s', [S]).
 
@@ -1966,9 +1966,9 @@ print_expansion_ne(Into, Pattern, Term, RefPos, Options, Text) :-
     ; write_term(Into, Options)
     ).
 
-print_expansion_arg(M, MInto, Options0, Text, FromTo, v(N, RefPos, Into, Pattern, GTerm)) :-
+print_expansion_arg(M, MInto, Options1, Text, FromTo, v(N, RefPos, Into, Pattern, GTerm)) :-
     term_priority(MInto, M, N, Priority),
-    merge_options([priority(Priority)], Options0, Options),
+    merge_options([priority(Priority)], Options1, Options),
     print_expansion_elem(Options, Text, FromTo, RefPos, Into, Pattern-GTerm).
 
 print_expansion_elem(Options, Text, From-To, RefPos, Into, Pattern-GTerm) :-
@@ -2020,12 +2020,12 @@ valid_op_type_arity(fy,  1).
 valid_op_type_arity(fx,  1).
 
 from_to_pairs([], _, To, To) --> [].
-from_to_pairs([To1-From1|PosL], From0, To0, To) -->
-    { (To1   = 0 -> To0  = From0 ; To0  = To1),
-      (From1 = 0 -> From = To0   ; From = From1)
+from_to_pairs([To2-From2|PosL], From1, To1, To) -->
+    { (To2   = 0 -> To1  = From1 ; To1  = To2),
+      (From2 = 0 -> From = To1   ; From = From2)
     },
-    [From-To2],
-    from_to_pairs(PosL, From, To2, To).
+    [From-To3],
+    from_to_pairs(PosL, From, To3, To).
 
 normalize_pos(Pos, F-T) :-
     arg(1, Pos, F),
@@ -2075,7 +2075,7 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT),
     print_subtext(Text, From, To1),
     maplist(print_expansion_arg(M, Into, Options, Text), FromToL, ValL),
     print_subtext(Text, To2, To).
-print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, Options0, Text) :-
+print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, Options1, Text) :-
     maplist(normalize_pos, PosL, PosN),
     from_to_pairs(PosN, From, To1, To2, FromToL, []),
     length(PosL, N),
@@ -2091,10 +2091,10 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, O
     pairs_keys_values(PatGTrL, PatL, GTrL),
     !,
     From1 is From + Delta,
-    option(module(M), Options0),
+    option(module(M), Options1),
     term_priority(Into, M, 1, Priority1),
-    select_option(priority(Priority), Options0, Options, Priority),
-    Options1=[priority(Priority1)|Options],
+    select_option(priority(Priority), Options1, Options, Priority),
+    Options2=[priority(Priority1)|Options],
     ( comp_priority(M, GTerm, Priority, Into, Priority)
     ->write('(')
     ; Delta = 1 ->write(' ')    % Only if [...] ---> (...)
@@ -2105,16 +2105,16 @@ print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, O
       arg(1, PosT, PTo),
       term_priority(Into, M, 2, Priority2),
       To2 is PTo + Delta,
-      maplist(print_expansion_elem(Options1, Text), FromToL, PosL, ArgL, PatGTrL),
+      maplist(print_expansion_elem(Options2, Text), FromToL, PosL, ArgL, PatGTrL),
       arg(2, PosT, PFrom),
-      Options2=[priority(Priority2)|Options],
-      print_expansion_elem(Options2, Text, PFrom-To, PosT, ATail, PTail-GTail)
+      Options3=[priority(Priority2)|Options],
+      print_expansion_elem(Options3, Text, PFrom-To, PosT, ATail, PTail-GTail)
     ; nth1(N, PosL, E),
       arg(2, E, To2),
-      maplist(print_expansion_elem(Options1, Text), FromToL, PosL, ArgL, PatGTrL),
+      maplist(print_expansion_elem(Options2, Text), FromToL, PosL, ArgL, PatGTrL),
       term_priority(Into, M, 2, Priority2),
-      Options2=[priority(Priority2)|Options],
-      term_write_sep_list_inner_rec(ATail, write_term, ', ', Options2),
+      Options3=[priority(Priority2)|Options],
+      term_write_sep_list_inner_rec(ATail, write_term, ', ', Options3),
       print_subtext(Text, To2, To)
     ),
     ( comp_priority(M, GTerm, Priority, Into, Priority)
@@ -2149,9 +2149,9 @@ print_text(Text) :-
     format("~s", [Text]),
     write(''). % reset partial(true) logic
 
-trim_list(N, L0, L, T) :-
+trim_list(N, L1, L, T) :-
     length(L, N),
-    append(L, T, L0).
+    append(L, T, L1).
 
 print_subtext(Text, From, To) :-
     get_subtext(Text, From, To, SubText),
@@ -2162,9 +2162,9 @@ get_subtext(RefPos, Text, SubText) :-
     arg(2, RefPos, To),
     get_subtext(Text, From, To, SubText).
 
-get_subtext(Text0, From, To, Text) :-
+get_subtext(Text1, From, To, Text) :-
     LPaste is To - From,
-    sub_string(Text0, From, LPaste, _, Text).
+    sub_string(Text1, From, LPaste, _, Text).
 
 bin_op(Term, Op, Left, Right, A, B) :-
     nonvar(Term),
@@ -2182,17 +2182,17 @@ rportray_body(B, Pos, OptL) :-
     fix_if_partial_term(B, D, OptL),
     write_b1(B, OptL, Pos+D).
 
-write_b(Term, OptL, Pos0) :-
+write_b(Term, OptL, Pos1) :-
     ( option(priority(N), OptL),
       option(module(M), OptL),
       term_needs_braces(M:Term, N)
     ->write('( '),
-      Pos is Pos0 + 2,
+      Pos is Pos1 + 2,
       write_b1(Term, OptL, Pos),
       nl,
-      line_pos(Pos0 ),
+      line_pos(Pos1 ),
       write(')')
-    ; write_b1(Term, OptL, Pos0)
+    ; write_b1(Term, OptL, Pos1)
     ).
 
 and_layout(T) :- T = (_,_).
@@ -2262,14 +2262,14 @@ body_meta_arg(ID, Arg1, Meta1, I, Term, Spec, Meta) :-
       )
     ).
 
-write_b_layout(Term, OptL0, Layout, Pos) :-
+write_b_layout(Term, OptL1, Layout, Pos) :-
     bin_op(Term, Op, Left, Right, A, B),
     !,
-    merge_options([priority(Left)], OptL0, OptL1),
-    write_b(A, OptL1, Pos),
+    merge_options([priority(Left)], OptL1, OptL2),
+    write_b(A, OptL2, Pos),
     nl_indent(Layout, Op, Pos),
-    merge_options([priority(Right)], OptL0, OptL2),
-    write_b(B, OptL2, Pos).
+    merge_options([priority(Right)], OptL1, OptL3),
+    write_b(B, OptL3, Pos).
 
 nl_indent(or, Op, LinePos) :-
     nl,
@@ -2298,10 +2298,10 @@ line_pos(LinePos) :-
     line_pos(LinePos1).
 line_pos(_).
 
-write_t(Term, Options0) :-
-    merge_options([quoted(false), priority(1200)], Options0, Options),
+write_t(Term, Options1) :-
+    merge_options([quoted(false), priority(1200)], Options1, Options),
     write_term(Term, Options).
 
-write_q(Term, Options0) :-
-    merge_options([quoted(true), priority(1200)], Options0, Options),
+write_q(Term, Options1) :-
+    merge_options([quoted(true), priority(1200)], Options1, Options),
     write_term(Term, Options).

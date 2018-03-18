@@ -63,38 +63,38 @@ rdiff :-
 
 rdiff(Index) :-
     pending_change(Index),
-    succ(Index0, Index),
-    rdiff(show, Index0, Index).
+    succ(Index1, Index),
+    rdiff(show, Index1, Index).
 
-rdiff(Index0, Index) :-
-    rdiff(show, Index0, Index).
+rdiff(Index1, Index) :-
+    rdiff(show, Index1, Index).
 
-rdiff(Action, Index0, Index) :-
+rdiff(Action, Index1, Index) :-
     findall(File, (pending_change(IdxI, File, _), IdxI=<Index), FileU),
     sort(FileU, FileL),
     forall(member(File, FileL),
-           apply_diff(Action, Index0, File)).
+           apply_diff(Action, Index1, File)).
 
-apply_diff(Action, Index0, File) :-
+apply_diff(Action, Index1, File) :-
     once(pending_change(_, File, Content)), % Take the last one
-    ( pending_change(Idx1, File, Content0 ),
-      Idx1 =< Index0
-    ->setup_call_cleanup(tmp_file_stream(text, File0, Stream),
-                         format(Stream, '~s', [Content0 ]),
+    ( pending_change(Idx1, File, Content1 ),
+      Idx1 =< Index1
+    ->setup_call_cleanup(tmp_file_stream(text, File1, Stream),
+                         format(Stream, '~s', [Content1 ]),
                          close(Stream)),
       TmpFile = true
-    ; File0 = File,
+    ; File1 = File,
       TmpFile = fail,
       ( access_file(File, read)
-      ->read_file_to_string(File, Content0, [])
-      ; Content0 = []
+      ->read_file_to_string(File, Content1, [])
+      ; Content1 = []
       )
     ),
-    ( Content0 \= Content
-    ->do_file_change(Action, File0, File, Content)
+    ( Content1 \= Content
+    ->do_file_change(Action, File1, File, Content)
     ; true
     ),
     ( TmpFile = true
-    ->delete_file(File0 )
+    ->delete_file(File1 )
     ; true
     ).

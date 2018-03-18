@@ -86,9 +86,9 @@ rrewind :-
     rrewind(0).
 
 rrewind(Index) :-
-    findall(Command, ( pending_command(Index0, Command),
-                       Index0 > Index,
-                       rdrop(Index0, _)
+    findall(Command, ( pending_command(Index1, Command),
+                       Index1 > Index,
+                       rdrop(Index1, _)
                      ),
             CommandR),
     reverse(CommandR, CommandL),

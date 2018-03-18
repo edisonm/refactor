@@ -85,8 +85,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Most used refactoring scenarios:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-remove_useless_exports(MO:Options0) :-
-    select_option(module(M), Options0, Options, M),
+remove_useless_exports(MO:Options1) :-
+    select_option(module(M), Options1, Options, M),
     replace_sentence((:-module(M,L)), (:- module(M,N)),
                     ( include(being_used(M), L, N),
                       L \= N
@@ -103,10 +103,10 @@ being_used(M, F/A) :-
     functor(H, F, A),
     predicate_property(C:H, imported_from(M)), C \== user.
 
-apply_var_renamer(Renamer, MO:Options0) :-
+apply_var_renamer(Renamer, MO:Options1) :-
     foldl(select_option_default,
           [variable_names(Dict)-Dict],
-          Options0, Options),
+          Options1, Options),
     replace_term(Var, '$VAR'(Name),
                  ( var(Var),
                    member(Name1 = Var1, Dict),
@@ -214,8 +214,8 @@ new_name(AlreadyUsedName, Name1, Name) :-
 new_name_rec(AlreadyUsedName, Idx, Name1, Name) :-
     atomic_concat(Name1, Idx, Name),
     \+ call(AlreadyUsedName, Name), !.
-new_name_rec(AlreadyUsedName, Idx0, Name1, Name) :-
-    succ(Idx0, Idx),
+new_name_rec(AlreadyUsedName, Idx1, Name1, Name) :-
+    succ(Idx1, Idx),
     new_name_rec(AlreadyUsedName, Idx, Name1, Name).
 
 fix_multi_singletons(MO:Options1) :-
@@ -243,33 +243,33 @@ rename_functor(Functor/Arity, NewName, Options) :-
 
 replace_term_id(Term, Into, Options) :-
     replace_term(Term, Into, Options),
-    functor(Term, F0, A0),
+    functor(Term, F1, A1),
     functor(Into, F, A),
-    replace_term(F0/A0, F/A, Options).
+    replace_term(F1/A1, F/A, Options).
 
 % BUG: This have to be applied only once --EMM
 :- meta_predicate rename_predicate(+,+,:).
-rename_predicate(M:Name1/Arity, Name, Options0) :-
-    functor(H0, Name1, Arity),
-    H0 =.. [Name1|Args],
+rename_predicate(M:Name1/Arity, Name, Options1) :-
+    functor(H1, Name1, Arity),
+    H1 =.. [Name1|Args],
     H  =.. [Name|Args],
-    select_option(module(CM), Options0, Options1, CM),
-    Options = [module(CM)|Options1],
-    replace_goal(H0, H,
-                 ( predicate_property(CM:H0, imported_from(M))
+    select_option(module(CM), Options1, Options2, CM),
+    Options = [module(CM)|Options2],
+    replace_goal(H1, H,
+                 ( predicate_property(CM:H1, imported_from(M))
                  ; M = CM
                  ),
                  Options),      % Replace calls
     % Replace heads:
-    replace_head(H0, H, true, Options),
-    replace_head((M:H0), (M:H), true, Options),
+    replace_head(H1, H, true, Options),
+    replace_head((M:H1), (M:H), true, Options),
     replace_term(M:Name1/Arity, M:Name/Arity, Options),
     replace_term(Name1/Arity, Name/Arity,
                  ( catch(absolute_file_name(Alias, File, [file_type(prolog)]),
                          _, fail),
                    current_module(M, File)
                  ),
-                 [sentence((:- use_module(Alias, _)))|Options0]),
+                 [sentence((:- use_module(Alias, _)))|Options1]),
     ( CM = M
     ->           % Replace PIs, but only inside the module, although this part
                  % is `complete but not correct'
@@ -279,43 +279,43 @@ rename_predicate(M:Name1/Arity, Name, Options0) :-
 
 :- dynamic add_import/4.
 
-unfold_body_arg(IM, CM, _, Spec, Arg0, Arg) :-
-    nonvar(Arg0),
+unfold_body_arg(IM, CM, _, Spec, Arg1, Arg) :-
+    nonvar(Arg1),
     ( integer(Spec)
     ; Spec = (^)
     ), !,
-    strip_module(IM:Arg0, NM, Arg1),
-    unfold_body(Arg1, Arg, NM, CM).
+    strip_module(IM:Arg1, NM, Arg2),
+    unfold_body(Arg2, Arg, NM, CM).
 unfold_body_arg(_, _, _, _, Arg, Arg).
 
 :- use_module(library(mapargs)).
 
-unfold_body(M:Body0, Body, _, CM) :- !, unfold_body(Body0, Body, M, CM).
-unfold_body(Body0, Body, IM, CM) :-
+unfold_body(M:Body1, Body, _, CM) :- !, unfold_body(Body1, Body, M, CM).
+unfold_body(Body1, Body, IM, CM) :-
     ( CM == IM
-    ->Body = Body0
-    ; implementation_module(IM:Body0, IM1),
-      ( predicate_property(CM:Body0, defined)
-      ->implementation_module(CM:Body0, IM2)
-      ; predicate_property(IM:Body0, exported)
+    ->Body = Body1
+    ; implementation_module(IM:Body1, IM1),
+      ( predicate_property(CM:Body1, defined)
+      ->implementation_module(CM:Body1, IM2)
+      ; predicate_property(IM:Body1, exported)
       ->IM2 = IM1,
-        functor(Body0, F, A),
+        functor(Body1, F, A),
         assertz(add_import(CM, IM1, F, A))
       ; IM2 = CM %% Make IM2 different than IM1
       ),
-      ( predicate_property(IM:Body0, meta_predicate(Meta)),
+      ( predicate_property(IM:Body1, meta_predicate(Meta)),
         arg(_, Meta, Spec),
         ( integer(Spec)
         ; Spec = (^)
         )
-      ->functor(Body0, F, A),
-        functor(Body1, F, A),
-        mapargs(unfold_body_arg(IM, CM), Meta, Body0, Body1)
-      ; Body1 = Body0
+      ->functor(Body1, F, A),
+        functor(Body2, F, A),
+        mapargs(unfold_body_arg(IM, CM), Meta, Body1, Body2)
+      ; Body2 = Body1
       ),
       ( IM1 \= IM2
-      ->Body = IM:Body1
-      ; Body = Body1
+      ->Body = IM:Body2
+      ; Body = Body2
       )
     ).
 
@@ -382,15 +382,15 @@ unfold_goal(MGoal, MO:Options1) :-
                    maplist(set_new_name(VNBody, VN), NewVarL)
                  ),
                  MO:[module(Module), variable_names(VN)|Options]),
-    replace_sentence((:- use_module(Alias, L0)), [(:- use_module(Alias, '$LISTB,NL'(L)))],
+    replace_sentence((:- use_module(Alias, L1)), [(:- use_module(Alias, '$LISTB,NL'(L)))],
                      ( catch(absolute_file_name(Alias, IFile, [file_type(prolog)]),
                              _,
                              fail),
                        current_module(Import, IFile),
                        findall(F/A, retract(add_import(Module, Import, F, A)), UL),
                        UL \= [],
-                       sort(UL, L1),
-                       append(L0, L1, L)
+                       sort(UL, L2),
+                       append(L1, L2, L)
                      ),
                      MO:[module(Module)|Options]),
     replace_sentence((:- module(Module, L)), [(:- module(Module, L))|UML],
