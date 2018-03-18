@@ -355,7 +355,7 @@ match_clause_head_body((M:Head :- Body), M:Head, Body) :- !.
 match_clause_head_body(Head, Head, true).
 
 :- meta_predicate qualify_meta_call(0, ?, -).
-:- pred qualify_meta_call(0, ?, -callable).
+:- pred qualify_meta_call(0, ?, -goal).
 qualify_meta_call(M:Goal1, CM, M:Goal) :-
     qualify_meta_call(Goal1, M, CM, true, Goal).
 
