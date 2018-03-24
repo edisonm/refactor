@@ -87,7 +87,7 @@
 
 :- meta_predicate
     apply_commands(?, +, +, ?, +, +, +, 4),
-    fixpoint_file(+, 0),
+    fixpoint_file(+, +, 0),
     refactor_context(?, ?),
     replace(+,?,?,0,:),
     rportray_list(+, 2, +, +),
