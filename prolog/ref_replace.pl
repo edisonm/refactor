@@ -74,7 +74,6 @@
 :- use_module(library(option_utils)).
 
 :- thread_local
-    file_commands_db/3,
     command_db/1.
 
 :- multifile
