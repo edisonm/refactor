@@ -519,23 +519,23 @@ collect_singletons(Term, VNL, SVarL) :-
 
 gen_module_command(SentPattern, Options, Expand, TermPos, Expanded, LinearTerm,
                    Linear, VNL, Bindings, Term, Into, Expander, Level, M, Cmd, In) :-
-      ref_fetch_term_info(SentPattern, Sent, Options, In, Once),
-      b_setval('$variable_names', VNL),
-      expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
-      make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
-      foldl(binding_varname(VNL), Bindings, RVNL, VNL),
-      collect_singletons(Linear, RVNL, SVarL),
-      S = solved(no),
-      ( true
-      ; arg(1, S, yes)
-      ->cond_cut_once(Once),
-        fail
-      ),
-      set_context_value(singletons, SVarL),
-      set_context_value(variable_names, RVNL),
-      substitute_term_level(Level, M, Linear, 1200, Term,
-                            Into, Expander, TermPos, Cmd),
-      nb_setarg(1, S, yes).
+    ref_fetch_term_info(SentPattern, Sent, Options, In, Once),
+    b_setval('$variable_names', VNL),
+    expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
+    make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
+    foldl(binding_varname(VNL), Bindings, RVNL, VNL),
+    collect_singletons(Linear, RVNL, SVarL),
+    S = solved(no),
+    ( true
+    ; arg(1, S, yes)
+    ->cond_cut_once(Once),
+      fail
+    ),
+    set_context_value(singletons, SVarL),
+    set_context_value(variable_names, RVNL),
+    substitute_term_level(Level, M, Linear, 1200, Term,
+                          Into, Expander, TermPos, Cmd),
+    nb_setarg(1, S, yes).
 
 cond_cut_once(once).
 cond_cut_once(mult(CP)) :- prolog_cut_to(CP).
@@ -1384,11 +1384,10 @@ rportray_clause(Clause, OptL) :-
 rportray_clause(C, Pos, OptL1) :-
     option(module(M), OptL1),
     stream_property(current_output, position(SPos1)),
-    write_term(C, OptL1),
+    merge_options([portray_clause(false)], OptL1, OptL2),
+    write_term(C, OptL2),
     stream_property(current_output, position(SPos2)),
     ( nonvar(C),
-      memberchk(C, [(H :- B), (H --> B)]),
-      has_meta(B, M, 0, _),
       ( stream_position_data(line_count, SPos1, Line1),
         stream_position_data(line_count, SPos2, Line2),
         Line1 \= Line2
@@ -1396,14 +1395,27 @@ rportray_clause(C, Pos, OptL1) :-
         Pos2 > 80
       )
     ->set_stream_position(current_output, SPos1),
-      write_term(H, OptL1),
-      functor(C, Neck, _),
-      write(' '),
-      writeln(Neck),
-      line_pos(4 + Pos),
-      term_priority((_, _), M, 2, Priority),
-      merge_options([priority(Priority)], OptL1, OptL2),
-      write_b(B, OptL2, 4 + Pos)
+      ( option(priority(CPri), OptL1),
+        term_needs_braces(C, M, CPri)
+      ->Display = yes,
+        succ(Pos, BPos)
+      ; Display = no,
+        BPos = Pos
+      ),
+      cond_display(Display, '('),
+      merge_options([portray_clause(true)], OptL1, OptL3),
+      ( memberchk(C, [(H :- B), (H --> B)])
+      ->write_term(H, OptL3),
+        functor(C, Neck, _),
+        write(' '),
+        writeln(Neck),
+        line_pos(4 + BPos),
+        term_priority((_, _), M, 2, Priority),
+        merge_options([priority(Priority)], OptL3, OptL4),
+        write_b(B, OptL4, 4 + BPos)
+      ; write_term(C, OptL3)
+      ),
+      cond_display(Display, ')')
     ; true
     ).
 
@@ -1474,10 +1486,17 @@ rportray('$TEXTQ'(T, Offs), Opt) :-
     offset_pos(Offs, Pos), !,
     line_pos(Pos),
     write_q(T, Opt).
-rportray('$CLAUSE'(C), Opt) :- !,
+rportray(H :- B, Opt) :-
+    option(portray_clause(true), Opt),
+    !,
+    offset_pos('$OUTPOS', Pos),
+    rportray_clause((H :- B), Pos, Opt).
+rportray('$CLAUSE'(C), Opt) :-
+    !,
     rportray_clause(C, Opt).
 rportray('$CLAUSE'(C, Offs), Opt) :-
-    offset_pos(Offs, Pos), !,
+    !,
+    offset_pos(Offs, Pos),
     rportray_clause(C, Pos, Opt).
 rportray('$BODY'(B, Offs), Opt) :-
     offset_pos(Offs, Pos), !,
