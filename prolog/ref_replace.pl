@@ -1419,6 +1419,9 @@ rportray_clause(C, Pos, OptL1) :-
     ; true
     ).
 
+deref_substitution('$sb'(_, _, _, _, _, Term), Term) :- !.
+deref_substitution(Term, Term).
+
 :- public rportray/2.
 rportray('$sb'(TermPos), _) :-
     \+ retract(rportray_skip),
@@ -1468,12 +1471,6 @@ rportray('$C'(Goal, Into), Opt) :-
 rportray('$NOOP'(Term), Opt) :- !,
     with_output_to(string(_),   % Ignore, but process for the side effects
                    write_term(Term, Opt)).
-rportray('$LIST'(L), Opt) :- !,
-    maplist(term_write(Opt), L).
-rportray('$LIST,'(L), Opt) :- !,
-    term_write_sep_list(L, ', ', Opt).
-rportray('$LIST,_'(L), Opt) :- !,
-    maplist(term_write_comma_2(Opt), L).
 rportray('$TEXT'(T), Opt) :- !,
     write_t(T, Opt).
 rportray('$TEXT'(T, Offs), Opt) :-
@@ -1491,11 +1488,9 @@ rportray(H :- B, Opt) :-
     !,
     offset_pos('$OUTPOS', Pos),
     rportray_clause((H :- B), Pos, Opt).
-rportray('$CLAUSE'(C), Opt) :-
-    !,
+rportray('$CLAUSE'(C), Opt) :- !,
     rportray_clause(C, Opt).
-rportray('$CLAUSE'(C, Offs), Opt) :-
-    !,
+rportray('$CLAUSE'(C, Offs), Opt) :- !,
     offset_pos(Offs, Pos),
     rportray_clause(C, Pos, Opt).
 rportray('$BODY'(B, Offs), Opt) :-
@@ -1520,6 +1515,14 @@ rportray('$POS'(Name, Term), Opt) :-
       assertz(rportray_pos(Name, Pos))
     ),
     write_term(Term, Opt).
+rportray('$LIST'(L), Opt) :-
+    !,
+    rportray_list(L, write_term, '', Opt).
+rportray('$LIST,'(L), Opt) :-
+    !,
+    rportray_list(L, write_term, ',', Opt).
+rportray('$LIST,_'(L), Opt) :- !,
+    maplist(term_write_comma_2(Opt), L).
 rportray('$LIST'(L, Sep), Opt) :- !,
     rportray_list(L, write_term, Sep, Opt).
 rportray('$LISTC'(CL), Opt) :- !,
@@ -1534,12 +1537,20 @@ rportray('$LIST.NL'(L), Opt) :- !,
 rportray('$LISTNL.'(L), Opt) :- !,
     merge_options([priority(1200)], Opt, Opt1),
     rportray_list(L, write_term, '.\n', Opt1).
-rportray('$LIST,NL'(L), Opt) :- !,
+rportray('$LIST,NL'(L), Opt) :-
     offset_pos('$OUTPOS', Pos), !,
     rportray_list_nl_comma(L, Pos, Opt).
 rportray('$LIST,NL'(L, Offs), Opt) :-
     offset_pos(Offs, Pos), !,
     rportray_list_nl_comma(L, Pos, Opt).
+rportray('$LISTB,NL'(L), Opt) :- !,
+    offset_pos('$OUTPOS'+1, Pos), !,
+    deref_substitution(L, D),
+    rportray_list_nl_b(D, Pos, Opt).
+rportray('$LISTB,NL'(L, Offs), Opt) :-
+    offset_pos(Offs, Pos), !,
+    deref_substitution(L, D),
+    rportray_list_nl_b(D, Pos, Opt).
 rportray('$NL'(Term, Offs), Opt) :-
     offset_pos(Offs, Pos), !,
     nl,
@@ -1550,12 +1561,6 @@ rportray('$SEEK'(Term, Offs), Opt) :-
     offset_pos(Offs, Pos),
     seek(current_output, Pos, current, _),
     write_term(Term, Opt).
-rportray('$LISTB,NL'(L), Opt) :- !,
-    offset_pos('$OUTPOS'+1, Pos), !,
-    rportray_list_nl_b(L, Pos, Opt).
-rportray('$LISTB,NL'(L, Offs), Opt) :-
-    offset_pos(Offs, Pos), !,
-    rportray_list_nl_b(L, Pos, Opt).
 rportray('$NL', _) :- nl.
 rportray('$PRIORITY'(T, Priority), Opt) :-
     integer(Priority), !,
@@ -1644,15 +1649,11 @@ offset_pos(Offs, Pos) :-
     arithexpression(Expr),
     catch(Pos is round(Expr), _, fail).
 
-term_write(Opt, Term) :- write_term(Term, Opt).
-
 rportray_list_nl_b([], _, Opt) :- !, write_term([], Opt).
-rportray_list_nl_b([E|L], Pos, Opt) :- !,
+rportray_list_nl_b(L, Pos, Opt) :- !,
     write('['),
-    rportray_list_nl_comma([E|L], Pos, Opt),
+    rportray_list_nl_comma(L, Pos, Opt),
     write(']').
-rportray_list_nl_b(L, Pos, Opt) :-
-    rportray_list_nl_comma(L, Pos, Opt).
 
 rportray_list_nl_comma(L, Pos, Opt) :-
     term_priority([_|_], user, 1, Priority),
@@ -1660,9 +1661,12 @@ rportray_list_nl_comma(L, Pos, Opt) :-
     sep_nl(Pos, ',', Sep),
     rportray_list(L, write_term, Sep, Opt1).
 
-rportray_list([], _, _, _) :- !.
 rportray_list(L, Writter, Sep, Opt) :-
-    term_write_sep_list_2(L, Writter, Sep, Opt).
+    deref_substitution(L, D),
+    ( D = []
+    ->true
+    ; term_write_sep_list_2(D, Writter, Sep, Opt)
+    ).
 
 term_write_sep_list_2([E|T], Writter, Sep, Opt) :- !,
     call(Writter, E, Opt),
@@ -1682,6 +1686,15 @@ term_write_sep_list_inner_rec(T, Writter, SepIn, Opt) :-
     ->true
     ; write_tail(T, Writter, SepIn, Opt)
     ).
+
+term_write_sep_list([],    _,   _).
+term_write_sep_list([T|L], Sep, Opt) :-
+    write_term(T, Opt),
+    maplist(term_write_sep_elem(Sep, Opt), L).
+
+term_write_sep_elem(Sep, Opt, Term) :- write(Sep), write_term(Term, Opt).
+
+term_write_comma_2(Opt, Term) :- write_term(Term, Opt), write(', ').
 
 sep_nl(LinePos, Sep, SepNl) :-
     with_output_to(atom(In), line_pos(LinePos)),
@@ -1712,8 +1725,8 @@ write_tail('$sb'(Pos1, IFrom, ITo, GTerm, GPriority, Term), Writter, SepIn, Opt)
       PosL = [LPos|_],
       arg(1, LPos, From),
       append(_, [RPos], PosL),
-      ( Tail = none ->
-        arg(2, RPos, To)
+      ( Tail = none
+      ->arg(2, RPos, To)
       ; arg(2, Tail, To)
       ),
       print_subtext_sb(Term, GTerm, list_position(From, To, PosL, Tail),
@@ -1725,22 +1738,12 @@ write_tail(T, Writter, _, Opt) :-
     write('|'),
     call(Writter, T, Opt).
 
-term_write_sep_list([],    _,   _).
-term_write_sep_list([T|L], Sep, Opt) :-
-    write_term(T, Opt),
-    maplist(term_write_sep_elem(Sep, Opt), L).
-
-term_write_sep_elem(Sep, Opt, Term) :- write(Sep), write_term(Term, Opt).
-
-term_write_comma_2(Opt, Term) :- write_term(Term, Opt), write(', ').
-
 print_expansion_rm_dot(TermPos, Text, From, To) :-
     arg(1, TermPos, From),
     arg(2, TermPos, Before),
     sub_string(Text, Before, _, 0, Right),
     sub_string(Right, Next, _, _, "."),
     To is Before + Next + 2.
-
 
 % Hacks that can only work at 1st level:
 
