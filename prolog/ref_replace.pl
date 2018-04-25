@@ -90,7 +90,7 @@
     refactor_context(?, ?),
     replace(+,?,?,0,:),
     rportray_list(+, 2, +, +),
-    with_context(?, ?, ?, ?, ?, ?, ?, ?, 0),
+    with_context(?, ?, ?, ?, ?, ?, ?, 0),
     with_counters(0, +),
     with_from(0, ?),
     with_termpos(0, ?),
