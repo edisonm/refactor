@@ -49,7 +49,7 @@
 :- use_module(library(module_files)).
 :- use_module(library(pretty_decl)).
 :- use_module(library(ref_replace)).
-:- use_module(library(infer_meta_if_required)).
+:- use_module(library(infer_meta)).
 
 %!  module_to_import_db(F, A, M, CM, File)
 %
