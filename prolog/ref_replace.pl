@@ -1030,7 +1030,7 @@ gen_new_variable_names(Sent, Term, Into, VNL) :-
     gen_new_variable_names(VarL, NameL, SVarL, Preffix, 1, Sent, Term, TInto, VNL1, VNL2),
     once(append(VNL, VNL1, VNL2)).
 
-%!  substitute_term_norec(+Sub, +M, +Term, +Priority, +Pattern, -Into, :Expander, +TermPos, OutPos, Cmd) is nondet.
+%!  substitute_term_norec(+Sub, +M, +Term, +Priority, +Pattern, +Into, :Expander, +TermPos, OutPos, Cmd) is nondet.
 %
 %   Non-recursive version of substitute_term_rec//6.
 
@@ -1222,7 +1222,7 @@ subst_var(Pos, M, Var, GTerm, GPriority, CTerm) :-
       Var = '$sb'(Pos, IFrom, ITo, GTerm, GPriority, CTerm)
     ).
 
-%!  subst_term(+Position, +Module, +Pattern, +Term, +Priority, -Subst)
+%!  subst_term(+Position, +Module, +Pattern, +Term, +Priority, Subst)
 %
 %   Here, Pattern is a term  that   holds  variables.  It is matched
 %   against a position term and  if  there   is  a  variable  in the
@@ -1252,7 +1252,7 @@ subst_term(list_position(_, To, Elms, Tail), M, Term, GTerm, _, CTerm) :- !,
     subst_list(Elms, M, To, Tail, Term, GTerm, CTerm).
 subst_term(_, _, _, _, _, _).
 
-%!  substitute_term_rec(+Module, +SrcTerm, +Priority, +Pattern, -Into, :Expander, +TermPos, +OutPos, Command) is nondet.
+%!  substitute_term_rec(+Module, +Term, +Priority, +Pattern, +Into, :Expander, +TermPos, +OutPos, Cmd) is nondet.
 %
 %   True when the DCG list contains a substitution for Pattern by Into in
 %   SrcTerm. This predicate must be cautious about handling bindings:
