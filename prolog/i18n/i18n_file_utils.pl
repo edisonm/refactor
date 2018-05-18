@@ -41,7 +41,7 @@
            expand_pot_files/0,
            expand_pot_file/1,   % ?Module,
            clean/3,
-           sort/3,
+           sort_po/3,
            expand/3,
            compact/2,
            read_po_file/2,      % +PoFile, -Entries
@@ -96,7 +96,7 @@ clean(PoFile, ML, Codes) :-
             ), Entries),
     parse_po_entries(Entries, Codes, []).
 
-sort(PoFile, _, Codes) :-
+sort_po(PoFile, _, Codes) :-
     read_po_file(PoFile, EntriesU),
     sort(EntriesU, Entries),
     parse_po_entries(Entries, Codes, []).
