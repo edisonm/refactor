@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_05).
 
 :- include(refactor_common).
 
@@ -26,4 +26,4 @@ diff -ruN ex5.pl -
 test(ex5) :-
     execute_test(ex5, replace_sentence(ex5(T), ex5([c|T]), true)).
 
-:- end_tests(refactor).
+:- end_tests(refactor_05).

@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_45).
 
 :- include(refactor_common).
 :- use_module(library(clambda)).
@@ -27,4 +27,4 @@ test(newvars) :-
                   ),
                   [file(newvars), vars_preffix('A')]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_45).

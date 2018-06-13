@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_06).
 
 :- include(refactor_common).
 
@@ -23,4 +23,4 @@ diff -ruN ex6.pl -
 test(ex6) :-
     execute_test(ex6, replace_goal(p(A,B,L,T), p(B,A,L,T))).
 
-:- end_tests(refactor).
+:- end_tests(refactor_06).

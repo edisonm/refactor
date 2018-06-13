@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_48).
 
 :- include(refactor_common).
 
@@ -15,4 +15,4 @@ diff -ruN decr.pl -
 test(decr) :-
     execute_test(decr, replace(head_rec, p(A), q(A)), [file(decr)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_48).

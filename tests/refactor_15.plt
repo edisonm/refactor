@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_15).
 
 :- include(refactor_common).
 
@@ -24,4 +24,4 @@ diff -ruN ex15.pl -
 test(ex15) :-
     execute_test(ex15, replace_sentence(ex15(L,A), [ex15(L1$@L)], (substitute_value(A, a, L, L1)))).
 
-:- end_tests(refactor).
+:- end_tests(refactor_15).

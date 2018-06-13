@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_26).
 
 :- include(refactor_common).
 
@@ -18,4 +18,4 @@ diff -ruN ex26.pl -
 test(ex26) :-
     execute_test(ex26, replace_term(ex26(A),ex26_(A))).
 
-:- end_tests(refactor).
+:- end_tests(refactor_26).

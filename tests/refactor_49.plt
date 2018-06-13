@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_49).
 
 :- include(refactor_common).
 
@@ -65,4 +65,4 @@ test(unfold3) :-
     rreset,
     execute_test(unfold3, replace_conjunction(append([E|X], Y, Z), (append(X, Y, T), Z=[E|T])), [fixpoint(true), file(unfold)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_49).

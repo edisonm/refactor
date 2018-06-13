@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_24).
 
 :- include(refactor_common).
 
@@ -19,4 +19,4 @@ diff -ruN ex24.pl -
 test(ex24) :-
     execute_test(ex24, replace_term(A/B+P, A/B+(help,P))).
 
-:- end_tests(refactor).
+:- end_tests(refactor_24).

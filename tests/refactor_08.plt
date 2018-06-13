@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_08).
 
 :- include(refactor_common).
 
@@ -21,4 +21,4 @@ diff -ruN ex8.pl -
 test(ex8) :-
     execute_test(ex8, replace_sentence(ex8([[a,b],[c,d]|T]), ex8([[a,b]|T]), true)).
 
-:- end_tests(refactor).
+:- end_tests(refactor_08).

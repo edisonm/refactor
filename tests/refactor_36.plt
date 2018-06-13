@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_36).
 
 :- include(refactor_common).
 
@@ -20,4 +20,4 @@ test(opex2) :-
     execute_test(opex2, opex2,
                  replace(goal, myis(A, B), myis2(A, B), true), []).
 
-:- end_tests(refactor).
+:- end_tests(refactor_36).

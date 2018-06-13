@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_51).
 
 :- include(refactor_common).
 
@@ -20,4 +20,4 @@ diff -ruN maxchg.pl -
 test(maxchg) :-
     execute_test(maxchg, replace_term(r(A,B), rr(A,B)), [max_changes(1), file(maxchg)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_51).

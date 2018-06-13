@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_46).
 
 :- include(refactor_common).
 
@@ -21,4 +21,4 @@ test(list1) :-
                                                        (H1:-B1),(H2:-B2)))),
                   [file(list1)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_46).

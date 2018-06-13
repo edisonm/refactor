@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_37).
 
 :- include(refactor_common).
 
@@ -25,4 +25,4 @@ test(fpex) :-
     execute_test(fpex, fpex,
                  replace_term(((A,B);C), (A->B;C), true), []).
 
-:- end_tests(refactor).
+:- end_tests(refactor_37).

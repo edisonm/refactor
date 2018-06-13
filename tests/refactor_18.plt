@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_18).
 
 :- include(refactor_common).
 
@@ -22,4 +22,4 @@ diff -ruN ex18.pl -
 test(ex18) :-
     execute_test(ex18, replace_sentence((H:-A=B,p(C)), (H1:-p(C1)), substitute_value(A,B,H-C,H1-C1))).
 
-:- end_tests(refactor).
+:- end_tests(refactor_18).

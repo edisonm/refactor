@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_21).
 
 :- include(refactor_common).
 
@@ -18,4 +18,4 @@ diff -ruN ex21.pl -
 test(ex21) :-
     execute_test(ex21, replace_sentence(ex21(X),ex21(Y), ((X=f(_A,B,C),Y=g(a,B,C))))).
 
-:- end_tests(refactor).
+:- end_tests(refactor_21).

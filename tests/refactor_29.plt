@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_29).
 
 :- include(refactor_common).
 
@@ -69,4 +69,4 @@ test(exapp_2) :-
                  replace_term(append(A,B,C),C=L$@A,(is_list(A),append(A,B,L))),
                  [linear_term(yes)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_29).

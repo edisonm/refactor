@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_09).
 
 :- include(refactor_common).
 
@@ -18,4 +18,4 @@ diff -ruN ex9.pl -
 test(ex9) :-
     execute_test(ex9, ex9, replace_term(f(A,B), f(A,B,X)), [sentence(ex9(X, _))]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_09).

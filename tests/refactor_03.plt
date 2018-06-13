@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_03).
 
 :- include(refactor_common).
 
@@ -19,4 +19,4 @@ test(ex3) :-
     execute_test(ex3, replace_sentence((A :- display(B)),
                                        (A :- A, B, display(B)), true)).
 
-:- end_tests(refactor).
+:- end_tests(refactor_03).

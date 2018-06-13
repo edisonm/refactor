@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_10).
 
 :- include(refactor_common).
 
@@ -35,4 +35,4 @@ test(ex10_2) :-
     execute_test(ex10, ex10_2,
                  replace_term(g(A), g(A,X), true), [sentence(ex10(X, _))]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_10).

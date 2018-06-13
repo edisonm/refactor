@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_33).
 
 :- include(refactor_common).
 
@@ -26,4 +26,4 @@ test(save_changes) :-
     assertion(Result\==""),
     rcommit.
 
-:- end_tests(refactor).
+:- end_tests(refactor_33).

@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_32).
 
 :- include(refactor_common).
 
@@ -27,4 +27,4 @@ test(atomic) :-
                  replace_term((t(T), B), C$@B,
                               substitute_value(T, [t/n], B, C)), [file(atomic)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_32).

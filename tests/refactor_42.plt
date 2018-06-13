@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_42).
 
 :- include(refactor_common).
 
@@ -48,4 +48,4 @@ test(ref_body2) :-
     rreset,
     execute_test(ref_body2, replace_conjunction((a,b), b), [file(ref_body)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_42).

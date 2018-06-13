@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_40).
 
 :- include(refactor_common).
 
@@ -54,4 +54,4 @@ diff -ruN exsl.pl -
 test(exsl2) :-
     execute_test(exsl2, replace_sentence([p(A),p(B)],p(C),flatten([A,B],C)),[file(exsl), fixpoint(true)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_40).

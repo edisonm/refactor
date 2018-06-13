@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_38).
 
 :- include(refactor_common).
 
@@ -32,4 +32,4 @@ diff -ruN eqname.pl -
 test(eqname_2) :-
     execute_test(eqname_2, replace_term((A:B),A*->B),[files(eqname)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_38).

@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_12).
 
 :- include(refactor_common).
 
@@ -26,4 +26,4 @@ diff -ruN ex12.pl -
 test(ex12) :-
     execute_test(ex12, replace_term((a, b), b)).
 
-:- end_tests(refactor).
+:- end_tests(refactor_12).

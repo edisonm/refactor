@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_44).
 
 :- include(refactor_common).
 :- use_module(library(clambda)).
@@ -79,4 +79,4 @@ test(autovn4) :-
     execute_test(autovn4, replace_sentence(p(g(A),_B), p(g(A),t(A))),
                   [file(autovn)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_44).

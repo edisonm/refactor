@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_25).
 
 :- include(refactor_common).
 
@@ -15,4 +15,4 @@ diff -ruN singl.pl -
 test(singl) :-
     execute_test(singl, replace_sentence(f(A,B),f(A,B,_)), [file(singl)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_25).

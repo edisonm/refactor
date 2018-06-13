@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_31).
 
 :- include(refactor_common).
 
@@ -52,4 +52,4 @@ diff -ruN exge.pl -
 test(exdcg) :-
     execute_test(exge, exdcg, replace_goal(b(r,A,B),b(r,s,A,B)), []).
 
-:- end_tests(refactor).
+:- end_tests(refactor_31).

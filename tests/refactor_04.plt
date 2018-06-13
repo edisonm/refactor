@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_04).
 
 :- include(refactor_common).
 
@@ -18,4 +18,4 @@ diff -ruN ex4.pl -
 test(ex4) :-
     execute_test(ex4, replace_sentence(ex4(_A, B), ex4_(X, B), (X=f(a)))).
 
-:- end_tests(refactor).
+:- end_tests(refactor_04).

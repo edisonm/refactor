@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_39).
 
 :- include(refactor_common).
 
@@ -17,4 +17,4 @@ diff -ruN opfp.pl -
 test(opfp) :-
     execute_test(opfp, replace_term(A+B, A^B),[files(opfp)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_39).

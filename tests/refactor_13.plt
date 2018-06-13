@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_13).
 
 :- include(refactor_common).
 
@@ -28,4 +28,4 @@ test(ex13) :-
                                       substitute_value(A, a, T, T1)
                                     )), [clause(Ref)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_13).

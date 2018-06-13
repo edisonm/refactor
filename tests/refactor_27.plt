@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_27).
 
 :- include(refactor_common).
 
@@ -43,4 +43,4 @@ diff -ruN ex27.pl -
 test(ex27_2) :-
     execute_test(ex27, ex27_2, replace_sentence((ex27_2:- @@(A,B)), (\\(@@(B,A)))), []).
 
-:- end_tests(refactor).
+:- end_tests(refactor_27).

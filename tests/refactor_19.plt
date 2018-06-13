@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_19).
 
 :- include(refactor_common).
 :- use_module(library(substitute)).
@@ -45,4 +45,4 @@ test(ex19_2) :-
                  replace_sentence(ex19(A, B, C), ex19(AS$@A, C),
                                   substitute_value(B, C, A, AS)), []).
 
-:- end_tests(refactor).
+:- end_tests(refactor_19).

@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_20).
 
 :- include(refactor_common).
 :- use_module(library(call_in_dir)).
@@ -118,4 +118,4 @@ test_two_changes :-
     rsave('/tmp/two_changes.diff'),
     delete_file('/tmp/two_changes.diff').
 
-:- end_tests(refactor).
+:- end_tests(refactor_20).

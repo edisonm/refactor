@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_35).
 
 :- include(refactor_common).
 
@@ -34,4 +34,4 @@ diff -ruN opex1.pl -
 test(opex1_2) :-
     execute_test(opex1_2, replace_goal(myis(A, B), myis2(A, B)), [files(opex1)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_35).

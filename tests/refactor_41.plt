@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_41).
 
 :- include(refactor_common).
 
@@ -18,4 +18,4 @@ diff -ruN exst.pl -
 test(exst) :-
     execute_test(exst, exst, replace_term(X, X-Y, (atom(X), string_upper(X, Y))), [sentence(p(_))]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_41).

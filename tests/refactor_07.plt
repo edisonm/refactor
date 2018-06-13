@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_07).
 
 :- include(refactor_common).
 
@@ -40,4 +40,4 @@ test(ex7_2) :-
                  replace_sentence(aaa([[X,_]],[d], []),
                                   aaa([['$VAR'('_')]], [X], [[c,d],[b,c,d]]), true), []).
 
-:- end_tests(refactor).
+:- end_tests(refactor_07).

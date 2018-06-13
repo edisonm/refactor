@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_28).
 
 :- include(refactor_common).
 
@@ -45,4 +45,4 @@ diff -ruN excomm.pl -
 test(excomm_3) :-
     execute_test(excomm, excomm_3, replace_sentence(f(a,(_,Body)), f(a,Body)), []).
 
-:- end_tests(refactor).
+:- end_tests(refactor_28).

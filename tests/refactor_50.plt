@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_50).
 
 :- include(refactor_common).
 
@@ -24,4 +24,4 @@ diff -ruN empty.pl -
 test(empty2) :-
     execute_test(empty1, replace_sentence(end_of_file, [a], true), [file(empty)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_50).

@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_22).
 
 :- include(refactor_common).
 
@@ -18,4 +18,4 @@ diff -ruN ex22.pl -
 test(ex22) :-
     execute_test(ex22, replace_sentence((:- dynamic _), [])).
 
-:- end_tests(refactor).
+:- end_tests(refactor_22).

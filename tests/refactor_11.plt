@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_11).
 
 :- include(refactor_common).
 
@@ -22,4 +22,4 @@ test(ex11) :-
                  replace_term(ex11(A), ex11_one(A), true),
                  [sentence((ex11([A|_]):-_))]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_11).

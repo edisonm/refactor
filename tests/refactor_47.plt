@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_47).
 
 :- include(refactor_common).
 :- use_module(library(clambda)).
@@ -28,4 +28,4 @@ test(bind1) :- % tests the need of collapse the bindings
                                   )),
                  [file(bind1)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_47).

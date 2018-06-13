@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_34).
 
 :- include(refactor_common).
 
@@ -22,4 +22,4 @@ test(exnoload) :-
     execute_test(exnoload, replace_goal(exnoload(A,B), 'exnoload*'(A,B)),
                  [files(exnoload)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_34).

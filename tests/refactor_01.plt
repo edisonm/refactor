@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_01).
 
 :- include(refactor_common).
 
@@ -49,4 +49,4 @@ diff -ruN ex1.pl -
 test(addend) :-
     execute_test(addend, replace_sentence(end_of_file, [a], true), [file(ex1)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_01).

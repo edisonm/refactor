@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_17).
 
 :- include(refactor_common).
 
@@ -23,4 +23,4 @@ diff -ruN ex17.pl -
 test(ex17) :-
     execute_test(ex17, replace_sentence((H:-(A,_B)), (H:-A))).
 
-:- end_tests(refactor).
+:- end_tests(refactor_17).

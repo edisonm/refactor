@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_14).
 
 :- include(refactor_common).
 
@@ -86,4 +86,4 @@ testx(ex14_2) :-
     execute_test(ex14, ex14_2,
                  replace_sentence((Head :- A=B, Body), (Head :- Body), (A=g(B))), []).
 
-:- end_tests(refactor).
+:- end_tests(refactor_14).

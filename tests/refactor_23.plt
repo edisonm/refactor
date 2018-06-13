@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_23).
 
 :- include(refactor_common).
 
@@ -19,4 +19,4 @@ diff -ruN ex23.pl -
 test(ex23) :-
     execute_test(ex23, replace_term(A+B, A+(1*B))).
 
-:- end_tests(refactor).
+:- end_tests(refactor_23).

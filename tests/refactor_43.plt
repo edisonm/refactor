@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_43).
 
 :- include(refactor_common).
 
@@ -28,4 +28,4 @@ diff -ruN addlit.pl -
 test(addlit) :-
     execute_test(addlit, replace_conjunction((p1(A), p2), (test1, p2, p1(A))), [file(addlit)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_43).

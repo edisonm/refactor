@@ -1,4 +1,4 @@
-:- begin_tests(refactor).
+:- begin_tests(refactor_52).
 
 :- include(refactor_common).
 
@@ -44,4 +44,4 @@ test(meta1) :-
                            G2=G
                          )), [file(meta1)]).
 
-:- end_tests(refactor).
+:- end_tests(refactor_52).
