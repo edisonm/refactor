@@ -539,7 +539,7 @@ gen_module_command(SentPattern, Options, Expand, TermPos, Expanded, LinearTerm,
 
 cond_cut_once(once).
 cond_cut_once(mult(CP)) :- prolog_cut_to(CP).
-    
+
 ref_fetch_term_info(SentPattern, Sent, Options, In, once) :-
     nonvar(SentPattern),
     memberchk(SentPattern, [[], end_of_file]),
@@ -582,7 +582,7 @@ prolog:xref_open_source(File, Fd) :-
     ( pending_change(_, File, Text)
     ->true
     ; read_file_to_string(File, Text, [])
-    ),                          
+    ),
     open_codes_stream(Text, Fd).
     % set_context_value(text, Text). % NOTE: update_state/2 have the side effect of
                                      % modify refactor_text
@@ -1116,7 +1116,7 @@ perform_substitution(Sub, Priority, M, Term, VNL, Pattern1, Into1, BindingL, Ter
        languages), modifying term position once the predicate is called */
     fix_subtermpos(Pattern, Into2, Sub, OutPos),
     with_context_values(subst_term(TermPos, M, Pattern, GTerm, Priority, Term1),
-                        [bind, new_varnames], [BindingL, VNL]),
+                        [subst_vars, bind, new_varnames], [[], BindingL, VNL]),
     shared_variables(VNL, Term1, Into2, V5), % after subst_term, in case some
     maplist(eq, V5, V5, UL5),                % variables from Term3 reappear
     maplist(subst_fvar(M, Term1, TermPos, GTerm), UL5),
@@ -1219,7 +1219,9 @@ subst_var(Pos, M, Var, GTerm, GPriority, CTerm) :-
       arg(1, Pos, From),
       arg(2, Pos, To),
       get_innerpos(From, To, IFrom, ITo),
-      Var = '$sb'(Pos, IFrom, ITo, GTerm, GPriority, CTerm)
+      Var = '$sb'(Pos, IFrom, ITo, GTerm, GPriority, CTerm),
+      get_context_value(subst_vars, SVL),
+      set_context_value(subst_vars, [CTerm|SVL])
     ).
 
 %!  subst_term(+Position, +Module, +Pattern, +Term, +Priority, Subst)
@@ -1240,6 +1242,12 @@ subst_term(Pos, M, Term, GTerm, GPriority, CTerm) :-
     var(Term),
     !,
     subst_var(Pos, M, Term, GTerm, GPriority, CTerm).
+subst_term(_, _, '$sb'(_, _, _, _, _, CTerm), _, _, CTerm) :-
+    get_context_value(subst_vars, SVL),
+    once(( member(SV, SVL),
+           SV == CTerm
+         )),
+    !.
 subst_term(term_position(_, _, _, _, CP), M, Term, GTerm, _, CTerm) :-
     compound(CTerm), % Would have been substituted
     !,
