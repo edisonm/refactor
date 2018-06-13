@@ -14,7 +14,7 @@ test(self_refactor_2) :-
     with_output_to(string(Result), rshow), assertion(Result \== "").
 
 test(save_changes) :-
-    current_module(plunit_refactor, F),
+    current_module(plunit_refactor_33, F),
     absolute_file_name('ex1_.pl', Ex1, [file_type(prolog), relative_to(F)]),
     tmp_file_stream(text, File, Stream),
     close(Stream),
