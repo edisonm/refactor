@@ -1118,7 +1118,7 @@ perform_substitution(Sub, Priority, M, Term, VNL, Pattern1, Into1, BindingL, Ter
     with_context_values(subst_term(TermPos, M, Pattern, GTerm, Priority, Term1),
                         [subst_vars, bind, new_varnames], [[], BindingL, VNL]),
     shared_variables(VNL, Term1, Into2, V5), % after subst_term, in case some
-    maplist(eq, V5, V5, UL5),                % variables from Term3 reappear
+    maplist(\ A^B^(A=B)^true, V5, V5, UL5),  % variables from Term3 reappear
     maplist(subst_fvar(M, Term1, TermPos, GTerm), UL5),
     special_term(Sub, Pattern, Into2, Into),
     maplist(collapse_bindings, BindingL), % This looks like a kludge (test bind1)
@@ -1167,8 +1167,6 @@ is_eq(VNL, Var1L, Var2) :-
          Var2==Var3
        ),
     !.
-
-eq(A, B, A=B).
 
 get_position_gterm(M, Term, Pos, GTerm, T, GPos, G, GPriority) :-
     subterm_location_eq(L, T, Term),
