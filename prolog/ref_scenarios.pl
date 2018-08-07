@@ -279,14 +279,14 @@ rename_predicate(M:Name1/Arity, Name, Options1) :-
 
 :- dynamic add_import/4.
 
-unfold_body_arg(IM, CM, _, Spec, Arg1, Arg) :-
+unfold_body_arg(IM, CM, Spec, Arg1, Arg) :-
     nonvar(Arg1),
     ( integer(Spec)
     ; Spec = (^)
     ), !,
     strip_module(IM:Arg1, NM, Arg2),
     unfold_body(Arg2, Arg, NM, CM).
-unfold_body_arg(_, _, _, _, Arg, Arg).
+unfold_body_arg(_, _, _, Arg, Arg).
 
 :- use_module(library(mapargs)).
 

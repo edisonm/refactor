@@ -61,7 +61,7 @@
 :- use_module(library(prolog_source), []). % expand/4
 :- use_module(library(readutil)).
 :- use_module(library(fix_termpos)).
-:- use_module(library(mapargs)).
+:- use_module(library(mapnargs)).
 :- use_module(library(gcb)).
 :- use_module(library(ref_changes)).
 :- use_module(library(ref_msgtype)).
@@ -2265,7 +2265,7 @@ body_meta_args(Term, Spec, Meta) :-
     functor(Meta, F, N),
     stream_property(current_output, position(Pos)),
     ID='$body_meta_args'(Pos), % Trick to get a unique ID
-    mapargs(body_meta_arg(ID, Arg1, Meta1), Term, Spec, Meta),
+    mapnargs(body_meta_arg(ID, Arg1, Meta1), Term, Spec, Meta),
     ( var(Meta1) -> Meta1 = Arg1 ; true ).
 
 ctrl((_ ,   _)).
