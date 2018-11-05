@@ -835,7 +835,8 @@ wr_options([portray_goal(ref_replace:rportray),
             spacing(next_argument),
             numbervars(true),
             quoted(true),
-            partial(true)]).
+            partial(true),
+            character_escapes(false)]).
 
 print_expansion_0(Into, Pattern, Term, TermPos, Options, Text, From, To) :-
     arg(1, TermPos, OFrom),
