@@ -1754,8 +1754,13 @@ print_expansion_rm_dot(TermPos, Text, From, To) :-
 
 % Hacks that can only work at 1st level:
 
-print_expansion_1('$RM', _, _, TermPos, _, Text, From, To) :- !,
+print_expansion_1('$RM', _, _, TermPos, _, Text, From, To) :-
+    !,
     print_expansion_rm_dot(TermPos, Text, From, To).
+print_expansion_1('$NODOT'(Into), Pattern, Term, TermPos, Options, Text, From, To) :-
+    !,
+    print_expansion_1(Into, Pattern, Term, TermPos, Options, Text, From, _To),
+    print_expansion_rm_dot(TermPos, Text, _From, To).
 print_expansion_1('$TEXT'(Into), _, _, TermPos, Options, _, From, To) :- !,
     arg(1, TermPos, From),
     arg(2, TermPos, To),
