@@ -50,7 +50,6 @@
 :- use_module(library(pretty_decl)).
 :- use_module(library(ref_replace)).
 :- use_module(library(infer_meta)).
-:- use_module(library(implementation_module)).
 
 %!  module_to_import_db(F, A, M, CM, File)
 %
@@ -754,7 +753,7 @@ collect_file_to_module(Callee, _Caller, From) :-
 cu_caller_hook(Head, CM, Type, Goal, _, From) :-
     callable(Head),
     nonvar(CM),
-    implementation_module(CM:Head, M),
+    predicate_property(CM:Head, implementation_module(M)),
     ( Type \= lit
     ->record_location(Head, M, dynamic(Type, CM, Goal), From)
     ; true

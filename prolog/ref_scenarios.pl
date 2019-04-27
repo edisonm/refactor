@@ -55,7 +55,6 @@
            remove_call/3
           ]).
 
-:- use_module(library(implementation_module)).
 :- use_module(library(assertions)).
 :- use_module(library(substitute)).
 :- use_module(library(option_utils)).
@@ -294,9 +293,9 @@ unfold_body(M:Body1, Body, _, CM) :- !, unfold_body(Body1, Body, M, CM).
 unfold_body(Body1, Body, IM, CM) :-
     ( CM == IM
     ->Body = Body1
-    ; implementation_module(IM:Body1, IM1),
+    ; predicate_property(IM:Body1, implementation_module(IM1)),
       ( predicate_property(CM:Body1, defined)
-      ->implementation_module(CM:Body1, IM2)
+      ->predicate_property(CM:Body1, implementation_module(IM2))
       ; predicate_property(IM:Body1, exported)
       ->IM2 = IM1,
         functor(Body1, F, A),
