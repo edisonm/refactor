@@ -1657,7 +1657,7 @@ offset_pos(Offs, Pos) :-
     catch(Pos is round(Expr), _, fail).
 
 rportray_list_nl_b([], _, Opt) :- !, write_term([], Opt).
-rportray_list_nl_b(L, Pos, Opt) :- !,
+rportray_list_nl_b(L, Pos, Opt) :-
     write('['),
     rportray_list_nl_comma(L, Pos, Opt),
     write(']').
