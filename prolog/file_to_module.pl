@@ -50,6 +50,7 @@
 :- use_module(library(pretty_decl)).
 :- use_module(library(ref_replace)).
 :- use_module(library(infer_meta)).
+:- use_module(library(implementation_module)).
 
 %!  module_to_import_db(F, A, M, CM, File)
 %
@@ -750,9 +751,10 @@ black_list_um(library(dialect/_)).
 collect_file_to_module(Callee, _Caller, From) :-
     record_location_meta(Callee, _, From, all_call_refs, cu_caller_hook).
 
-cu_caller_hook(M:Head, CM, Type, Goal, _, From) :-
-    nonvar(M),
+cu_caller_hook(Head, CM, Type, Goal, _, From) :-
     callable(Head),
+    nonvar(CM),
+    implementation_module(CM:Head, M),
     ( Type \= lit
     ->record_location(Head, M, dynamic(Type, CM, Goal), From)
     ; true
