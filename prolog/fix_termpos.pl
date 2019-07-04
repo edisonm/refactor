@@ -58,7 +58,7 @@
 %   follows:
 %
 %   * subterm_boundary(+Boundary) Specifies what are the boundaries of the term,
-%   which can be `subterm` or `comment` (default).
+%   which can be `subterm`, `leftcomm`, `rightcomm` or `comment` (default).
 %
 %   Due to performance concerns, this predicate makes a destructive assignment
 %   in the TermPos argument, but preserve the extra positions in the
@@ -180,11 +180,15 @@ comment_bound(CommentL, From, To) :-
     nl_mark_end(Text, Delta),
     To is Length + Delta + From.
 
+nl_mark_end(_, 0 ).
+
+/*
 nl_mark_end(Text, Delta) :-
     ( string_code(1, Text, 0'%)
     ->Delta = 1
     ; Delta = 0
     ).
+*/
 
 comment_bound(From, To) :-
     refactor_context(comments, CommentL),
@@ -272,8 +276,12 @@ seekn_parenthesis_left(N1, Text, F1, F) :-
     succ(N, N1),
     seekn_parenthesis_left(N, Text, F2, F).
 
-include_comments_left(subterm, _, From, From).
-include_comments_left(comment, Text, To, From) :-
+include_comments_left(subterm,   _, From, From).
+include_comments_left(rightcomm, _, From, From).
+include_comments_left(leftcomm, Text, To, From) :- include_comments_left(Text, To, From).
+include_comments_left(comment,  Text, To, From) :- include_comments_left(Text, To, From).
+
+include_comments_left(Text, To, From) :-
     S = s(To),
     ( rcomment_bound(FromC, ToC),
       arg(1, S, From1),
@@ -297,8 +305,12 @@ include_comments_left(comment, Text, To, From) :-
     ),
     arg(1, S, From).
 
-include_comments_right(subterm, _,    To,   To).
-include_comments_right(comment, Text, From, To) :-
+include_comments_right(subterm,  _, To, To).
+include_comments_right(leftcomm, _, To, To).
+include_comments_right(rightcomm, Text, From, To) :- include_comments_right(Text, From, To).
+include_comments_right(comment,   Text, From, To) :- include_comments_right(Text, From, To).
+
+include_comments_right(Text, From, To) :-
     S = s(From),
     ( comment_bound(FromC, ToC),
       arg(1, S, To1),
@@ -328,7 +340,8 @@ seekn_parenthesis_right(N, Text, L, T1, T) :-
     ( seek_sub_string(Text, ")", 1, L, T1, T2),
       arg(1, S, N1),
       succ(N1, N2),
-      ( N2 = N -> !,
+      ( N2 = N
+      ->!,
         succ(T2, T)
       ; nb_setarg(1, S, N2),
         fail
