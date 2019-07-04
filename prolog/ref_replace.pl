@@ -1049,7 +1049,7 @@ substitute_term_norec(Sub, M, Term, Priority, Pattern, Into1, Expander, TermPos1
                  ), TermPos1),
     greatest_common_binding(Pattern1, Into2, Pattern2, Into3, [[]], Unifier, []),
     perform_substitution(Sub, Priority, M, Term, VNL, Pattern2, Into3, Unifier,
-                         TermPos1, OutPos, TermPos, Pattern3, GTerm, Into).
+                         TermPos1, OutPos, Options, TermPos, Pattern3, GTerm, Into).
 
 check_bindings(Sent, Sent2, Options) :-
     ( Sent=@=Sent2
@@ -1072,21 +1072,21 @@ pattern_size(Term, Pattern, Size) :-
             ), SL),
     sum_list(SL, Size).
 
-fix_subtermpos(Pattern, _, _, _) :-
+fix_subtermpos(Pattern, _, _, _, _) :-
     nonvar(Pattern),
     memberchk(Pattern, [[], end_of_file]), !.
-fix_subtermpos(_, Into, Sub, TermPos) :-
-    fix_subtermpos(Sub, Into, TermPos).
+fix_subtermpos(_, Into, Sub, TermPos, Options) :-
+    fix_subtermpos(Sub, Into, TermPos, Options).
 
-fix_subtermpos(sub_cw, _,    _). % Do nothing
-fix_subtermpos(sub,    _,    TermPos) :- fix_subtermpos(TermPos).
-fix_subtermpos(top,    Into, TermPos) :-
+fix_subtermpos(sub_cw, _,    _, _). % Do nothing
+fix_subtermpos(sub,    _,    TermPos, Options) :- fix_subtermpos(TermPos, Options).
+fix_subtermpos(top,    Into, TermPos, Options) :-
     ( Into \= [_|_]
-    ->fix_termpos(TermPos)
-    ; fix_subtermpos(TermPos)
+    ->fix_termpos(   TermPos, Options)
+    ; fix_subtermpos(TermPos, Options)
     ).
 
-%!  perform_substitution(+Sub, +Priority, +M, +Term, +VNL, +Pattern1, +Into1, +BindingL, +TermPos1, +OutPos, -TermPos, -Pattern, -GTerm, -Into)
+%!  perform_substitution(+Sub, +Priority, +M, +Term, +VNL, +Pattern1, +Into1, +BindingL, +TermPos1, +OutPos, +Options, -TermPos, -Pattern, -GTerm, -Into)
 %
 %   Substitute occurences of Pattern with Into after calling
 %   expansion.
@@ -1096,8 +1096,8 @@ fix_subtermpos(top,    Into, TermPos) :-
 %   @param OutPos layout of the term that includes SrcTerm
 %   @param Priority is the environment operator priority
 %
-perform_substitution(Sub, Priority, M, Term, VNL, Pattern1, Into1, BindingL, TermPos1, OutPos1,
-                     TermPos, Pattern, GTerm, Into) :-
+perform_substitution(Sub, Priority, M, Term, VNL, Pattern1, Into1, BindingL,
+                     TermPos1, OutPos1, Options, TermPos, Pattern, GTerm, Into) :-
     ( trim_fake_pos(TermPos1, TermPos, N)
     ->substitute_value(TermPos1, TermPos, OutPos1, OutPos),
       trim_fake_args(N, Pattern1, Pattern),
@@ -1115,7 +1115,7 @@ perform_substitution(Sub, Priority, M, Term, VNL, Pattern1, Into1, BindingL, Ter
        apply it to the subterm positions being affected by the refactoring.
        The predicate performs destructive assignment (as in imperative
        languages), modifying term position once the predicate is called */
-    fix_subtermpos(Pattern, Into2, Sub, OutPos),
+    fix_subtermpos(Pattern, Into2, Sub, OutPos, Options),
     with_context_values(subst_term(TermPos, M, Pattern, GTerm, Priority, Term1),
                         [subst_vars, bind, new_varnames], [[], BindingL, VNL]),
     shared_variables(VNL, Term1, Into2, V5), % after subst_term, in case some

@@ -33,7 +33,9 @@
 */
 
 :- module(fix_termpos, [fix_termpos/1,
+                        fix_termpos/2,
                         fix_subtermpos/1,
+                        fix_subtermpos/2,
                         term_innerpos/4
                        ]).
 
@@ -47,10 +49,16 @@
 %
 :- dynamic term_innerpos/4.
 
-%!  fix_termpos(@TermPos) is det
+%!  fix_termpos(@TermPos, +Options) is det
 %
 %   Applies fix_subtermpos recursivelly and extends the boundaries of the first
 %   term position from the first comment up to just before the ending dot.
+%
+%   The subterm positions are adjusted recursively according to the Options as
+%   follows:
+%
+%   * subterm_boundary(+Boundary) Specifies what are the boundaries of the term,
+%   which can be `subterm` or `comment` (default).
 %
 %   Due to performance concerns, this predicate makes a destructive assignment
 %   in the TermPos argument, but preserve the extra positions in the
@@ -58,10 +66,40 @@
 %
 %   @see fix_subtermpos/1
 %
+
 fix_termpos(TermPos) :-
+    fix_termpos(TermPos, []).
+
+fix_termpos(TermPos, Options) :-
     retractall(term_innerpos(_, _, _, _)),
-    fix_subtermpos_rec(TermPos),
+    option(subterm_boundary(Boundary), Options, comment),
+    fix_subtermpos_rec(TermPos, Boundary),
     fix_termouterpos(TermPos).
+
+%!  fix_subtermpos(@TermPos, Boundaries) is det
+%
+%   Takes a subterm position, as returned by the subterm_positions option of
+%   read_term/2 and increases its precision, avoiding some minor mistmatches
+%   with the text, that for a refactoring tool is instrumental.  This method
+%   also ensures that the minimal required parenthesis enclosing a term are
+%   contained in its scope, widening the positions 1 and 2 of the given term
+%   position specifier. The current implementation is aware of comments and
+%   extra parenthesis, asserting such information in term_innerpos/4 facts.
+%
+%   @tbd This implementation have performance issues, needs optimization.
+%
+
+fix_subtermpos(Pos) :-
+    fix_subtermpos(Pos, []).
+
+fix_subtermpos(Pos, _) :- var(Pos), !.
+fix_subtermpos(Pos, Options) :-
+    retractall(term_innerpos(_, _, _, _)),
+    option(subterm_boundary(Boundary), Options, comment),
+    fix_subtermpos_rec(Pos, Boundary),
+    arg(1, Pos, From),
+    arg(2, Pos, To),
+    assertz(term_innerpos(From, To, From, To)).
 
 %!  fix_termouterpos(@TermPos) is det
 %
@@ -96,64 +134,44 @@ fix_termouterpos(TermPos) :-
     nb_setarg(2, TermPos, OuterTo),
     assertz(term_innerpos(OuterFrom, OuterTo, From, To)).
 
-%!  fix_subtermpos(@TermPos) is det
-%
-%   Takes a subterm position, as returned by the subterm_positions option of
-%   read_term/2 and increases its precision, avoiding some minor mistmatches
-%   with the text, that for a refactoring tool is instrumental.  This method
-%   also ensures that the minimal required parenthesis enclosing a term are
-%   contained in its scope, widening the positions 1 and 2 of the given term
-%   position specifier. The current implementation is aware of comments and
-%   extra parenthesis, asserting such information in term_innerpos/4 facts.
-%
-%   @tbd This implementation have performance issues, needs optimization.
-%
-fix_subtermpos(Pos) :- var(Pos), !.
-fix_subtermpos(Pos) :-
-    retractall(term_innerpos(_, _, _, _)),
-    fix_subtermpos_rec(Pos),
-    arg(1, Pos, From),
-    arg(2, Pos, To),
-    assertz(term_innerpos(From, To, From, To)).
-
-fix_subtermpos_rec(Pos) :- var(Pos), !. % Nothing to fix
-fix_subtermpos_rec(Pos) :-
+fix_subtermpos_rec(Pos, _) :- var(Pos), !. % Nothing to fix
+fix_subtermpos_rec(Pos, Boundary) :-
     Pos = term_position(From1, To1, FFrom, FTo, PosL),
     !,
-    fix_subtermpos_from_to(From1, To1, FFrom, FTo, From, To, PosL),
+    fix_subtermpos_from_to(Boundary, From1, To1, FFrom, FTo, From, To, PosL),
     nb_setarg(1, Pos, From),
     nb_setarg(2, Pos, To).
-fix_subtermpos_rec(Pos) :-
+fix_subtermpos_rec(Pos, Boundary) :-
     Pos = key_value_position(From1, To1, SFrom, STo, _, KPos, VPos),
     !,
-    fix_subtermpos_from_to(From1, To1, SFrom, STo, From, To, [KPos, VPos]),
+    fix_subtermpos_from_to(Boundary, From1, To1, SFrom, STo, From, To, [KPos, VPos]),
     nb_setarg(1, Pos, From),
     nb_setarg(2, Pos, To).
-fix_subtermpos_rec(_-_).
-fix_subtermpos_rec(string_position(_, _)).
-fix_subtermpos_rec(brace_term_position(From, _, Arg)) :-
+fix_subtermpos_rec(_-_, _).
+fix_subtermpos_rec(string_position(_, _), _).
+fix_subtermpos_rec(brace_term_position(From, _, Arg), Boundary) :-
     refactor_context(text, Text),
     succ(From, From1),
-    fix_termpos_from_left(Text, Arg, From1, _).
-fix_subtermpos_rec(parentheses_term_position(From, _, Arg)) :-
+    fix_termpos_from_left(Boundary, Text, Arg, From1, _).
+fix_subtermpos_rec(parentheses_term_position(From, _, Arg), Boundary) :-
     refactor_context(text, Text),
     succ(From, From1),
-    fix_termpos_from_left(Text, Arg, From1, _).
+    fix_termpos_from_left(Boundary, Text, Arg, From1, _).
 % Note: don't assume that a list is between brackets [], because this is also
 % used to process list of clauses:
-fix_subtermpos_rec(list_position(From, To, Elms, Tail)) :-
+fix_subtermpos_rec(list_position(From, To, Elms, Tail), Boundary) :-
     refactor_context(text, Text),
-    foldl(fix_termpos_from_left_comm(Text), Elms, From, To1),
+    foldl(fix_termpos_from_left_comm(Boundary, Text), Elms, From, To1),
     ( Tail = none
     ->true
     ; once(seek_sub_string(Text, "|", 1, To, To1, ToL)),
       succ(ToL, FromT),
-      fix_termpos_from_left(Text, Tail, FromT, _)
+      fix_termpos_from_left(Boundary, Text, Tail, FromT, _)
     ).
-fix_subtermpos_rec(map_position(_, _, _, TypeTo, KVPos)) :-
+fix_subtermpos_rec(map_position(_, _, _, TypeTo, KVPos), Boundary) :-
     refactor_context(text, Text),
     succ(TypeTo, TypeTo1),
-    foldl(fix_termpos_from_left_comm(Text), KVPos, TypeTo1, _).
+    foldl(fix_termpos_from_left_comm(Boundary, Text), KVPos, TypeTo1, _).
 
 comment_bound(CommentL, From, To) :-
     member(Pos-Text, CommentL),
@@ -254,7 +272,8 @@ seekn_parenthesis_left(N1, Text, F1, F) :-
     succ(N, N1),
     seekn_parenthesis_left(N, Text, F2, F).
 
-include_comments_left(Text, To, From) :-
+include_comments_left(subterm, _, From, From).
+include_comments_left(comment, Text, To, From) :-
     S = s(To),
     ( rcomment_bound(FromC, ToC),
       arg(1, S, From1),
@@ -278,7 +297,8 @@ include_comments_left(Text, To, From) :-
     ),
     arg(1, S, From).
 
-include_comments_right(Text, From, To) :-
+include_comments_right(subterm, _,    To,   To).
+include_comments_right(comment, Text, From, To) :-
     S = s(From),
     ( comment_bound(FromC, ToC),
       arg(1, S, To1),
@@ -315,7 +335,7 @@ seekn_parenthesis_right(N, Text, L, T1, T) :-
       )
     ).
 
-fix_boundaries_from_right(Text, Pos, To1, From2, To3, From, To) :-
+fix_boundaries_from_right(Boundary, Text, Pos, To1, From2, To3, From, To) :-
     arg(2, Pos, To2),
     ( To1 < To2
     ->RL is To2 - To1,
@@ -324,72 +344,72 @@ fix_boundaries_from_right(Text, Pos, To1, From2, To3, From, To) :-
     ; true
     ),
     count_sub_string(Text, To2, To1, ")", 1, _, To3, N),
-    include_comments_right(Text, To3, To),
+    include_comments_right(Boundary, Text, To3, To),
     arg(1, Pos, From1),
     seekn_parenthesis_left(N, Text, From1, From2),
     From = From2.
 
-fix_termpos_from_right(Text, To1, Pos ) :-
-    fix_subtermpos_rec(Pos),
-    fix_boundaries_from_right(Text, Pos, To1, From2, To2, From, To),
+fix_termpos_from_right(Boundary, Text, To1, Pos ) :-
+    fix_subtermpos_rec(Pos, Boundary),
+    fix_boundaries_from_right(Boundary, Text, Pos, To1, From2, To2, From, To),
     nb_setarg(1, Pos, From),
     nb_setarg(2, Pos, To),
     assertz(term_innerpos(From, To, From2, To2)).
 
-fix_termpos_from_left(Text, Pos, From1, To) :-
-    fix_subtermpos_rec(Pos),
-    fix_boundaries_from_left(Text, Pos, From1, From2, From, To),
-    nb_setarg(1, Pos, From),    % if using From2 and To2, comments not included
-    nb_setarg(2, Pos, To),      % TODO: make this parameterizable
+fix_termpos_from_left(Boundary, Text, Pos, From1, To) :-
+    fix_subtermpos_rec(Pos, Boundary),
+    fix_boundaries_from_left(Boundary, Text, Pos, From1, From2, From, To),
+    nb_setarg(1, Pos, From),
+    nb_setarg(2, Pos, To),
     assertz(term_innerpos(From, To, From2, To)).
 
-fix_termpos_from_left_comm(Text, Pos, From1, To) :-
-    fix_subtermpos_rec(Pos),
-    fix_boundaries_from_left(Text, Pos, From1, From2, From, To2),
-    include_comments_right(Text, To2, To),
-    nb_setarg(1, Pos, From),  % if using From2 and To2, comments not included
-    nb_setarg(2, Pos, To),    % TODO: make this parameterizable
+fix_termpos_from_left_comm(Boundary, Text, Pos, From1, To) :-
+    fix_subtermpos_rec(Pos, Boundary),
+    fix_boundaries_from_left(Boundary, Text, Pos, From1, From2, From, To2),
+    include_comments_right(Boundary, Text, To2, To),
+    nb_setarg(1, Pos, From),
+    nb_setarg(2, Pos, To),
     assertz(term_innerpos(From, To, From2, To2)).
 
-fix_boundaries_from_left(Text, Pos, From1, From3, From, To) :-
+fix_boundaries_from_left(Boundary, Text, Pos, From1, From3, From, To) :-
     arg(1, Pos, From2),
-    ( From2 < From1 ->
-      RL is From1 - From2,
+    ( From2 < From1
+    ->RL is From1 - From2,
       sub_string(Text, From2, RL, _, TextL),
       with_termpos(
           refactor_message(
               warning,
               format("Misplaced text <-- `~w' (~w)",
                      [TextL,
-                      fix_boundaries_from_left(_, Pos, From1, From3, From, To)])),
+                      fix_boundaries_from_left(Boundary, _, Pos, From1, From3, From, To)])),
           Pos)
     ; true
     ),
     count_sub_string(Text, From1, From2, "(", 1, From3, _, N),
-    include_comments_left(Text, From3, From),
+    include_comments_left(Boundary, Text, From3, From),
     arg(2, Pos, To1),
     string_length(Text, L),
     seekn_parenthesis_right(N, Text, L, To1, To).
 
-fix_subtermpos_from_to(From1, To1, FFrom, FTo, From, To, PosL) :-
+fix_subtermpos_from_to(Boundary, From1, To1, FFrom, FTo, From, To, PosL) :-
     refactor_context(text, Text),
     sub_string(Text, FTo, 1, _, Char),
     ( PosL = [LPos, RPos ],
-      arg(2, LPos, ToL),
-      ToL =< FFrom
-    ->fix_termpos_from_right(Text, FFrom, LPos),
-      fix_termpos_from_left(Text, RPos, FTo, _),
+      arg(2, LPos, LTo),
+      LTo =< FFrom
+    ->fix_termpos_from_right(Boundary, Text, FFrom, LPos),
+      fix_termpos_from_left(Boundary, Text, RPos, FTo, _),
       arg(1, LPos, From),
       arg(2, RPos, To)
     ; PosL = [Pos],
       arg(1, Pos, FromR),
       FTo =< FromR,
       Char \= "("
-    ->fix_termpos_from_left(Text, Pos, FTo, _),
+    ->fix_termpos_from_left(Boundary, Text, Pos, FTo, _),
       From = From1,
       arg(2, Pos, To)
     ; succ(FTo, FTo1),
-      foldl(fix_termpos_from_left_comm(Text), PosL, FTo1, _),
+      foldl(fix_termpos_from_left_comm(Boundary, Text), PosL, FTo1, _),
       From = From1,
       To = To1
     ).
