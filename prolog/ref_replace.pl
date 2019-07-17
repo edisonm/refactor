@@ -679,9 +679,9 @@ apply_commands(Index, File, Level, M, Rec, FixPoint, Max, GenMCmd) :-
             apply_commands_stream(
                 FPTerm, GenMCmd, Level, M, nocs, Max, In, Text1, Text)),
         [text, file], [Text1, File]),
-        save_change(Index, File-Text),
         ( Text1 \= Text
-        ->nb_set_context_value(modified, true)
+        ->nb_set_context_value(modified, true),
+          save_change(Index, File-Text)
         ; true
         ).
 
