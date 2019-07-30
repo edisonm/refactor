@@ -252,6 +252,12 @@
 %     '$POS'(my_outpos, '$TEXT'(T, my_outpos))
 %     ```
 %
+%   * '$SEEK'(T, O)
+%     Seek 0 in the current output before to print T.
+%
+%   * '$TAB'(T, O)
+%     Print as many spaces as needed to make O the current write position
+%
 %   Defined options are:
 %
 %   * fixpoint(+Value)
@@ -1548,6 +1554,10 @@ rportray('$LISTNL.'(L), Opt) :- !,
 rportray('$LIST,NL'(L), Opt) :-
     offset_pos('$OUTPOS', Pos), !,
     rportray_list_nl_comma(L, Pos, Opt).
+rportray('$TAB'(Term, Offs), Opt) :-
+    offset_pos(Offs-'$OUTPOS', Delta), !,
+    forall(between(1, Delta, _), write(' ')),
+    write_term(Term, Opt).
 rportray('$LIST,NL'(L, Offs), Opt) :-
     offset_pos(Offs, Pos), !,
     rportray_list_nl_comma(L, Pos, Opt).
