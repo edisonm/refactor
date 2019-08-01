@@ -410,14 +410,16 @@ ec_term_level_each(Level, Term, Into, Expander, Options1) :-
            fixpoint(FixPoint)-decreasing,
            max_changes(Max)-Max,
            variable_names(VNL)-VNL,
-           vars_preffix(Preffix)-'V'
+           vars_preffix(Preffix)-'V',
+            % By default refactor even non loaded files
+           if(Loaded)-true
           ],
           Options1, Options2),
     ( option(clause(CRef), Options2)
     ->FileMGen = clause_file_module(CRef, File, M),
       clause_property(CRef, line_count(Line)),
       merge_options([line(Line)], Options2, Options3)
-    ; option_allchk(M, File, FileMGen-Options2, true-Options3)
+    ; option_allchk(M, File, FileMGen-[if(Loaded)|Options2], true-Options3)
     ),
     Options = [syntax_errors(SE),
                subterm_positions(TermPos),

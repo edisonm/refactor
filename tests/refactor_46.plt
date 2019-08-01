@@ -14,11 +14,11 @@ diff -ruN list1.pl -
 */
 test(list1) :-
     execute_test(list1,
-                  replace_sentence((H1 :- B1), (H2 :- B2),
-                                   ( B1 = (A=B),
-                                     occurrences_of_var(A, (H1 :- B1), 2),
-                                     substitute_values([(A=B)=true, A=B],
-                                                       (H1:-B1),(H2:-B2)))),
-                  [file(list1)]).
+                 replace_sentence((H1 :- B1), (H2 :- B2),
+                                  ( B1 = (A=B),
+                                    occurrences_of_var(A, (H1 :- B1), 2),
+                                    substitute_values([(A=B)=true, A=B],
+                                                      (H1:-B1),(H2:-B2)))),
+                 [file(list1)]).
 
 :- end_tests(refactor_46).
