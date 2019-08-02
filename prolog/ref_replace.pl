@@ -389,7 +389,7 @@ with_counters(Goal, Options1) :-
 
 :- public clause_file_module/3.
 
-clause_file_module(CRef, File, M) :-
+clause_file_module(CRef, M, File) :-
     clause_property(CRef, file(File)),
     clause_property(CRef, module(M)).
 
@@ -416,10 +416,10 @@ ec_term_level_each(Level, Term, Into, Expander, Options1) :-
           ],
           Options1, Options2),
     ( option(clause(CRef), Options2)
-    ->FileMGen = clause_file_module(CRef, File, M),
+    ->MFileGen = clause_file_module(CRef),
       clause_property(CRef, line_count(Line)),
       merge_options([line(Line)], Options2, Options3)
-    ; option_allchk(M, File, FileMGen-[if(Loaded)|Options2], true-Options3)
+    ; option_filechk([if(Loaded)|Options2], Options3, MFileGen)
     ),
     Options = [syntax_errors(SE),
                subterm_positions(TermPos),
@@ -453,11 +453,13 @@ ec_term_level_each(Level, Term, Into, Expander, Options1) :-
              CleanupAttributes,
              false]),
     setup_call_cleanup(
-        ( '$set_source_module'(OldM, OldM),
-          freeze(M, '$set_source_module'(_, M))
-        ),
+        '$current_source_module'(OldM),
         ( index_change(Index),
-          call(FileMGen),
+          call(MFileGen, M, File),
+          ( nonvar(M)
+          ->'$set_source_module'(_, M)
+          ; true
+          ),
           fetch_sentence_file(
               Index, FixPoint, Max, M, File, SentPattern, Options, Expand,
               TermPos, VNL, Expanded, LinearTerm, Linear, Bindings, Level, Term,
