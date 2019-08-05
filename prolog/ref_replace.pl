@@ -389,18 +389,25 @@ with_counters(Goal, Options1) :-
 
 :- public clause_file_module/3.
 
-clause_file_module(CRef, M, File) :-
+param_file_module(clause(CRef), M, File) :-
     clause_property(CRef, file(File)),
     clause_property(CRef, module(M)).
+param_file_module(mfiled(MFileD), M, File) :-
+    get_dict(M1, MFileD, FileD),
+    ( M1 = (-)
+    ->true
+    ; M = M1
+    ),
+    get_dict(File, FileD, _).
 
 ec_term_level_each(Level, Term, Into, Expander, Options1) :-
     (Level = goal -> DExpand=yes ; DExpand = no),
     (Level = sent -> SentPattern = Term ; true), % speed up
+    option(module(M), Options1, M),
     foldl(select_option_default,
           [syntax_errors(SE)-error,
            subterm_positions(TermPos)-TermPos,
            term_position(Pos)-Pos,
-           module(M)-M,
            linear_term(LinearTerm)-no,
            sentence(SentPattern)-SentPattern,
            comments(Comments)-Comments,
@@ -416,10 +423,12 @@ ec_term_level_each(Level, Term, Into, Expander, Options1) :-
           ],
           Options1, Options2),
     ( option(clause(CRef), Options2)
-    ->MFileGen = clause_file_module(CRef),
+    ->MFileParam = clause(CRef),
       clause_property(CRef, line_count(Line)),
       merge_options([line(Line)], Options2, Options3)
-    ; option_filechk([if(Loaded)|Options2], Options3, MFileGen)
+    ; option_module_files([if(Loaded)|Options2], MFileD),
+      MFileParam = mfiled(MFileD),
+      Options3 = Options2
     ),
     Options = [syntax_errors(SE),
                subterm_positions(TermPos),
@@ -453,13 +462,11 @@ ec_term_level_each(Level, Term, Into, Expander, Options1) :-
              CleanupAttributes,
              false]),
     setup_call_cleanup(
-        '$current_source_module'(OldM),
+        ( '$current_source_module'(OldM),
+          freeze(M, '$set_source_module'(_, M))
+        ),
         ( index_change(Index),
-          call(MFileGen, M, File),
-          ( nonvar(M)
-          ->'$set_source_module'(_, M)
-          ; true
-          ),
+          param_file_module(MFileParam, M, File),
           fetch_sentence_file(
               Index, FixPoint, Max, M, File, SentPattern, Options, Expand,
               TermPos, VNL, Expanded, LinearTerm, Linear, Bindings, Level, Term,
