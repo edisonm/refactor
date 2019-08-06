@@ -274,38 +274,40 @@ add_use_module(M, FileL, Alias, AddL, ExcludeL) :-
            add_use_module_cm(M, Alias, AddL, CM, PIL)).
 
 add_use_module_cm(M, Alias, AddL, CM, PIL) :-
-    module_property(CM, file(MFile)),
-    reverse([(:- module(CM, _))|AddL], TopCL),
-    once(( member(Term, TopCL),
-           replace_sentence(Term,
-                            [Term,
-                             (:- use_module(Alias))],
-                            [max_changes(1), changes(C), file(MFile)]),
-           C \= 0
-         )),
-    module_property(M, file(MainF)),
-    replace_sentence((:- use_module(MainA, ExL)),
-                     [],
-                     ( absolute_file_name(MainA,
-                                          MainF1,
-                                          [file_type(prolog),
-                                           access(read)]),
-                       MainF1=MainF,
-                       subtract(ExL, PIL, ExL2),
-                       ExL2 = []
-                     ),
-                     [module(CM)]),
-    pretty_decl(:- use_module(MainA, ExL2), PDecl),
-    replace_sentence((:- use_module(MainA, ExL)), PDecl,
-                     ( absolute_file_name(MainA,
-                                          MainF1,
-                                          [file_type(prolog),
-                                           access(read)]),
-                       MainF1=MainF,
-                       subtract(ExL, PIL, ExL2),
-                       ExL2 \= []
-                     ),
-                     [module(CM)]).
+    ( module_property(CM, file(MFile))
+    ->reverse([(:- module(CM, _))|AddL], TopCL),
+      once(( member(Term, TopCL),
+             replace_sentence(Term,
+                              [Term,
+                               (:- use_module(Alias))],
+                              [max_changes(1), changes(C), file(MFile)]),
+             C \= 0
+           )),
+      module_property(M, file(MainF)),
+      replace_sentence((:- use_module(MainA, ExL)),
+                       [],
+                       ( absolute_file_name(MainA,
+                                            MainF1,
+                                            [file_type(prolog),
+                                             access(read)]),
+                         MainF1=MainF,
+                         subtract(ExL, PIL, ExL2),
+                         ExL2 = []
+                       ),
+                       [module(CM)]),
+      pretty_decl(:- use_module(MainA, ExL2), PDecl),
+      replace_sentence((:- use_module(MainA, ExL)), PDecl,
+                       ( absolute_file_name(MainA,
+                                            MainF1,
+                                            [file_type(prolog),
+                                             access(read)]),
+                         MainF1=MainF,
+                         subtract(ExL, PIL, ExL2),
+                         ExL2 \= []
+                       ),
+                       [module(CM)])
+    ; print_message(warning, format('Module ~w will require :- use_module(~w)', [CM, Alias]))
+    ).
 
 declared_use_module(F, A, IM, M, EA, File) :-
     module_property(IM, file(ImplFile)),
