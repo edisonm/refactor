@@ -1625,10 +1625,21 @@ rportray([E|T1], Opt) :- !,
       )
     ).
 % Better formatting:
-rportray((:- Decl), Opt) :- !,
+rportray((:- Decl), Opt) :-
+    !,
+    offset_pos('$OUTPOS', Pos),
     write(':- '),
     merge_options([priority(1200)], Opt, Opt1),
-    write_term(Decl, Opt1).
+    option(module(M), Opt),
+    ( Decl =.. [Name, Arg],
+      current_op(OptPri, Type, M:Name),
+      valid_op_type_arity(Type, 1)
+    ->option(priority(Pri), Opt),
+      OptPri =< Pri
+    ->NDecl =.. [Name, '$NL'('$BODY'(Arg), Pos+4)]
+    ; NDecl = Decl
+    ),
+    write_term(NDecl, Opt1).
 % Better formatting:
 rportray(Term, OptL) :-
     callable(Term),
