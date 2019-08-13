@@ -47,8 +47,15 @@
   for all the refactoring scenarios.
 
   Note for implementors/hackers:
-  Be careful with some variables, they uses destructive assignment --TODO:
-  document them
+
+  * Be careful with some variables, they uses destructive assignment --TODO:
+    document them.
+
+  * format("~a", [Atom]) does not behaves as write_term(Atom, Options), since an
+    space is not added to separate operators from the next term, for instance
+    after rewriting :- dynamic a/1, you would get :- dynamica/1.
+
+  * write('') is used to reset the effect of the partial(true) option
 
 */
 
@@ -67,6 +74,7 @@
 :- use_module(library(ref_changes)).
 :- use_module(library(ref_msgtype)).
 :- use_module(library(term_info)).
+:- use_module(library(sequence_list)).
 :- use_module(library(clambda)).
 :- use_module(library(mapnlist)).
 :- use_module(library(mklinear)).
@@ -408,6 +416,9 @@ ec_term_level_each(Level, Term, Into, Expander, Options1) :-
           [syntax_errors(SE)-error,
            subterm_positions(TermPos)-TermPos,
            term_position(Pos)-Pos,
+           width(Width)-120,      % In sentences, try to wrap lines
+           term_width(TermWidth)-120, % In terms, try to wrap lines
+           list_width(ListWidth)-120, % In lists, try to wrap lines
            linear_term(LinearTerm)-no,
            sentence(SentPattern)-SentPattern,
            comments(Comments)-Comments,
@@ -443,6 +454,9 @@ ec_term_level_each(Level, Term, Into, Expander, Options1) :-
              bindings,
              subpos,
              pos,
+             width,
+             term_width,
+             list_width,
              file,
              preffix,
              goal_args,
@@ -456,6 +470,9 @@ ec_term_level_each(Level, Term, Into, Expander, Options1) :-
              Bindings,
              TermPos,
              Pos,
+             Width,
+             TermWidth,
+             ListWidth,
              File,
              Preffix,
              ga(Term, Into, Expander),
@@ -1447,6 +1464,38 @@ rportray_clause(C, Pos, OptL1) :-
 deref_substitution('$sb'(_, _, _, _, _, Term), Term) :- !.
 deref_substitution(Term, Term).
 
+write_pos_string(Pos, Writter, String) :-
+    write_pos_string(Pos, Writter, _, String).
+
+write_pos_string(Pos, Writter, TabString, String) :-
+    with_output_to(string(TabString),
+                   ( nl, % start with a new line, since the position is not reseted
+                     forall(between(1, Pos, _), write(' ')),
+                     write(''), % reset partial(true) logic
+                     stream_property(current_output, position(Pos1)),
+                     call(Writter),
+                     stream_property(current_output, position(Pos2)),
+                     stream_position_data(char_count, Pos1, B1),
+                     stream_position_data(char_count, Pos2, B2)
+                   )),
+    L is B2 - B1,
+    sub_string(TabString, B1, L, _, String).
+
+write_pos_string_wh(Pos, Writter, String, Width, Height) :-
+    write_pos_string(Pos, Writter, TabString, String),
+    atomic_list_concat(List, '\n', TabString),
+    maplist(string_length, List, WidthL),
+    max_list(WidthL, MaxWidth),
+    Width is MaxWidth - Pos,
+    length(WidthL, Height1),
+    succ(Height, Height1).
+
+write_term_string(Pos, Opt, Term, String) :-
+    write_pos_string(Pos, write_term(Term, Opt), String).
+
+write_term_string_wh(Pos, Opt, Term, String, Width, Height) :-
+    write_pos_string_wh(Pos, write_term(Term, Opt), String, Width, Height).
+
 :- public rportray/2.
 rportray('$sb'(TermPos), _) :-
     \+ retract(rportray_skip),
@@ -1601,7 +1650,8 @@ rportray([E|T1], Opt) :- !,
     ->!, fail
     ; T2 = '$sb'(TermPos, IFrom, ITo, GTerm, GPriority, Term),
       is_list(Term),
-      compound(TermPos), !,
+      compound(TermPos),
+      !,
       arg(1, TermPos, TFrom),
       arg(2, TermPos, TTo),
       term_innerpos(TFrom, TTo, From, To),
@@ -1653,32 +1703,86 @@ rportray(Operator, Opt) :-
 rportray(Term, OptL) :-
     callable(Term),
     \+ escape_term(Term),
-    \+ current_arithmetic_function(Term),
     \+ ctrl(Term),
+    Term \= '$VAR'(_),
     Term \= (_:_),
-    Term =.. [Name, Left, Right],
     option(module(M), OptL),
-    \+ arithmetic:evaluable(Term, M),
-    current_op(OptPri, Type, M:Name),
-    valid_op_type_arity(Type, 2),
-    !,
-    option(priority(Pri), OptL),
-    ( OptPri > Pri
-    ->Display = yes
-    ; Display = no
+    ( \+ current_arithmetic_function(Term),
+      \+ arithmetic:evaluable(Term, M)
+    ->Space = ' '
+    ; Space = ''
     ),
-    term_priority_gnd(Term, M, 1, LP),
-    merge_options([priority(LP)], OptL, OptL1),
-    cond_display(Display, '('),
-    write_term(Left, OptL1),
-    write(' '),
-    write(Name),
-    write(' '),
-    term_priority_gnd(Term, M, 2, RP),
-    merge_options([priority(RP)], OptL, OptL2),
-    write(''),
-    write_term(Right, OptL2),
-    cond_display(Display, ')').
+    refactor_context(term_width, TermWidth),
+    ( Term =.. [Name, Left, Right],
+      current_op(OptPri, Type, M:Name),
+      valid_op_type_arity(Type, 2)
+    ->option(priority(Pri), OptL),
+      ( OptPri > Pri
+      ->Display = yes
+      ; Display = no
+      ),
+      term_priority_gnd(Term, M, 1, LP),
+      merge_options([priority(LP)], OptL, OptL1),
+      cond_display(Display, '('),
+      offset_pos('$OUTPOS', Pos),
+      write_term(Left, OptL1),
+      write(Space),
+      offset_pos('$OUTPOS', Pos2),
+      term_priority_gnd(Term, M, 2, RP),
+      merge_options([priority(RP)], OptL, OptL2),
+      write_pos_string_wh(Pos2,
+                          ( write(Name),
+                            write(Space),
+                            write(''),
+                            write_term(Right, OptL2)
+                          ), String, Width, Height),
+      ( Height = 1,
+        Pos2 + Width =< TermWidth
+      ->atom_string(Atom, String),
+        write_t(Atom, OptL2)
+      ; write_pos_string_wh(Pos,
+                            ( write(Name),
+                              write(Space),
+                              write(''),
+                              write_term(Right, OptL2)
+                            ), String2, _, Height2),
+        ( Height2 < Height
+        ->nl,
+          line_pos(Pos),
+          atom_string(Atom, String2)
+        ; atom_string(Atom, String)
+        ),
+        write_t(Atom, OptL2)
+      ),
+      cond_display(Display, ')')
+    ; \+ atomic(Term),
+      Term =.. [Name|Args],
+      Args = [_, _|_]
+      % There is no need to move the argument to another line if the arity is 1:
+      % \+ ( Args = [_],
+      %      current_op(_, Type, M:Name),
+      %      valid_op_type_arity(Type, 1)
+      %    )
+    ->atom_length(Name, NL),
+      offset_pos('$OUTPOS'+NL+1, Pos),
+      merge_options([priority(999)], OptL, Opt1),
+      maplist(write_term_string_wh(Pos, Opt1), Args, StringL, WidthL, HeightL),
+      sep_nl(Pos, ',', SepNl),
+      foldl(collect_args(Pos, SepNl, TermWidth), StringL, WidthL, HeightL, Pos-[_|T], _-[]),
+      atomics_to_string(T, S),
+      format(atom(Atom), "~a(~s)", [Name, S]),
+      write_t(Atom, Opt1)
+    ),
+    !.
+
+collect_args(PosInit, SepNl, TermWidth, String, Width, Height, Pos1-[Sep, String|T], Pos-T) :-
+    ( Height =< 1,
+      Pos1 + Width =< TermWidth
+    ->Sep = ", ",
+      Pos = Pos1 + 2 + Width
+    ; Sep = SepNl,
+      Pos = PosInit
+    ).
 
 pos_value(Pos, Value) :-
     ( rportray_pos(Pos, Value)
@@ -1908,19 +2012,10 @@ do_print_expansion_sb(Pattern, Into, GTerm, TermPos, Options, Text) :-
 print_subtext_sb(Into, GTerm, TermPos, GPriority, Options, Text) :-
     with_cond_braces(print_subtext, Into, GTerm, TermPos, GPriority, Options, Text).
 
-print_subtext(_, Term, TermPos, Options, Text) :-
+print_subtext(_, _, TermPos, Options, Text) :-
     get_subtext(TermPos, Text, SubText),
-    ( sub_string(SubText, 0, 1, _, C),
-      char_type(C, space)
-    ->true
-    ; fix_if_partial_term(Term, _, Options)
-    ),
-    ( sub_string(SubText, _, 1, 0, E),
-      char_type(E, space)
-    ->write('')
-    ; true
-    ),
-    format("~s", [SubText]).
+    atom_string(SubText, Atom),
+    write_t(Atom, Options).
 
 fix_if_partial_term(Term, Offset, Options) :-
     fix_if_partial_term_(Term, Offset, Options).
@@ -2256,23 +2351,25 @@ bin_op(Term, Op, Left, Right, A, B) :-
     arg(2, Term, B).
 
 rportray_bodyb(B, Pos, OptL) :-
-    fix_if_partial_term(B, D, OptL),
-    write_b(B, OptL, Pos+D).
+    write_b(B, OptL, Pos).
 
 rportray_body(B, Pos, OptL) :-
-    fix_if_partial_term(B, D, OptL),
-    write_b1(B, OptL, Pos+D).
+    write_b1(B, OptL, Pos).
 
 write_b(Term, OptL, Pos1) :-
     ( option(priority(N), OptL),
       option(module(M), OptL),
       term_needs_braces(M:Term, N)
-    ->write('( '),
-      Pos is Pos1 + 2,
+    ->stream_property(current_output, position(S1)),
+      write_t('( ', OptL),
+      stream_property(current_output, position(S2)),
+      stream_position_data(char_count, S1, B1),
+      stream_position_data(char_count, S2, B2),
+      Pos is Pos1 + B2 - B1,
       write_b1(Term, OptL, Pos),
       nl,
-      line_pos(Pos1),
-      write(')')
+      line_pos(Pos - 2),
+      write_t(')', OptL)
     ; write_b1(Term, OptL, Pos1)
     ).
 
@@ -2317,30 +2414,18 @@ has_meta(Term, M, Meta, Spec) :-
 body_meta_args(Term, Spec, Meta) :-
     functor(Term, F, N),
     functor(Meta, F, N),
-    stream_property(current_output, position(Pos)),
-    ID='$body_meta_args'(Pos), % Trick to get a unique ID
-    mapnargs(body_meta_arg(ID, Arg1, Meta1), Term, Spec, Meta),
-    ( var(Meta1) -> Meta1 = Arg1 ; true ).
+    mapnargs(body_meta_arg, Term, Spec, Meta).
 
 ctrl((_ ,   _)).
 ctrl((_ ;   _)).
 ctrl((_ ->  _)).
 ctrl((_ *-> _)).
 
-body_meta_arg(ID, Arg1, Meta1, I, Term, Spec, Meta) :-
+body_meta_arg(_, Term, Spec, Meta) :-
     ( Spec = 0,
       nonvar(Term)
-    ->( I \= 1
-      ->Meta = '$SEEK'('$NL'('$BODYB'(Term), ID), -1),
-        Meta1 = '$POS'(ID, Arg1)
-      ; Meta1 = Meta,
-        Arg1 = '$BODYB'(Term)
-      )
-    ; ( I = 1
-      ->Meta1 = Meta,
-        Arg1 = Term
-      ; Meta = Term
-      )
+    ->Meta = '$BODYB'(Term)
+    ; Meta = Term
     ).
 
 write_b_layout(Term, OptL1, Layout, Pos) :-
