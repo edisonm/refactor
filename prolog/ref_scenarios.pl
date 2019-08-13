@@ -51,6 +51,8 @@
            replace_conjunction/3,
            replace_conjunction/4,
            call_to_predicate/3,
+           reformat_sentence/2,
+           reformat_sentence/3,
            remove_call/2,
            remove_call/3
           ]).
@@ -525,3 +527,19 @@ call_to_predicate(Term, Suffix, OptL) :-
        ctp_1/4.
 
 ctp_1(F, (H:-_), S, _) :- assertz(new_pred(F, (H:-_), S)), fail.
+
+sentence_format(Clause, '$CLAUSE'(Clause)).
+
+:- meta_predicate reformat_sentence(?, 0, :).
+reformat_sentence(Term, Expander, Options) :-
+    replace_sentence(Term, Formatted,
+                     ( duplicate_term(Term, Copy),
+                       sentence_format(Copy, Formatted),
+                       Copy = Term,
+                       Expander
+                     ),
+                     Options).
+
+:- meta_predicate reformat_sentence(?, :).
+reformat_sentence(Term, Options) :-
+    reformat_sentence(Term, true, Options).
