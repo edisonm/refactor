@@ -41,6 +41,7 @@
            rsave/1
           ]).
 
+:- use_module(library(trim_utils)).
 :- use_module(library(file_changes)).
 :- use_module(library(ref_changes)).
 
@@ -53,7 +54,7 @@ rshow :-
     once(pending_change(Index)),
     rdiff(show, 0, Index).
 
-rsave(Diff):-
+rsave(Diff) :-
     tell(Diff),
     rshow,
     told.
@@ -75,12 +76,18 @@ rdiff(Action, Index1, Index) :-
     forall(member(File, FileL),
            apply_diff(Action, Index1, File)).
 
+trim_content(RawContent, Content) :-
+    atomics_to_string(RawList, "\n", RawContent),
+    maplist(string_right_trim, RawList, List),
+    atomics_to_string(List, "\n", Content).
+
 apply_diff(Action, Index1, File) :-
-    once(pending_change(_, File, Content)), % Take the last one
+    once(pending_change(_, File, RawContent)), % Take the last one
+    trim_content(RawContent, Content), % Remove right spaces
     ( pending_change(Idx1, File, Content1),
       Idx1 =< Index1
     ->setup_call_cleanup(tmp_file_stream(text, File1, Stream),
-                         format(Stream, '~s', [Content1 ]),
+                         format(Stream, '~s', [Content1]),
                          close(Stream)),
       TmpFile = true
     ; File1 = File,
