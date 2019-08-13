@@ -1640,6 +1640,15 @@ rportray((:- Decl), Opt) :-
     ; NDecl = Decl
     ),
     write_term(NDecl, Opt1).
+rportray(Operator, Opt) :-
+    % Fix to avoid useless operator parenthesis
+    atom(Operator),
+    option(module(M), Opt),
+    option(priority(Priority), Opt),
+    current_op(OpPriority, _, M:Operator),
+    OpPriority < Priority,
+    !,
+    write(Operator).
 % Better formatting:
 rportray(Term, OptL) :-
     callable(Term),
