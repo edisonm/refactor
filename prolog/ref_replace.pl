@@ -1470,7 +1470,8 @@ write_pos_string(Pos, Writter, String) :-
 write_pos_string(Pos, Writter, TabString, String) :-
     with_output_to(string(TabString),
                    ( nl, % start with a new line, since the position is not reseted
-                     forall(between(1, Pos, _), write(' ')),
+                     N is Pos,
+                     forall(between(1, N, _), write(' ')),
                      write(''), % reset partial(true) logic
                      stream_property(current_output, position(Pos1)),
                      call(Writter),
