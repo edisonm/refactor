@@ -416,7 +416,7 @@ ec_term_level_each(Level, Term, Into, Expander, Options1) :-
           [syntax_errors(SE)-error,
            subterm_positions(TermPos)-TermPos,
            term_position(Pos)-Pos,
-           width(Width)-120,      % In sentences, try to wrap lines
+           conj_width(ConjWidth)-120, % In (_,_), try to wrap lines
            term_width(TermWidth)-120, % In terms, try to wrap lines
            list_width(ListWidth)-120, % In lists, try to wrap lines
            linear_term(LinearTerm)-no,
@@ -454,7 +454,7 @@ ec_term_level_each(Level, Term, Into, Expander, Options1) :-
              bindings,
              subpos,
              pos,
-             width,
+             conj_width,
              term_width,
              list_width,
              file,
@@ -470,7 +470,7 @@ ec_term_level_each(Level, Term, Into, Expander, Options1) :-
              Bindings,
              TermPos,
              Pos,
-             Width,
+             ConjWidth,
              TermWidth,
              ListWidth,
              File,
@@ -1644,11 +1644,65 @@ rportray('$PRIORITY'(T, Priority), Opt) :-
     integer(Priority), !,
     merge_options([priority(Priority)], Opt, Opt1),
     write_term(T, Opt1).
-rportray([E|T1], Opt) :- !,
+rportray((A, B), Opt) :-
+    !,
+    sequence_list((A, B), L, []),
+    once(append(T, [E], L)),
+    offset_pos('$OUTPOS', Pos),
+    term_priority((_, _), user, 1, Priority),
+    option(priority(Pri), Opt),
+    ( Priority > Pri
+    ->Display = yes
+    ; Display = no
+    ),
+    merge_options([priority(Priority)], Opt, Opt1),
+    term_priority((_, _), user, 2, RPri),
+    merge_options([priority(RPri)], Opt, Opt2),
+    ( ( Display = yes
+      ->Format ="(~s~s)",
+        succ(Pos, Pos1)
+      ; Format = "~s~s",
+        Pos1 = Pos
+      ),
+      maplist(write_term_string_wh(Pos1, Opt1), T, StringL1, WidthL1, HeightL1),
+      write_term_string_wh(Pos1, Opt2, E, LastStr, LastWidth, Height),
+      max_list([Height|HeightL1], MaxHeight),
+      MaxHeight =< 1,
+      append(StringL1, [LastStr], StringL),
+      length(StringL, Length),
+      sum_list([LastWidth|WidthL1], WidthTotal),
+      Sep = ", ",
+      string_length(Sep, SepLength),
+      refactor_context(conj_width, ConjWidth),
+      Pos1 + WidthTotal + (Length - 1) * SepLength =< ConjWidth
+    ->CloseB = ""
+    ; ( Display = yes
+      ->Format = "( ~s~s)",
+        Pos1 = Pos + 2,
+        with_output_to(string(CloseB),
+                       ( nl,
+                         line_pos(Pos)
+                       ))
+      ; Format = "~s~s",
+        CloseB = "",
+        Pos1 = Pos
+      ),
+      maplist(write_term_string(Pos1, Opt1), T, StringL1),
+      write_term_string(Pos1, Opt2, E, LastStr),
+      append(StringL1, [LastStr], StringL),
+      sep_nl(Pos1, ',', Sep)
+    ),
+    atomics_to_string(StringL, Sep, S),
+    format(atom(Atom), Format, [S, CloseB]),
+    write_t(Atom, Opt1).
+rportray([E|T1], Opt) :-
+    !,
+    offset_pos('$OUTPOS', Pos),
+    succ(Pos, Pos1),
+    H = [_|_],
     append(H, T2, [E|T1]),
-    ( var(T2)
-    ->!, fail
-    ; T2 = '$sb'(TermPos, IFrom, ITo, GTerm, GPriority, Term),
+    ( nonvar(T2),
+      T2 = '$sb'(TermPos, IFrom, ITo, GTerm, GPriority, Term),
       is_list(Term),
       compound(TermPos),
       !,
@@ -1656,7 +1710,7 @@ rportray([E|T1], Opt) :- !,
       arg(2, TermPos, TTo),
       term_innerpos(TFrom, TTo, From, To),
       T3 = '$sb'(From-To, IFrom, ITo, GTerm, GPriority, Term),
-      with_output_to(string(SB), write_term(T3, Opt)),
+      write_term_string(Pos, Opt, T3, SB),
       sub_string(SB, 1, _, 1, SC),
       refactor_context(text, Text),
       get_subtext(Text, TFrom, From, SL),
@@ -1664,16 +1718,45 @@ rportray([E|T1], Opt) :- !,
       format(atom(ST), "~s~s~s", [SL, SC, SR]),
       ( Term == []
       ->T = H,
-        write('['),
-        term_priority([_|_], user, 1, Priority),
-        merge_options([priority(Priority)], Opt, Opt1),
-        term_write_sep_list(T, ', ', Opt1),
-        format("~s", [ST]),
-        write(']')
+        EndText = ST
       ; append(H, ['$TEXT'(ST)], T),
-        write_term(T, Opt)
+        EndText = ""
       )
-    ).
+    ; T2 == [],
+      T = H,
+      EndText = ""
+    ; ( var(T2)
+      ; T2 \= [_|_]
+      ),
+      T = H,
+      write_term_string(Pos1, Opt, T2, ST),
+      atom_concat('|', ST, EndText)
+    ),
+    !,
+    write_t('[', Opt),
+    term_priority([_|_], user, 1, Priority),
+    merge_options([priority(Priority)], Opt, Opt1),
+    maplist(write_term_string_wh(Pos1, Opt1), T, StringL, WidthL, HeightL),
+    ( max_list(HeightL, MaxHeight),
+      MaxHeight =< 1,
+      Sep = ", ",
+      string_length(Sep, SepLength),
+      refactor_context(list_width, ListWidth),
+      length(StringL, Length),
+      sum_list(WidthL, WidthTotal),
+      Pos1 + WidthTotal + (Length - 1) * SepLength =< ListWidth,
+      CloseB = "]"
+    ->true
+    ; sep_nl(Pos1, ',', Sep),
+      with_output_to(string(CloseB),
+                     ( nl,
+                       line_pos(Pos),
+                       write(']')
+                     ))
+    ),
+    atomics_to_string(StringL, Sep, S),
+    atomic_list_concat([S, EndText, CloseB], Atom),
+    write_t(Atom, Opt1).
 % Better formatting:
 rportray((:- Decl), Opt) :-
     !,
@@ -1839,13 +1922,6 @@ term_write_sep_list_inner_rec(T, Writter, SepIn, Opt) :-
     ->true
     ; write_tail(T, Writter, SepIn, Opt)
     ).
-
-term_write_sep_list([],    _,   _).
-term_write_sep_list([T|L], Sep, Opt) :-
-    write_term(T, Opt),
-    maplist(term_write_sep_elem(Sep, Opt), L).
-
-term_write_sep_elem(Sep, Opt, Term) :- write(Sep), write_term(Term, Opt).
 
 term_write_comma_2(Opt, Term) :- write_term(Term, Opt), write(', ').
 
@@ -2016,39 +2092,6 @@ print_subtext(_, _, TermPos, Options, Text) :-
     get_subtext(TermPos, Text, SubText),
     atom_string(SubText, Atom),
     write_t(Atom, Options).
-
-fix_if_partial_term(Term, Offset, Options) :-
-    fix_if_partial_term_(Term, Offset, Options).
-
-fix_if_partial_term_(Term, Offset, Options) :-
-    nonvar(Term),
-    Term = '$sb'(_, _, _, GTerm, _, _), !,
-    fix_if_partial_term_(GTerm, Offset, Options).
-fix_if_partial_term_(Term, Offset, Options) :-
-    ( nonvar(Term)
-    ->functor(Term, F, A),
-      functor(Func, F, A),
-      numbervars(Func, 0, _),
-      select_option(portray_goal(_), Options, Options2),
-      with_output_to(
-          string(_),
-          ( stream_property(current_output, position(SPos1)),
-            write_term(Func, Options2),
-            stream_property(current_output, position(SPos2))
-          )),
-      stream_property(current_output, position(Pos1)),
-      write_term(Func, Options2),
-      stream_property(current_output, position(Pos2)),
-      stream_position_data(char_count, Pos1, B1),
-      stream_position_data(char_count, Pos2, B2),
-      stream_position_data(char_count, SPos1, S1),
-      stream_position_data(char_count, SPos2, S2),
-      Offset is B2-B1+S1-S2,
-      write(''), % kludge to reset partial(true) logic
-      set_stream_position(current_output, Pos1),
-      seek(current_output, Offset, current, _)
-    ; Offset = 0
-    ).
 
 with_cond_braces(Call, Into, GTerm, TermPos, GPriority, Options, Text) :-
     option(module(M), Options),
