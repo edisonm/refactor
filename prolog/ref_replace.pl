@@ -1486,8 +1486,8 @@ write_pos_rawstr(Pos, Writter, String) :-
 
 write_pos_string(Pos, Writter, String) :-
     write_pos_rawstr(Pos, Writter, RawStr),
-    pos_ident(Pos, Ident),
-    atom_concat(Ident, String, RawStr).
+    pos_indent(Pos, Indent),
+    atom_concat(Indent, String, RawStr).
 
 write_term_lines(Pos, Opt, Term, Lines) :-
     write_pos_lines(Pos, write_term(Term, Opt), Lines).
@@ -1664,14 +1664,14 @@ rportray((A, B), Opt) :-
         Pos1 = Pos
       ),
       length(L, Length),
-      pos_ident(Pos1, Ident),
-      maplist([Pos1, Opt1, Ident] +\ E^Line^( write_term_lines(Pos1, Opt1, E, Lines),
+      pos_indent(Pos1, Indent),
+      maplist([Pos1, Opt1, Indent] +\ E^Line^( write_term_lines(Pos1, Opt1, E, Lines),
                                               Lines = [Line1],
-                                              string_concat(Ident, Line, Line1)
+                                              string_concat(Indent, Line, Line1)
                                             ), T, LineL1),
       write_term_lines(Pos1, Opt2, E, LastLines1),
       LastLines1 = [LastLine1],
-      atom_concat(Ident, LastLine, LastLine1),
+      atom_concat(Indent, LastLine, LastLine1),
       append(LineL1, [LastLine], StringL),
       maplist(string_length, StringL, WidthL),
       sum_list(WidthL, WidthTotal),
@@ -1741,8 +1741,8 @@ rportray([E|T1], Opt) :-
     term_priority([_|_], user, 1, Priority),
     merge_options([priority(Priority)], Opt, Opt1),
     maplist(write_term_lines(Pos1, Opt1), T, LinesL),
-    pos_ident(Pos1, Ident),
-    ( maplist([Ident] +\ [Line1]^Line^string_concat(Ident, Line, Line1), LinesL, StringL),
+    pos_indent(Pos1, Indent),
+    ( maplist([Indent] +\ [Line1]^Line^string_concat(Indent, Line, Line1), LinesL, StringL),
       Sep = ", ",
       string_length(Sep, SepLength),
       refactor_context(list_width, ListWidth),
@@ -1760,7 +1760,7 @@ rportray([E|T1], Opt) :-
                      )),
       maplist(\ L^S^atomics_to_string(L, '\n', S), LinesL, StringL),
       atomics_to_string(StringL, Sep, S1),
-      string_concat(Ident, S, S1)
+      string_concat(Indent, S, S1)
     ),
     atomic_list_concat([S, EndText, CloseB], Atom),
     write_t(Atom, Opt1).
@@ -1829,8 +1829,8 @@ rportray(Term, OptL) :-
       ( Lines = [Line],
         atom_length(Line, Width),
         Width =< TermWidth
-      ->pos_ident(Pos2, Ident),
-        atom_concat(Ident, Atom, Line),
+      ->pos_indent(Pos2, Indent),
+        atom_concat(Indent, Atom, Line),
         write_t(Atom, OptL2)
       ; write_pos_lines(Pos,
                         ( write(Name),
@@ -1844,8 +1844,8 @@ rportray(Term, OptL) :-
         ->nl,
           atomic_list_concat(Lines2, '\n', Atom)
         ; Lines = [Line1|Tail],
-          pos_ident(Pos2, Ident),
-          atom_concat(Ident, Line, Line1),
+          pos_indent(Pos2, Indent),
+          atom_concat(Indent, Line, Line1),
           atomic_list_concat([Line|Tail], '\n', Atom)
         ),
         write_t(Atom, OptL2)
@@ -1863,27 +1863,28 @@ rportray(Term, OptL) :-
       offset_pos('$OUTPOS'+NL+1, Pos),
       merge_options([priority(999)], OptL, Opt1),
       maplist(write_term_lines(Pos, Opt1), Args, LinesL),
-      pos_ident(Pos, Ident),
-      foldl(collect_args(Ident, TermWidth), LinesL, (Pos-2)-[_|T], _-[]),
+      pos_indent(Pos, Indent),
+      foldl(collect_args(Indent, TermWidth), LinesL, (Pos-2)-[_|T], _-[]),
       atomics_to_string(T, S),
       format(atom(Atom), "~a(~s)", [Name, S]),
       write_t(Atom, Opt1)
     ),
     !.
 
-pos_ident(Pos, Ident) :- with_output_to(atom(Ident), line_pos(Pos)).
+pos_indent(Pos, Indent) :- with_output_to(atom(Indent), line_pos(Pos)).
     
-collect_args(Ident, TermWidth, LineL, Pos1-[Sep, String|T], Pos-T) :-
+collect_args(Indent, TermWidth, LineL, Pos1-[Sep, String|T], Pos-T) :-
     ( LineL = [Line1],
-      string_concat(Ident, String, Line1),
+      string_concat(Indent, String, Line1),
       string_length(String, Width),
       Pos1 + 2 + Width < TermWidth
     ->Sep = ", ",
       Pos is Pos1 + 2 + Width
-    ; Sep = ",\n",
+    ; atom_concat(",\n", Indent, Sep),
       last(LineL, Last),
       string_length(Last, Pos),
-      atomics_to_string(LineL, '\n', String)
+      atomics_to_string(LineL, '\n', String1),
+      string_concat(Indent, String, String1)
     ).
 
 pos_value(Pos, Value) :-
