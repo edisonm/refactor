@@ -1426,7 +1426,8 @@ rportray_clause(Clause, OptL) :-
 rportray_clause(C, Pos, OptL1) :-
     option(module(M), OptL1),
     stream_property(current_output, position(SPos1)),
-    merge_options([portray_clause(false)], OptL1, OptL2),
+    merge_options([portray_clause(false),partial(false)], OptL1, OptL2),
+    write(''),
     write_term(C, OptL2),
     stream_property(current_output, position(SPos2)),
     ( nonvar(C),
@@ -1447,7 +1448,8 @@ rportray_clause(C, Pos, OptL1) :-
       cond_display(Display, '('),
       merge_options([portray_clause(true)], OptL1, OptL3),
       ( memberchk(C, [(H :- B), (H --> B)])
-      ->write_term(H, OptL3),
+      ->write(''),
+        write_term(H, OptL3),
         functor(C, Neck, _),
         write(' '),
         writeln(Neck),
@@ -1455,7 +1457,8 @@ rportray_clause(C, Pos, OptL1) :-
         term_priority((_, _), M, 2, Priority),
         merge_options([priority(Priority)], OptL3, OptL4),
         write_b(B, OptL4, 4 + BPos)
-      ; write_term(C, OptL3)
+      ; write(''),
+        write_term(C, OptL3)
       ),
       cond_display(Display, ')')
     ; true
