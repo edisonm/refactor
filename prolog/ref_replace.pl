@@ -1855,20 +1855,31 @@ rportray(Term, OptL) :-
       merge_options([priority(999)], OptL, Opt1),
       maplist(write_term_string_wh(Pos, Opt1), Args, StringL, WidthL, HeightL),
       sep_nl(Pos, ',', SepNl),
-      foldl(collect_args(Pos, SepNl, TermWidth), StringL, WidthL, HeightL, Pos-[_|T], _-[]),
+      foldl(collect_args(Pos, SepNl, TermWidth), StringL, WidthL, HeightL, (Pos-2)-[_|T], _-[]),
       atomics_to_string(T, S),
       format(atom(Atom), "~a(~s)", [Name, S]),
       write_t(Atom, Opt1)
     ),
     !.
 
+string_last_width(PosInit, String, LastWidth) :-
+    atomic_list_concat(List, '\n', String),
+    ( List = [Last]
+    ->string_length(Last, LastWidth)
+    ; last(List, Last),
+      string_length(Last, PosLast),
+      LastWidth is PosLast - PosInit
+    ).
+    
+
 collect_args(PosInit, SepNl, TermWidth, String, Width, Height, Pos1-[Sep, String|T], Pos-T) :-
     ( Height =< 1,
-      Pos1 + Width =< TermWidth
+      Pos1 + 2 + Width < TermWidth
     ->Sep = ", ",
-      Pos = Pos1 + 2 + Width
+      Pos is Pos1 + 2 + Width
     ; Sep = SepNl,
-      Pos = PosInit
+      string_last_width(PosInit, String, LastWidth),
+      Pos is PosInit + LastWidth
     ).
 
 pos_value(Pos, Value) :-
