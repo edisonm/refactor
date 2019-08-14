@@ -1467,38 +1467,33 @@ rportray_clause(C, Pos, OptL1) :-
 deref_substitution('$sb'(_, _, _, _, _, Term), Term) :- !.
 deref_substitution(Term, Term).
 
-write_pos_string(Pos, Writter, String) :-
-    write_pos_string(Pos, Writter, _, String).
+write_pos_lines(Pos, Writter, Lines) :-
+    write_pos_rawstr(Pos, Writter, String),
+    atomics_to_string(Lines, '\n', String).
 
-write_pos_string(Pos, Writter, TabString, String) :-
-    with_output_to(string(TabString),
+write_pos_rawstr(Pos, Writter, String) :-
+    with_output_to(string(String1),
                    ( nl, % start with a new line, since the position is not reseted
-                     N is Pos,
-                     forall(between(1, N, _), write(' ')),
-                     write(''), % reset partial(true) logic
                      stream_property(current_output, position(Pos1)),
+                     line_pos(Pos),
                      call(Writter),
                      stream_property(current_output, position(Pos2)),
                      stream_position_data(char_count, Pos1, B1),
                      stream_position_data(char_count, Pos2, B2)
                    )),
     L is B2 - B1,
-    sub_string(TabString, B1, L, _, String).
+    sub_string(String1, B1, L, _, String).
 
-write_pos_string_wh(Pos, Writter, String, Width, Height) :-
-    write_pos_string(Pos, Writter, TabString, String),
-    atomic_list_concat(List, '\n', TabString),
-    maplist(string_length, List, WidthL),
-    max_list(WidthL, MaxWidth),
-    Width is MaxWidth - Pos,
-    length(WidthL, Height1),
-    succ(Height, Height1).
+write_pos_string(Pos, Writter, String) :-
+    write_pos_rawstr(Pos, Writter, RawStr),
+    pos_ident(Pos, Ident),
+    atom_concat(Ident, String, RawStr).
+
+write_term_lines(Pos, Opt, Term, Lines) :-
+    write_pos_lines(Pos, write_term(Term, Opt), Lines).
 
 write_term_string(Pos, Opt, Term, String) :-
     write_pos_string(Pos, write_term(Term, Opt), String).
-
-write_term_string_wh(Pos, Opt, Term, String, Width, Height) :-
-    write_pos_string_wh(Pos, write_term(Term, Opt), String, Width, Height).
 
 :- public rportray/2.
 rportray('$sb'(TermPos), _) :-
@@ -1668,13 +1663,18 @@ rportray((A, B), Opt) :-
       ; Format = "~s~s",
         Pos1 = Pos
       ),
-      maplist(write_term_string_wh(Pos1, Opt1), T, StringL1, WidthL1, HeightL1),
-      write_term_string_wh(Pos1, Opt2, E, LastStr, LastWidth, Height),
-      max_list([Height|HeightL1], MaxHeight),
-      MaxHeight =< 1,
-      append(StringL1, [LastStr], StringL),
-      length(StringL, Length),
-      sum_list([LastWidth|WidthL1], WidthTotal),
+      length(L, Length),
+      pos_ident(Pos1, Ident),
+      maplist([Pos1, Opt1, Ident] +\ E^Line^( write_term_lines(Pos1, Opt1, E, Lines),
+                                              Lines = [Line1],
+                                              string_concat(Ident, Line, Line1)
+                                            ), T, LineL1),
+      write_term_lines(Pos1, Opt2, E, LastLines1),
+      LastLines1 = [LastLine1],
+      atom_concat(Ident, LastLine, LastLine1),
+      append(LineL1, [LastLine], StringL),
+      maplist(string_length, StringL, WidthL),
+      sum_list(WidthL, WidthTotal),
       Sep = ", ",
       string_length(Sep, SepLength),
       refactor_context(conj_width, ConjWidth),
@@ -1740,25 +1740,28 @@ rportray([E|T1], Opt) :-
     write_t('[', Opt),
     term_priority([_|_], user, 1, Priority),
     merge_options([priority(Priority)], Opt, Opt1),
-    maplist(write_term_string_wh(Pos1, Opt1), T, StringL, WidthL, HeightL),
-    ( max_list(HeightL, MaxHeight),
-      MaxHeight =< 1,
+    maplist(write_term_lines(Pos1, Opt1), T, LinesL),
+    pos_ident(Pos1, Ident),
+    ( maplist([Ident] +\ [Line1]^Line^string_concat(Ident, Line, Line1), LinesL, StringL),
       Sep = ", ",
       string_length(Sep, SepLength),
       refactor_context(list_width, ListWidth),
       length(StringL, Length),
+      maplist(string_length, StringL, WidthL),
       sum_list(WidthL, WidthTotal),
       Pos1 + WidthTotal + (Length - 1) * SepLength =< ListWidth,
       CloseB = "]"
-    ->true
-    ; sep_nl(Pos1, ',', Sep),
+    ->atomics_to_string(StringL, Sep, S)
+    ; Sep = ",\n",
       with_output_to(string(CloseB),
                      ( nl,
                        line_pos(Pos),
                        write(']')
-                     ))
+                     )),
+      maplist(\ L^S^atomics_to_string(L, '\n', S), LinesL, StringL),
+      atomics_to_string(StringL, Sep, S1),
+      string_concat(Ident, S, S1)
     ),
-    atomics_to_string(StringL, Sep, S),
     atomic_list_concat([S, EndText, CloseB], Atom),
     write_t(Atom, Opt1).
 % Better formatting:
@@ -1817,27 +1820,33 @@ rportray(Term, OptL) :-
       offset_pos('$OUTPOS', Pos2),
       term_priority_gnd(Term, M, 2, RP),
       merge_options([priority(RP)], OptL, OptL2),
-      write_pos_string_wh(Pos2,
-                          ( write(Name),
-                            write(Space),
-                            write(''),
-                            write_term(Right, OptL2)
-                          ), String, Width, Height),
-      ( Height = 1,
-        Pos2 + Width =< TermWidth
-      ->atom_string(Atom, String),
+      write_pos_lines(Pos2,
+                      ( write(Name),
+                        write(Space),
+                        write(''),
+                        write_term(Right, OptL2)
+                      ), Lines),
+      ( Lines = [Line],
+        atom_length(Line, Width),
+        Width =< TermWidth
+      ->pos_ident(Pos2, Ident),
+        atom_concat(Ident, Atom, Line),
         write_t(Atom, OptL2)
-      ; write_pos_string_wh(Pos,
-                            ( write(Name),
-                              write(Space),
-                              write(''),
-                              write_term(Right, OptL2)
-                            ), String2, _, Height2),
+      ; write_pos_lines(Pos,
+                        ( write(Name),
+                          write(Space),
+                          write(''),
+                          write_term(Right, OptL2)
+                        ), Lines2),
+        length(Lines2, Height2),
+        length(Lines,  Height),
         ( Height2 < Height
         ->nl,
-          line_pos(Pos),
-          atom_string(Atom, String2)
-        ; atom_string(Atom, String)
+          atomic_list_concat(Lines2, '\n', Atom)
+        ; Lines = [Line1|Tail],
+          pos_ident(Pos2, Ident),
+          atom_concat(Ident, Line, Line1),
+          atomic_list_concat([Line|Tail], '\n', Atom)
         ),
         write_t(Atom, OptL2)
       ),
@@ -1853,33 +1862,28 @@ rportray(Term, OptL) :-
     ->atom_length(Name, NL),
       offset_pos('$OUTPOS'+NL+1, Pos),
       merge_options([priority(999)], OptL, Opt1),
-      maplist(write_term_string_wh(Pos, Opt1), Args, StringL, WidthL, HeightL),
-      sep_nl(Pos, ',', SepNl),
-      foldl(collect_args(Pos, SepNl, TermWidth), StringL, WidthL, HeightL, (Pos-2)-[_|T], _-[]),
+      maplist(write_term_lines(Pos, Opt1), Args, LinesL),
+      pos_ident(Pos, Ident),
+      foldl(collect_args(Ident, TermWidth), LinesL, (Pos-2)-[_|T], _-[]),
       atomics_to_string(T, S),
       format(atom(Atom), "~a(~s)", [Name, S]),
       write_t(Atom, Opt1)
     ),
     !.
 
-string_last_width(PosInit, String, LastWidth) :-
-    atomic_list_concat(List, '\n', String),
-    ( List = [Last]
-    ->string_length(Last, LastWidth)
-    ; last(List, Last),
-      string_length(Last, PosLast),
-      LastWidth is PosLast - PosInit
-    ).
+pos_ident(Pos, Ident) :- with_output_to(atom(Ident), line_pos(Pos)).
     
-
-collect_args(PosInit, SepNl, TermWidth, String, Width, Height, Pos1-[Sep, String|T], Pos-T) :-
-    ( Height =< 1,
+collect_args(Ident, TermWidth, LineL, Pos1-[Sep, String|T], Pos-T) :-
+    ( LineL = [Line1],
+      string_concat(Ident, String, Line1),
+      string_length(String, Width),
       Pos1 + 2 + Width < TermWidth
     ->Sep = ", ",
       Pos is Pos1 + 2 + Width
-    ; Sep = SepNl,
-      string_last_width(PosInit, String, LastWidth),
-      Pos is PosInit + LastWidth
+    ; Sep = ",\n",
+      last(LineL, Last),
+      string_length(Last, Pos),
+      atomics_to_string(LineL, '\n', String)
     ).
 
 pos_value(Pos, Value) :-
@@ -2517,10 +2521,9 @@ line_pos(LinePos) :-
     LinePos > 0,
     !,
     write(' '),
-    write(''),
     LinePos1 is LinePos - 1,
     line_pos(LinePos1).
-line_pos(_).
+line_pos(_) :- write('').
 
 write_t(Term, Options1) :-
     merge_options([quoted(false), priority(1200)], Options1, Options),
