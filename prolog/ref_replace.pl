@@ -1796,13 +1796,13 @@ rportray((:- Decl), Opt) :-
     merge_options([priority(1200)], Opt, Opt1),
     option(module(M), Opt),
     ( Decl =.. [Name, Arg],
-      current_op(OptPri, Type, M:Name),
-      valid_op_type_arity(Type, 1)
-    ->( option(priority(Pri), Opt),
-        OptPri =< Pri
-      ->NDecl =.. [Name, '$NL'('$BODY'(Arg), Pos+4)]
-      ; NDecl = Decl
-      )
+      once(( current_op(OptPri, Type, M:Name),
+             valid_op_type_arity(Type, 1)
+           )),
+      option(priority(Pri), Opt),
+      OptPri =< Pri
+    ->NDecl =.. [Name, '$NL'('$BODY'(Arg), Pos+4)]
+    ; NDecl = Decl
     ),
     write_term(NDecl, Opt1).
 rportray(Operator, Opt) :-
@@ -1819,13 +1819,13 @@ rportray(Term, OptL) :-
     callable(Term),
     \+ escape_term(Term),
     \+ ctrl(Term),
-    Term \= '$VAR'(_),
-    Term \= (_:_),
+    \+ skip_format(Term),
     option(module(M), OptL),
-    ( \+ current_arithmetic_function(Term),
-      \+ arithmetic:evaluable(Term, M)
-    ->Space = ' '
-    ; Space = ''
+    ( ( compact_format(Term)
+      ; term_arithexpression(Term, M)
+      )
+    ->Space = ''
+    ; Space = ' '
     ),
     refactor_context(term_width, TermWidth),
     ( Term =.. [Name, Left, Right],
@@ -1846,8 +1846,8 @@ rportray(Term, OptL) :-
       term_priority_gnd(Term, M, 2, RP),
       merge_options([priority(RP)], OptL, OptL2),
       write_pos_lines(Pos2,
-                      ( write(Name),
-                        write(Space),
+                      ( write_q(Name, Opt2),
+                        write_t(Space, Opt2),
                         write(''),
                         write_term(Right, OptL2)
                       ), Lines),
@@ -1858,14 +1858,18 @@ rportray(Term, OptL) :-
         atom_concat(Indent, Atom, Line),
         write_t(Atom, OptL2)
       ; write_pos_lines(Pos,
-                        ( write(Name),
-                          write(Space),
+                        ( write_q(Name, Opt2),
+                          write_t(Space, Opt2),
                           write(''),
                           write_term(Right, OptL2)
                         ), Lines2),
-        length(Lines2, Height2),
-        length(Lines,  Height),
-        ( Height2 < Height
+        ( ( maplist(string_length, Lines, WidthL),
+            max_list(WidthL, Width),
+            Width > TermWidth
+          ; length(Lines2, Height2),
+            length(Lines,  Height),
+            Height2 < Height
+          )
         ->nl,
           atomic_list_concat(Lines2, '\n', Atom)
         ; Lines = [Line1|Tail],
@@ -1891,15 +1895,12 @@ rportray(Term, OptL) :-
       maplist(write_term_lines(Pos, Opt1), Args, LinesL),
       pos_indent(Pos, Indent),
       foldl(collect_args(Indent, TermWidth), LinesL, (Pos-2)-[_|T], _-[]),
-      atomics_to_string(T, S),
-      format(atom(Atom), "~a(~s)", [Name, S]),
-      write_t(Atom, Opt1)
-      % atomic_list_concat(T, Atom),
-      % write_q(Name, Opt1),
-      % write(''),
-      % write_t('(',  Opt1),
-      % write_t(Atom, Opt1),
-      % write_t(')',  Opt1)
+      atomic_list_concat(T, Atom),
+      write_q(Name, Opt1),
+      write(''),
+      write_t('(',  Opt1),
+      write_t(Atom, Opt1),
+      write_t(')',  Opt1)
     ),
     !.
 
@@ -1926,6 +1927,22 @@ pos_value(Pos, Value) :-
     ->get_output_position(Value)
     ; fail
     ).
+
+term_arithexpression(X, M) :-
+    substitute(sanitize_hacks, X, Y),
+    compat_arithexpression(Y, M).
+
+sanitize_hacks(Term, Into) :-
+    nonvar(Term),
+    memberchk(Term, ['$sb'(_), '$sb'(_, _, _, _, _, Into)]).
+
+compat_arithexpression(X, _) :- var(X), !.
+compat_arithexpression(X, _) :- number(X), !.
+compat_arithexpression(X, M) :- arithmetic:evaluable(X, M), !.
+compat_arithexpression(X, M) :-
+    callable(X),
+    current_arithmetic_function(X),
+    forall((compound(X), arg(_, X, V)), compat_arithexpression(V, M)).
 
 arithexpression(X) :- number(X), !.
 arithexpression(X) :-
@@ -2520,6 +2537,12 @@ ctrl((_ ,   _)).
 ctrl((_ ;   _)).
 ctrl((_ ->  _)).
 ctrl((_ *-> _)).
+
+skip_format(_/_).
+skip_format('$VAR'(_)).
+skip_format(_:_).
+
+compact_format(_-_).
 
 body_meta_arg(_, Term, Spec, Meta) :-
     ( Spec = 0,
