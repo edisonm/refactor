@@ -568,8 +568,7 @@ gen_module_command(SentPattern, Options, Expand, TermPos, Expanded, LinearTerm,
     ),
     set_context_value(singletons, SVarL),
     set_context_value(variable_names, RVNL),
-    substitute_term_level(Level, M, Linear, 1200, Term,
-                          Into, Expander, TermPos, Cmd),
+    substitute_term_level(Level, M, Linear, 1200, Term, Into, Expander, TermPos, Cmd),
     nb_setarg(1, S, yes).
 
 cond_cut_once(once).
@@ -924,36 +923,37 @@ refactor_location(From) :-
       From = file(File, Line, -1, _)
     ).
 
-with_context(Sent, Term, Pattern1, Into1, Pattern, Into, VNL, Goal) :-
+with_context(Sent, Term1, Pattern1, Into1, Pattern, Into, VNL, Goal) :-
     copy_term(Pattern1-Into1, Pattern-Into2),
     refactor_context(sentence, Sent),
     refactor_context(sent_pattern, Sent),
-    Pattern1 = Term,
-    copy_term(Term-Into1, Term2-Into3),
+    Pattern1 = Term1,
+    copy_term(Pattern1-Into1, Pattern3-Into3),
     with_pattern_into(Goal, Pattern, Into2), % Allow changes in Pattern1/Into1
     term_variables(Pattern, Vars2), % Variable bindings in Pattern
-    %% Apply changes to Pattern/Into and bind Vars:
+    % Apply changes to Pattern/Into and bind Vars:
     copy_term(t(Pattern, Into2, Vars2), t(Pattern1, Into1, Vars1)),
-    copy_term(t(Pattern, Into2, Vars2), t(Term2,    Into3, Vars3)),
-    gen_new_variable_names(Sent, Term, Into1, VNL),
+    copy_term(t(Pattern, Into2, Vars2), t(Pattern3, Into3, Vars3)),
+    gen_new_variable_names(Sent, Term1, Into1, VNL),
     pairs_keys_values(Pairs, Vars1, Vars2),
     pairs_keys_values(Triplets, Pairs, Vars3),
-    map_subterms(p(Triplets, Pattern1, Pattern, Term2, VNL, Into2, Into3), Into1, Into2, Into).
+    % Example: replace_sentence(f(A, B), g(A, B), refactor_context(pattern, f(g(X),Y)), [file(p1)])
+    % in term: f(g(a), f(B))
+    % lead to: Pattern1 = f(g(a), f(B)), Pattern = f(g(C), D), Pattern3 = f(g(a), E)
+    map_subterms(p(Triplets, Pattern1, Pattern, Pattern3, VNL, Into2, Into3), Into1, Into2, Into).
 
-map_subterms(Params, T1, T2, T) :-
-    Params = p(Triplets, P1, P2, P3, VNL, Into1, Into2),
+map_subterms(p(Triplets, P1, P2, P3, VNL, Into2, Into3), T1, T2, T) :-
     ( member(X1-X2-X3, Triplets),
       X2 == T2
     ; member(X1-X2-X3, Triplets),
       same_term(X1, T1)         % ===/2
-    ; sub_term(P1, P2, P3, X1, X2, X3),
-      \+ atomic(X1), % Special case: ignore atomics
-      same_term(X1, T1)         % ===/2
-    ; sub_term(P1, P2, P3, X1, X2, X3),
-      \+ atomic(X1), % Special case: ignore atomics
-      X2 == T2
-    ),
-    !,
+    ; ( sub_term(P1, P2, P3, X1, X2, X3),
+        same_term(X1, T1)       % ===/2
+      ; sub_term(P1, P2, P3, X1, X2, X3),
+        X2 == T2
+      ), \+ atomic(X1) % Special case: ignore atomics, otherwise you would print a variable instead
+    )
+    ->
     ( T1 == T2
     ->T = X1
     ; \+ ( member(_=V1, VNL),
@@ -963,13 +963,13 @@ map_subterms(Params, T1, T2, T) :-
          )
     ->( X2 =@= X3,
         \+ same_term(X1, T1),
-        occurrences_of_var(X2, Into1, N),
-        occurrences_of_var(X3, Into2, N)
+        occurrences_of_var(X2, Into2, N),
+        occurrences_of_var(X3, Into3, N)
       ->T = X1
       ; T = X2
       )
-    ; map_subterms_2(Params, T1, T2, T)
-    ).
+    ),
+    !.
 map_subterms(Params, T1, T2, T) :-
     map_subterms_2(Params, T1, T2, T).
 
@@ -1074,21 +1074,21 @@ gen_new_variable_names(Sent, Term, Into, VNL) :-
 %
 %   Non-recursive version of substitute_term_rec//6.
 
-substitute_term_norec(Sub, M, Term, Priority, Pattern, Into1, Expander, TermPos1, OutPos,
-                      subst(TermPos, Priority, Pattern3, GTerm, VNL, Into, Size)) :-
+substitute_term_norec(Sub, M, Term, Priority, Pattern1, Into1, Expander, TermPos1, OutPos,
+                      subst(TermPos, Priority, Pattern, GTerm, VNL, Into, Size)) :-
     refactor_context(sentence,     Sent),
     refactor_context(sent_pattern, SentPattern),
-    subsumes_term(SentPattern-Pattern, Sent-Term),
+    subsumes_term(SentPattern-Pattern1, Sent-Term),
     copy_term(Sent, Sent2),
     refactor_context(options, Options),
     option(decrease_metric(Metric), Options, ref_replace:pattern_size),
-    call(Metric, Term, Pattern, Size),
-    with_termpos(( with_context(Sent, Term, Pattern, Into1, Pattern1, Into2, VNL, Expander),
+    call(Metric, Term, Pattern1, Size),
+    with_termpos(( with_context(Sent, Term, Pattern1, Into1, Pattern2, Into2, VNL, Expander),
                    check_bindings(Sent, Sent2, Options)
                  ), TermPos1),
-    greatest_common_binding(Pattern1, Into2, Pattern2, Into3, [[]], Unifier, []),
-    perform_substitution(Sub, Priority, M, Term, VNL, Pattern2, Into3, Unifier,
-                         TermPos1, OutPos, Options, TermPos, Pattern3, GTerm, Into).
+    greatest_common_binding(Pattern2, Into2, Pattern3, Into3, [[]], Unifier, []),
+    perform_substitution(Sub, Priority, M, Term, VNL, Pattern3, Into3, Unifier,
+                         TermPos1, OutPos, Options, TermPos, Pattern, GTerm, Into).
 
 check_bindings(Sent, Sent2, Options) :-
     ( Sent=@=Sent2
