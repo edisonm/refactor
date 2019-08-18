@@ -45,7 +45,7 @@ diff -ruN exapp.pl -
  :- style_check(-singleton).
  exls(L) :-
 -    append([a], /* 0 */ [ /* 1 */ ] /* 2 */, L).
-+    L = [a/* 0 */  /* 2 */].
++    L = [a].
  exls(L) :-
 -    append([a], [f(_B) /* 1 */] /*2*/, L).
 +    L = [a, f(_B) /* 1 */ /*2*/].
@@ -64,7 +64,6 @@ diff -ruN exapp.pl -
 +    C = [ [ _, [ A1 ] ], [ _, [ A2 ] ], [ _, [ T ] ] ].
 */
 
-%% This test will stop failing when we implement atomic replacements in with_context/8
 test(exapp_2) :-
     execute_test(exapp, exapp_2,
                  replace_term(append(A,B,C),C=L$@A,(is_list(A),append(A,B,L))),

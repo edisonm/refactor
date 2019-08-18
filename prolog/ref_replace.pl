@@ -1171,26 +1171,35 @@ perform_substitution(Sub, Priority, M, Term, VNL, Pattern1, Into1, BindingL,
        The predicate performs destructive assignment (as in imperative
        languages), modifying term position once the predicate is called */
     fix_subtermpos(Pattern, Into2, Sub, OutPos, Options),
+    add_atomicvar_locations(Term1, TermPos, VNL, Into2, Into3),
     with_context_values(subst_term(TermPos, M, Pattern, GTerm, Priority, Term1),
                         [subst_vars, bind, new_varnames], [[], BindingL, VNL]),
-    % after subst_term, in case some variables from Term3 reappear
-    shared_variables(VNL, Term1, Into2, V5),
-    maplist(subst_fvar(M, Term1, TermPos, GTerm), V5),
-    special_term(Sub, Pattern, Into2, Into),
+    special_term(Sub, Pattern, Into3, Into),
     % This looks like a kludge (test bind1)
     maplist(collapse_bindings, BindingL),
     !.
 
 collapse_bindings(A=B) :- ignore(A=B).
 
-subst_fvar(M, Term, Pos, GTerm, V) :-
-    ( get_position_gterm(M, Term, Pos, GTerm, V, GPos, _G, _P)
-    ->( GPos = none
-      ->V=[]
-      ; V='$sb'(GPos)
-      )
-    ; true % already unified
-    ).
+% TBD: merge subst_term with this:
+add_atomicvar_locations(Term, Pos, VNL, Into1, Into) :-
+    sub_term(Sub1, Into1),
+    once(subterm_location_eq(TermLoc, Sub1, Term)),
+    subterm_location(ArgLoc, Arg1, Sub1),
+    once(( var(Arg1),
+           \+ ( member(_ = Var, VNL),
+                Arg1 == Var
+              )
+         ; atomic(Arg1),
+           Arg1 \== []
+         )),
+    !,
+    subpos_location(TermLoc, Pos, TermPos1),
+    subpos_location(ArgLoc, TermPos1, Arg1Pos),
+    substitute_value(Arg1, '$sb'(Arg1Pos), Sub1, Sub2),
+    substitute_value(Sub1, Sub2, Into1, Into2),
+    add_atomicvar_locations(Term, Pos, VNL, Into2, Into).
+add_atomicvar_locations(_, _, _, Into, Into).
 
 %!  trim_fake_pos(+TermPos, -Pos, -N)
 %
@@ -1211,30 +1220,6 @@ trim_fake_args(N, Term1, Term) :-
       Term =.. ATerm
     ->true
     ; Term = Term1
-    ).
-
-shared_variables(VNL, Term1, Term2, Var) :-
-    term_variables(Term1, Var1),
-    term_variables(Term2, Var2),
-    partition(is_eq(VNL, Var1), Var2, Var, _).
-
-is_eq(VNL, Var1L, Var2) :-
-    member(Var1, Var1L),
-    Var1==Var2,
-    \+ ( member(_=Var3, VNL),
-         Var2==Var3
-       ),
-    !.
-
-get_position_gterm(M, Term, Pos, GTerm, T, GPos, G, GPriority) :-
-    subterm_location_eq(L, T, Term),
-    subpos_location(L, Pos, GPos),
-    ( append(L1, [E], L) ->
-      subterm_location(L1, GP, GTerm),
-      subterm_location([E], G, GP),
-      term_priority(GP, M, E, GPriority)
-    ; GPriority = 999,
-      subterm_location(L, G, GTerm)
     ).
 
 get_innerpos(From, To, IFrom, ITo) :-
@@ -2322,7 +2307,7 @@ escape_term('$BODYB'(_, _)).
 escape_term('$BODYB'(_)).
 
 special_term('$sb'(_)).
-special_term('$sb'(_, _, _, _, _)).
+special_term('$sb'(_, _, _, _, _, _)).
 
 valid_op_type_arity(xf,  1).
 valid_op_type_arity(yf,  1).
