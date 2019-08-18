@@ -34,7 +34,7 @@ diff -ruN exapp.pl -
 test(exapp_1) :-
     execute_test(exapp, exapp_1,
                  replace_term(append(A,B,C), C=L, (is_list(A),append(A,B,L))),
-                 [linear_term(yes)]).
+                 [linearize([term])]).
 
 /* $exapp_2$
 diff -ruN exapp.pl -
@@ -64,10 +64,11 @@ diff -ruN exapp.pl -
 +    C = [ [ _, [ A1 ] ], [ _, [ A2 ] ], [ _, [ T ] ] ].
 */
 
+%% This test will stop failing when we implement atomic replacements in with_context/8
 test(exapp_2) :-
     execute_test(exapp, exapp_2,
                  replace_term(append(A,B,C),C=L$@A,(is_list(A),append(A,B,L))),
-                 [linear_term(yes)]).
+                 [linearize([atom, term])]).
 
 /* $exapp_3$
 diff -ruN exapp.pl -

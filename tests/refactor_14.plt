@@ -30,9 +30,9 @@ diff -ruN ex14.pl -
 -    f(A, 'b') = f(a, B),
 -    \+ A,
 -    \+ B.
-+ex14(a, b) :-
++ex14(a, 'b') :-
 +    \+ a,
-+    \+ b.
++    \+ 'b'.
  
 -ex14(A, B) :-
 -    B = [x|T],
@@ -44,7 +44,14 @@ diff -ruN ex14.pl -
 
 test(ex14_1) :-
     execute_test(ex14, ex14_1,
-                 replace_sentence((Head :- A=B, Body), (Head1$@Head :- Body1$@Body), (unifiable(A,B,L),substitute_values(L,Head-Body,Head1-Body1))), []).
+                 replace_sentence((Head :- A=B, Body), (Head1$@Head :- Body1$@Body), (unifiable(A,B,L1), maplist(fix_order(Head-Body), L1, L), substitute_values(L,Head-Body,Head1-Body1))), [linearize([atom])]).
+
+fix_order(Term, A=B, Eq) :-
+    ( occurrences_of_var(A, Term, N),
+      N > 0
+    ->Eq = (A = B)
+    ; Eq = (B = A)
+    ).
 
 /* $ex14_2$
 diff -ruN ex14.pl -

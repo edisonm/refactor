@@ -25,6 +25,8 @@ diff -ruN atomic.pl -
 test(atomic) :-
     execute_test(atomic,
                  replace_term((t(T), B), C$@B,
-                              substitute_value(T, [t/n], B, C)), [file(atomic)]).
+                              ( B = l([_, e(X)]),
+                                substitute_value(T, [t/X], B, C)
+                              )), [file(atomic), linearize([atom])]).
 
 :- end_tests(refactor_32).

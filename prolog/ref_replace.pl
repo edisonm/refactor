@@ -63,6 +63,7 @@
 :- use_module(library(codesio)).
 :- use_module(library(lists)).
 :- use_module(library(option)).
+:- use_module(library(neck)).
 :- use_module(library(context_values)).
 :- use_module(library(foldnl)).
 :- use_module(library(term_size)).
@@ -77,9 +78,10 @@
 :- use_module(library(sequence_list)).
 :- use_module(library(clambda)).
 :- use_module(library(mapnlist)).
-:- use_module(library(mklinear)).
+:- use_module(library(linearize)).
 :- use_module(library(substitute)).
 :- use_module(library(subpos_utils)).
+:- use_module(library(transpose)).
 :- use_module(library(option_utils)).
 
 :- thread_local
@@ -318,9 +320,8 @@ with_styles(Goal, StyleL) :-
                        Goal,
                        maplist(style_check, OldStyleL)).
 
-% Note: To avoid that this hook be applied more than once, we record the
-% positions already refactorized in ref_position/3.
-%
+% Note: To avoid this hook be applied more than once, we record the positions
+% already refactorized in ref_position/3.
 
 remove_attribute(Attr, Var) :-
     del_attr(Var, Attr).
@@ -419,7 +420,7 @@ ec_term_level_each(Level, Term, Into, Expander, Options1) :-
            conj_width(ConjWidth)-120, % In (_,_), try to wrap lines
            term_width(TermWidth)-120, % In terms, try to wrap lines
            list_width(ListWidth)-120, % In lists, try to wrap lines
-           linear_term(LinearTerm)-no,
+           linearize(Linearize)-[],
            sentence(SentPattern)-SentPattern,
            comments(Comments)-Comments,
            expand(Expand)-DExpand,
@@ -486,7 +487,7 @@ ec_term_level_each(Level, Term, Into, Expander, Options1) :-
           param_file_module(MFileParam, M, File),
           fetch_sentence_file(
               Index, FixPoint, Max, M, File, SentPattern, Options, Expand,
-              TermPos, VNL, Expanded, LinearTerm, Linear, Bindings, Level, Term,
+              TermPos, VNL, Expanded, Linearize, Linear, Bindings, Level, Term,
               Into, Expander)
         ),
         '$set_source_module'(_, OldM)).
@@ -525,7 +526,7 @@ norec_ff(true,       true).
 norec_ff(none,       none).
 
 fetch_sentence_file(Index, FixPoint, Max, M, File, SentPattern, Options,
-                    Expand, TermPos, VNL, Expanded, LinearTerm,
+                    Expand, TermPos, VNL, Expanded, Linearize,
                     Linear, Bindings, Level, Term, Into, Expander) :-
     level_rec(Level, Rec),
     rec_fixpoint_file(Rec, FixPoint, FPFile),
@@ -534,11 +535,14 @@ fetch_sentence_file(Index, FixPoint, Max, M, File, SentPattern, Options,
         apply_commands(
             Index, File, Level, M, Rec, FixPoint, Max,
             gen_module_command(
-                SentPattern, Options, Expand, TermPos, Expanded, LinearTerm,
+                SentPattern, Options, Expand, TermPos, Expanded, Linearize,
                 Linear, VNL, Bindings, Term, Into, Expander))).
 
 binding_varname(VNL, Var=Term) -->
-    ( { member(Name=Var1, VNL),
+    ( { atomic(Term),
+        Term \= [],  
+        atomic_concat('_Atm_', Term, Name)
+      ; member(Name=Var1, VNL),
         Var1==Term
       }
     ->[Name=Var]
@@ -552,12 +556,12 @@ collect_singletons(Term, VNL, SVarL) :-
     sort(UnnU, UnnL),
     ord_subtract(VarL, UnnL, SVarL).
 
-gen_module_command(SentPattern, Options, Expand, TermPos, Expanded, LinearTerm,
+gen_module_command(SentPattern, Options, Expand, TermPos, Expanded, Linearize,
                    Linear, VNL, Bindings, Term, Into, Expander, Level, M, Cmd, In) :-
     ref_fetch_term_info(SentPattern, Sent, Options, In, Once),
     b_setval('$variable_names', VNL),
     expand_if_required(Expand, M, Sent, TermPos, In, Expanded),
-    make_linear_if_required(Sent, LinearTerm, Linear, Bindings),
+    make_linear_if_required(Sent, Linearize, Linear, Bindings),
     foldl(binding_varname(VNL), Bindings, RVNL, VNL),
     collect_singletons(Linear, RVNL, SVarL),
     S = solved(no),
@@ -603,12 +607,11 @@ expand_if_required(Expand, M, Sent, TermPos, In, Expanded) :-
     M = CM,
     prolog_source:update_state(Sent, Expanded, M).
 
-make_linear_if_required(Sent, LinearTerm, Linear, Bindings) :-
-    ( LinearTerm = no
-    ->Sent=Linear,
-      Bindings = []
-    ; mklinear(Sent, Linear, Bindings)
-    ).
+make_linear_if_required(Sent, Linearize, Linear, Bindings) :-
+    foldl(linearize, Linearize, Sent-Bindings, Linear-[]).
+
+linearize(Which, Sent-Bindings1, Linear-Bindings) :-
+    linearize(Which, Sent, Linear, Bindings1, Bindings).
 
 prolog:xref_open_source(File, Fd) :-
     nb_current(ti_open_source, yes),
@@ -935,100 +938,113 @@ with_context(Sent, Term1, Pattern1, Into1, Pattern, Into, VNL, Goal) :-
     copy_term(t(Pattern, Into2, Vars2), t(Pattern1, Into1, Vars1)),
     copy_term(t(Pattern, Into2, Vars2), t(Pattern3, Into3, Vars3)),
     gen_new_variable_names(Sent, Term1, Into1, VNL),
-    pairs_keys_values(Pairs, Vars1, Vars2),
-    pairs_keys_values(Triplets, Pairs, Vars3),
+    compound_generalizations(Vars1, Vars2, Vars3, Triplets),
     % Example: replace_sentence(f(A, B), g(A, B), refactor_context(pattern, f(g(X),Y)), [file(p1)])
     % in term: f(g(a), f(B))
     % lead to: Pattern1 = f(g(a), f(B)), Pattern = f(g(C), D), Pattern3 = f(g(a), E)
-    map_subterms(p(Triplets, Pattern1, Pattern, Pattern3, VNL, Into2, Into3), Into1, Into2, Into).
+    foldl(nf_map_subterm(1, VNL, Into1, Into2, Into3), Triplets, Into1, I2),
+    map_subterms(2, VNL, Into1, Into2, Into3, Pattern1-Pattern-Pattern3, I2, Into).
 
-map_subterms(p(Triplets, P1, P2, P3, VNL, Into2, Into3), T1, T2, T) :-
-    ( member(X1-X2-X3, Triplets),
-      X2 == T2
-    ; member(X1-X2-X3, Triplets),
-      same_term(X1, T1)         % ===/2
-    ; ( sub_term(P1, P2, P3, X1, X2, X3),
-        same_term(X1, T1)       % ===/2
-      ; sub_term(P1, P2, P3, X1, X2, X3),
-        X2 == T2
-      ), \+ atomic(X1) % Special case: ignore atomics, otherwise you would print a variable instead
-    )
-    ->
-    ( T1 == T2
-    ->T = X1
-    ; \+ ( member(_=V1, VNL),
-           sub_term(V2, X1),
-           var(V2),
-           V2 == V1
-         )
-    ->( X2 =@= X3,
-        \+ same_term(X1, T1),
-        occurrences_of_var(X2, Into2, N),
-        occurrences_of_var(X3, Into3, N)
+subst_sub(1, X1, T1, X2, T2) :-
+    ( X2 == T2
+    ; same_term(X1, T1)
+    ).
+subst_sub(2, X1, T1, X2, T2) :-
+    ( same_term(X1, T1)
+    ; X2 == T2
+    ).
+
+nf_map_subterm(Stage, VNL, Into1, Into2, Into3, Triplet) -->
+    ( map_subterm(Stage, VNL, Into1, Into2, Into3, Triplet)
+    ->[]
+    ; []
+    ).
+
+map_subterm(Stage, VNL, Into1, Into2, Into3, X1-X2-X3, Into4, Into) :-
+    ( sub_term(Into1, Into2, T1, T2),
+      subst_sub(Stage, X1, T1, X2, T2)
+    ->( T1 == T2
       ->T = X1
-      ; T = X2
-      )
-    ),
-    !.
-map_subterms(Params, T1, T2, T) :-
-    map_subterms_2(Params, T1, T2, T).
+      ; \+ ( member(_=V1, VNL),
+             sub_term(V2, X1),
+             var(V2),
+             V2 == V1
+           )
+      ->( X2 =@= X3,
+          \+ same_term(X1, T1),
+          occurrences_of_var(X2, Into2, N),
+          occurrences_of_var(X3, Into3, N)
+          % If the modification of Pattern didn't generate new variables
+        ->T = X1
+        ; T = X2
+        )
+      ),
+      T1 \== T,
+      substitute_value(T1, T, Into4, Into)
+    ).
 
-sub_term(P1, P2, P3, P1, P2, P3).
-sub_term(P1, P2, P3, X1, X2, X3) :-
+map_subterms(Stage, VNL1, Into1, Into2, Into3, Triplet) -->
+    ( map_subterm(Stage, VNL1, Into1, Into2, Into3, Triplet)
+    ->[]
+    ; {ord_sub_terms(VNL1, VNL, Triplet, Triplets)}, % get sub terms from bigger to smaller size
+      foldl(map_subterms(Stage, VNL, Into1, Into2, Into3), Triplets)
+    ).
+
+%%  compound_generalizations(List1, List2, List3, Triplets) is det.
+%
+%   Compound the input lists in triplets, and reverse order them wrt the term
+%   size.  This is required to avoid replacement of a small term in a bigger
+%   term that otherwise would have been replaced as well.
+%
+%   TBD: needs optimization to reduce the speed in one order of magnitude
+%   (term_size is called per each subterm over and over)
+compound_generalizations(Args1, Args2, Args3, Triplets) :-
+    maplist(term_size, Args1, Sizes1),
+    transpose([Sizes1, Args1, Args2, Args3], ArgsLU),
+    sort(ArgsLU, ArgsLR),
+    reverse(ArgsLR, ArgsLL),
+    maplist(list4_to_triplets, ArgsLL, Triplets).
+
+ord_sub_terms(VNL1, VNL, X1-X2-X3, Triplets) :-
+    compound(X1),
+    compound(X3),
+    once(sub_term_args(X1, X2, X3, VNL1, VNL, Args1, Args2, Args3)),
+    compound_generalizations(Args1, Args2, Args3, Triplets),    
+    !.
+ord_sub_terms(VNL, VNL, X1-X2-X3, []) :-
+    atomic(X1),
+    !,
+    X2 = X1,
+    X3 = X1.
+ord_sub_terms(VNL, VNL, _, []).
+
+sub_term_args('$G'(T1, _), '$G'(T2, _), '$G'(T3, _), VNL, VNL, [T1], [T2], [T3]).
+sub_term_args('$C'(_, T1), '$C'(_, T2), '$G'(_, T3), VNL, VNL, [T1], [T2], [T3]).
+sub_term_args('$@'(X1, Y1), '$@'(X2, Y2), '$@'(X3, Y3), _, [], [X1, Y1], [X2, Y2], [X3, Y3]).
+sub_term_args('@@'(X1, Y1), '@@'(X2, Y2), '@@'(X3, Y3), _, [], [X1, Y1], [X2, Y2], [X3, Y3]).
+sub_term_args(X1, X2, X3, VNL, VNL, Args1, Args2, Args3) :-
+    compound_name_arguments(X1, F, Args1),
+    compound_name_arity(X1, F, Arity),
+    compound_name_arity(X2, F, Arity),
+    compound_name_arguments(X2, F, Args2),
+    compound_name_arguments(X3, F, Args3).
+
+list4_to_triplets([_, X1, X2, X3], X1-X2-X3).
+
+sub_term(P1, P2, P1, P2).
+sub_term(P1, P2, X1, X2) :-
     compound(P1),
-    functor(P1, F, N),
-    functor(P2, F, N),
-    functor(P3, F, N),
+    % compound(P2),
+    compound_name_arity(P1, F, N),
+    compound_name_arity(P2, F, N),
     arg(I, P1, A1),
     arg(I, P2, A2),
-    arg(I, P3, A3),
-    sub_term(A1, A2, A3, X1, X2, X3).
-
-map_subterms_2(Params, T1, T2, T) :-
-    compound(T1), !,
-    map_compound(Params, T1, T2, T).
-map_subterms_2(_, T, _, T).
-
-% Special case: preserve Goal
-map_compound(Params,
-             '$G'(T1, G),
-             '$G'(T2, _),
-             '$G'(T,  G)) :-
-    !,
-    map_subterms(Params, T1, T2, T).
-% Special case: preserve Goal
-map_compound(Params,
-             '$C'(G, T1),
-             '$C'(_, T2),
-             '$C'(G, T )) :-
-    !,
-    map_subterms(Params, T1, T2, T).
-map_compound(Params,
-             '$@'(X1, Y1),
-             '$@'(X2, Y2),
-             '$@'(X,  Y)) :- !,
-    map_subterms(Params, X1, X2, X),
-    Params=p(Triplets, P1, P2, P3, _, Into1, Into2),
-    map_subterms(p(Triplets, P1, P2, P3, [], Into1, Into2), Y1, Y2, Y).
-map_compound(Params,
-             '@@'(X1, Y1),
-             '@@'(X2, Y2),
-             '@@'(X,  Y)) :- !,
-    map_subterms(Params, X1, X2, X),
-    Params=p(Triplets, P1, P2, P3, _, Into1, Into2),
-    map_subterms(p(Triplets, P1, P2, P3, [], Into1, Into2), Y1, Y2, Y).
-map_compound(Params, T1, T2, T) :-
-    functor(T1, F, N),
-    functor(T2, F, N),
-    functor(T,  F, N),
-    T1 =.. [F|Args1],
-    T2 =.. [F|Args2],
-    T  =.. [F|Args],
-    maplist(map_subterms(Params), Args1, Args2, Args).
+    sub_term(A1, A2, X1, X2).
 
 special_term(top,    Pattern, Term, '$LISTC'(List)) :-
     nonvar(Pattern),
-    memberchk(Pattern, [[], end_of_file]), !,
+    memberchk(Pattern, [[], end_of_file]),
+    !,
     ( \+ is_list(Term)
     ->List = [Term]
     ; List = Term
@@ -1079,8 +1095,8 @@ substitute_term_norec(Sub, M, Term, Priority, Pattern1, Into1, Expander, TermPos
     refactor_context(sentence,     Sent),
     refactor_context(sent_pattern, SentPattern),
     subsumes_term(SentPattern-Pattern1, Sent-Term),
-    copy_term(Sent, Sent2),
     refactor_context(options, Options),
+    copy_term(Sent, Sent2),
     option(decrease_metric(Metric), Options, ref_replace:pattern_size),
     call(Metric, Term, Pattern1, Size),
     with_termpos(( with_context(Sent, Term, Pattern1, Into1, Pattern2, Into2, VNL, Expander),
@@ -1169,7 +1185,10 @@ collapse_bindings(A=B) :- ignore(A=B).
 
 subst_fvar(M, Term, Pos, GTerm, V) :-
     ( get_position_gterm(M, Term, Pos, GTerm, V, GPos, _G, _P)
-    ->V='$sb'(GPos)
+    ->( GPos = none
+      ->V=[]
+      ; V='$sb'(GPos)
+      )
     ; true % already unified
     ).
 
@@ -1905,7 +1924,7 @@ rportray(Term, OptL) :-
     !.
 
 pos_indent(Pos, Indent) :- with_output_to(atom(Indent), line_pos(Pos)).
-    
+
 collect_args(Indent, TermWidth, LineL, Pos1-[Sep, String|T], Pos-T) :-
     ( LineL = [Line1],
       string_concat(Indent, String, Line1),
@@ -1947,7 +1966,7 @@ compat_arithexpression(X, M) :-
 arithexpression(X) :- number(X), !.
 arithexpression(X) :-
     current_arithmetic_function(X),
-    forall(arg(_, X, V), arithexpression(V)).
+    forall((compound(X), arg(_, X, V)), arithexpression(V)).
 
 offset_pos(Offs, Pos) :-
     substitute(pos_value, Offs, Expr),
@@ -2431,7 +2450,7 @@ print_expansion_pos(parentheses_term_position(From, To, TermPos), Into, Pattern,
     print_subtext(Text, From, AFrom),
     merge_options([priority(1200)], Options1, Options),
     print_expansion_elem(Options, Text, 1, 1, ATo-To, TermPos, Into, Pattern-GTerm, _, true).
-print_expansion_pos(TermPos, Into, _Pattern, GTerm, _, Text) :-
+print_expansion_pos(TermPos, Into, _, GTerm, _, Text) :-
     Into == GTerm,
     arg(1, TermPos, From),
     arg(2, TermPos, To),
@@ -2450,6 +2469,7 @@ print_subtext(Text, From, To) :-
     print_text(SubText).
 
 get_subtext(RefPos, Text, SubText) :-
+    compound(RefPos),
     arg(1, RefPos, From),
     arg(2, RefPos, To),
     get_subtext(Text, From, To, SubText).

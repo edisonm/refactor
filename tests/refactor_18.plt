@@ -13,7 +13,7 @@ diff -ruN ex18.pl -
  
 -ex18(C) :-
 -    C=M : H,
-+ex18(M : H) :-
++ex18(M:H) :-
      p(M:H).
  
  p(_C).
