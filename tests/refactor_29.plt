@@ -67,7 +67,7 @@ diff -ruN exapp.pl -
 test(exapp_2) :-
     execute_test(exapp, exapp_2,
                  replace_term(append(A,B,C),C=L$@A,(is_list(A),append(A,B,L))),
-                 [linearize([atom, term])]).
+                 [linearize([term])]).
 
 /* $exapp_3$
 diff -ruN exapp.pl -

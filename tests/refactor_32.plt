@@ -27,6 +27,6 @@ test(atomic) :-
                  replace_term((t(T), B), C$@B,
                               ( B = l([_, e(X)]),
                                 substitute_value(T, [t/X], B, C)
-                              )), [file(atomic), linearize([atom])]).
+                              )), [file(atomic)]).
 
 :- end_tests(refactor_32).

@@ -44,7 +44,7 @@ diff -ruN ex14.pl -
 
 test(ex14_1) :-
     execute_test(ex14, ex14_1,
-                 replace_sentence((Head :- A=B, Body), (Head1$@Head :- Body1$@Body), (unifiable(A,B,L1), maplist(fix_order(Head-Body), L1, L), substitute_values(L,Head-Body,Head1-Body1))), [linearize([atom])]).
+                 replace_sentence((Head :- A=B, Body), (Head1$@Head :- Body1$@Body), (unifiable(A,B,L1), maplist(fix_order(Head-Body), L1, L), substitute_values(L,Head-Body,Head1-Body1))), []).
 
 fix_order(Term, A=B, Eq) :-
     ( occurrences_of_var(A, Term, N),
