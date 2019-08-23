@@ -1121,8 +1121,7 @@ substitute_term_norec(Sub, M, Term, TermPos1, Priority, data(Pattern1, Into1, Ex
     with_termpos(( with_context(Sent, Term, Pattern1, Into1, Pattern2, Into2, VNL, Expander),
                    check_bindings(Sent, Sent2, Options)
                  ), TermPos1),
-    greatest_common_binding(Pattern2, Into2, Pattern3, Into3, [[]], Unifier, []),
-    perform_substitution(Sub, Priority, M, Term, VNL, Pattern3, Into3, Unifier,
+    perform_substitution(Sub, Priority, M, Term, VNL, Pattern2, Into2,
                          TermPos1, SentPos, Options, TermPos, Pattern, GTerm, Into).
 
 check_bindings(Sent, Sent2, Options) :-
@@ -1160,7 +1159,7 @@ fix_subtermpos(top,    Into, TermPos, Options) :-
     ; fix_subtermpos(TermPos, Options)
     ).
 
-%!  perform_substitution(+Sub, +Priority, +M, +Term, +VNL, +Pattern1, +Into1, +BindingL, +TermPos1, +OutPos, +Options, -TermPos, -Pattern, -GTerm, -Into)
+%!  perform_substitution(+Sub, +Priority, +M, +Term, +VNL, +Pattern1, +Into1, +TermPos1, +OutPos, +Options, -TermPos, -Pattern, -GTerm, -Into)
 %
 %   Substitute occurences of Pattern with Into after calling
 %   expansion.
@@ -1170,8 +1169,9 @@ fix_subtermpos(top,    Into, TermPos, Options) :-
 %   @param OutPos layout of the term that includes SrcTerm
 %   @param Priority is the environment operator priority
 %
-perform_substitution(Sub, Priority, M, Term, VNL, Pattern1, Into1, BindingL,
-                     TermPos1, OutPos1, Options, TermPos, Pattern, GTerm, Into) :-
+perform_substitution(Sub, Priority, M, Term, VNL, Pattern0, Into0, TermPos1, OutPos1, Options, TermPos, Pattern, GTerm, Into) :-
+    greatest_common_binding(Pattern0, Into0, Pattern1, Into1, [[]], BindingL, []),
+    % Pattern3 = Pattern2, Into3 = Into2, Unifier = [],
     ( trim_fake_pos(TermPos1, TermPos, N)
     ->substitute_value(TermPos1, TermPos, OutPos1, OutPos),
       trim_fake_args(N, Pattern1, Pattern),
