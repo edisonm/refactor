@@ -1171,18 +1171,11 @@ fix_subtermpos(top,    Into, TermPos, Options) :-
 %
 perform_substitution(Sub, Priority, M, Term, VNL, Pattern0, Into0, TermPos1, OutPos1, Options, TermPos, Pattern, GTerm, Into) :-
     greatest_common_binding(Pattern0, Into0, Pattern1, Into1, [[]], BindingL, []),
-    % Pattern3 = Pattern2, Into3 = Into2, Unifier = [],
-    ( trim_fake_pos(TermPos1, TermPos, N)
-    ->substitute_value(TermPos1, TermPos, OutPos1, OutPos),
-      trim_fake_args(N, Pattern1, Pattern),
-      trim_fake_args(N, Into1, Into2),
-      trim_fake_args(N, Term,  Term1)
-    ; Pattern = Pattern1,
-      Into2 = Into1,
-      Term1 = Term,
-      TermPos = TermPos1,
-      OutPos = OutPos1
-    ),
+    trim_fake_pos(TermPos1, TermPos, N),
+    trim_fake_args(N, Pattern1, Pattern),
+    trim_fake_args(N, Into1, Into2),
+    trim_fake_args(N, Term,  Term1),
+    substitute_value(TermPos1, TermPos, OutPos1, OutPos),
     copy_term(t(Term1), t(GTerm)),
     /* Note: fix_subtermpos/1 is a very expensive predicate, due to that we
        delay its execution until its result be really needed, and we only
@@ -1220,20 +1213,25 @@ add_atomicvar_locations(Term, Pos, VNL, Into1, Into) :-
     add_atomicvar_locations(Term, Pos, VNL, Into2, Into).
 add_atomicvar_locations(_, _, _, Into, Into).
 
+fake_pos(T-T).
+
 %!  trim_fake_pos(+TermPos, -Pos, -N)
 %
 %   remove fake arguments that would be added by dcg
-trim_fake_pos(term_position(F, T, FF, FT, PosL1), Pos, N) :-
-    nonvar(PosL1),
-    once(( member(FE, [0-0, T-T]),
-           append(PosL, [FE|E], PosL1),
-           maplist('='(FE), E)
-         )),
-    length([_|E], N),
-    Pos = term_position(F, T, FF, FT, PosL).
+trim_fake_pos(Pos1, Pos, N) :-
+    ( nonvar(Pos1),
+      Pos1 = term_position(F, T, FF, FT, PosL1),
+      nonvar(PosL1)
+    ->partition(fake_pos, PosL1, FakePosL, PosL),
+      length(FakePosL, N),
+      Pos = term_position(F, T, FF, FT, PosL)
+    ; Pos = Pos1,
+      N = 0
+    ).
 
 trim_fake_args(N, Term1, Term) :-
-    ( Term1 =.. ATerm1,
+    ( N > 0,
+      Term1 =.. ATerm1,
       length(TE, N),
       append(ATerm, TE, ATerm1),
       Term =.. ATerm
