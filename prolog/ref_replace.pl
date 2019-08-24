@@ -108,13 +108,13 @@
     with_pattern_into(0, ?, ?),
     with_styles(0, +).
 
-%!  replace(+Level, +Term, -Into, :Expander, :Options) is det
+%!  replace(+Level, +Patt, -Into, :Expander, :Options) is det
 %
 %   Given a Level of operation, in all terms of the source code that subsumes
-%   Term, replace each Term with the term Into, provided that the goal Expander
-%   succeeds.  Expander can be used to finalize the shape of Into as well as to
-%   veto the expansion (if fails). The Options argument is used to control the
-%   behavior and scope of the predicate.
+%   Patt, replace each Patt with Into, provided that Expander succeeds.
+%   Expander can be used to finalize the shape of Into as well as to veto the
+%   expansion (if fails). The Options argument is used to control the behavior
+%   and scope of the replacement.
 %
 %   The predicate is efficient enough to be used also as a walker to capture all
 %   matches of Term, and failing to avoid the replacement. For example:
@@ -294,10 +294,10 @@
 %     predicate(+Term, +Pattern, -Size) to define the metric used to perform the
 %     decreasing control (by default pattern_size/3).
 
-replace(Level, Term, Into, Expander, MOptions) :-
+replace(Level, Patt, Into, Expander, MOptions) :-
     %% At this point we are not interested in styles
     meta_options(replace_meta_option, MOptions, Options),
-    with_styles(with_counters(do_replace(Level, Term, Into, Expander, Options),
+    with_styles(with_counters(do_replace(Level, Patt, Into, Expander, Options),
                               Options), [-singleton]).
 
 replace_meta_option(decrease_metric).
@@ -351,10 +351,10 @@ do_goal_expansion(Term, TermPos) :-
         [variable_names],
         [VNL]).
 
-do_replace(Level, Term, Into, Expander, Options) :-
+do_replace(Level, Patt, Into, Expander, Options) :-
     setup_call_cleanup(
         prepare_level(Level, Ref),
-        apply_ec_term_level(Level, Term, Into, Expander, Options),
+        apply_ec_term_level(Level, Patt, Into, Expander, Options),
         cleanup_level(Level, Ref)).
 
 prepare_level(goal, Ref) :-
@@ -618,10 +618,10 @@ ref_term_info_file(end_of_file, end_of_file, Options, In) :-
 ref_term_info_file([], [], Options, _) :-
     option(subterm_positions(0-0), Options).
 
-expand_if_required(Expand, M, Sent, TermPos, In, Expanded) :-
+expand_if_required(Expand, M, Sent, SentPos, In, Expanded) :-
     ( Expand = no
     ->Expanded = Sent
-    ; '$expand':expand_terms(prolog_source:expand, Sent, TermPos, In, Expanded)
+    ; '$expand':expand_terms(prolog_source:expand, Sent, SentPos, In, Expanded)
     ),
     '$set_source_module'(CM, CM),
     M = CM,
@@ -641,7 +641,7 @@ prolog:xref_open_source(File, Fd) :-
     ; read_file_to_string(File, Text, [])
     ),
     open_codes_stream(Text, Fd).
-    % set_context_value(text, Text). % NOTE: update_state/2 have the side effect of
+    % set_context_value(text, Text). % NOTE: update_state/2 has the side effect of
                                      % modify refactor_text
 
 substitute_term_level(goal, _, _, _, _, _, Cmd) :-
@@ -905,7 +905,7 @@ print_expansion_0(Into, Pattern, Term, TermPos, Options, Text, From, To) :-
     ; print_expansion_2(Into, Pattern, Term, TermPos, Options, Text, From, To)
     ).
 
-with_pattern_into(Goal, Pattern, Into) :-
+call_expander(Expander, TermPos, Pattern, Into) :-
     refactor_context(tries, Tries),
     refactor_context(max_tries, MaxTries),
     ( nonvar(MaxTries)
@@ -914,12 +914,12 @@ with_pattern_into(Goal, Pattern, Into) :-
     ),
     succ(Tries, Tries1),
     nb_set_context_value(tries, Tries1),
-    with_context_values(catch(once(Goal), Error,
+    with_context_values(catch(once(Expander), Error,
                               ( refactor_message(error, Error),
                                 fail
                               )),
-                        [pattern, into],
-                        [Pattern, Into]).
+                        [termpos, pattern, into],
+                        [TermPos, Pattern, Into]).
 
 %!  refactor_message(+Type, +Message) is det.
 %
@@ -945,13 +945,14 @@ refactor_location(From) :-
       From = file(File, Line, -1, _)
     ).
 
-with_context(Sent, Term1, Pattern1, Into1, Pattern, Into, VNL, Goal) :-
+with_context(TermPos1, Sent, Term1, Pattern1, Into1, Pattern, Into, VNL, Goal, Options) :-
     copy_term(Pattern1-Into1, Pattern-Into2),
-    refactor_context(sentence, Sent),
+    copy_term(Sent, Sent2),
     refactor_context(sent_pattern, Sent),
     Pattern1 = Term1,
     copy_term(Pattern1-Into1, Pattern3-Into3),
-    with_pattern_into(Goal, Pattern, Into2), % Allow changes in Pattern1/Into1
+    call_expander(Goal, TermPos1, Pattern, Into2), % Allow changes in Pattern1/Into1
+    check_bindings(Sent, Sent2, Options),
     term_variables(Pattern, Vars2), % Variable bindings in Pattern
     % Apply changes to Pattern/Into and bind Vars:
     copy_term(t(Pattern, Into2, Vars2), t(Pattern1, Into1, Vars1)),
@@ -1028,7 +1029,7 @@ ord_sub_terms(VNL1, VNL, X1-X2-X3, Triplets) :-
     compound(X1),
     compound(X3),
     once(sub_term_args(X1, X2, X3, VNL1, VNL, Args1, Args2, Args3)),
-    compound_generalizations(Args1, Args2, Args3, Triplets),    
+    compound_generalizations(Args1, Args2, Args3, Triplets),
     !.
 ord_sub_terms(VNL, VNL, X1-X2-X3, []) :-
     atomic(X1),
@@ -1105,7 +1106,7 @@ gen_new_variable_names(Sent, Term, Into, VNL) :-
     gen_new_variable_names(VarL, NameL, SVarL, Preffix, 1, Sent, Term, TInto, VNL1, VNL2),
     once(append(VNL, VNL1, VNL2)).
 
-%!  substitute_term_norec(+Sub, +M, +Term, +Priority, +Pattern, +Into, :Expander, +TermPos, OutPos, Cmd) is nondet.
+%!  substitute_term_norec(+Sub, +M, +Term, +Priority, +Pattern, +Into, :Expander, +TermPos, SentPos, Cmd) is nondet.
 %
 %   Non-recursive version of substitute_term_rec//6.
 
@@ -1118,7 +1119,7 @@ substitute_term_norec(Sub, M, Term, TermPos1, Priority, data(Pattern1, Into1, Ex
     copy_term(Sent, Sent2),
     option(decrease_metric(Metric), Options, ref_replace:pattern_size),
     call(Metric, Term, Pattern1, Size),
-    with_termpos(( with_context(Sent, Term, Pattern1, Into1, Pattern2, Into2, VNL, Expander),
+    with_termpos(( with_context(TermPos1, Sent, Term, Pattern1, Into1, Pattern2, Into2, VNL, Expander, Options),
                    check_bindings(Sent, Sent2, Options)
                  ), TermPos1),
     perform_substitution(Sub, Priority, M, Term, VNL, Pattern2, Into2,
@@ -1159,30 +1160,30 @@ fix_subtermpos(top,    Into, TermPos, Options) :-
     ; fix_subtermpos(TermPos, Options)
     ).
 
-%!  perform_substitution(+Sub, +Priority, +M, +Term, +VNL, +Pattern1, +Into1, +TermPos1, +OutPos, +Options, -TermPos, -Pattern, -GTerm, -Into)
+%!  perform_substitution(+Sub, +Priority, +M, +Term, +VNL, +Pattern1, +Into1, +TermPos1, +SentPos, +Options, -TermPos, -Pattern, -GTerm, -Into)
 %
 %   Substitute occurences of Pattern with Into after calling
 %   expansion.
 %
 %   @param Term is the term as read from the source
 %   @param TermPos is the term layout of SrcTerm
-%   @param OutPos layout of the term that includes SrcTerm
+%   @param SentPos layout of the term that includes SrcTerm
 %   @param Priority is the environment operator priority
 %
-perform_substitution(Sub, Priority, M, Term, VNL, Pattern0, Into0, TermPos1, OutPos1, Options, TermPos, Pattern, GTerm, Into) :-
+perform_substitution(Sub, Priority, M, Term, VNL, Pattern0, Into0, TermPos1, SentPos1, Options, TermPos, Pattern, GTerm, Into) :-
     greatest_common_binding(Pattern0, Into0, Pattern1, Into1, [[]], BindingL, []),
     trim_fake_pos(TermPos1, TermPos, N),
     trim_fake_args(N, Pattern1, Pattern),
     trim_fake_args(N, Into1, Into2),
     trim_fake_args(N, Term,  Term1),
-    substitute_value(TermPos1, TermPos, OutPos1, OutPos),
+    substitute_value(TermPos1, TermPos, SentPos1, SentPos),
     copy_term(t(Term1), t(GTerm)),
     /* Note: fix_subtermpos/1 is a very expensive predicate, due to that we
        delay its execution until its result be really needed, and we only
        apply it to the subterm positions being affected by the refactoring.
        The predicate performs destructive assignment (as in imperative
        languages), modifying term position once the predicate is called */
-    fix_subtermpos(Pattern, Into2, Sub, OutPos, Options),
+    fix_subtermpos(Pattern, Into2, Sub, SentPos, Options),
     add_atomicvar_locations(Term1, TermPos, VNL, Into2, Into3),
     with_context_values(subst_term(TermPos, M, Pattern, GTerm, Priority, Term1),
                         [subst_vars, bind, new_varnames], [[], BindingL, VNL]),
@@ -1322,7 +1323,7 @@ subst_term(list_position(_, To, Elms, Tail), M, Term, GTerm, _, CTerm) :-
     subst_list(Elms, M, To, Tail, Term, GTerm, CTerm).
 subst_term(_, _, _, _, _, _).
 
-%!  substitute_term_rec(+Module, +Term, +Priority, +Pattern, +Into, :Expander, +TermPos, +OutPos, Cmd) is nondet.
+%!  substitute_term_rec(+Module, +Term, +Priority, +Pattern, +Into, :Expander, +TermPos, +SentPos, Cmd) is nondet.
 %
 %   True when the DCG list contains a substitution for Pattern by Into in
 %   SrcTerm. This predicate must be cautious about handling bindings:
