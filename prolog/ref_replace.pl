@@ -430,6 +430,7 @@ ec_term_level_each(Level, Term, Into, Expander, Options1) :-
            max_changes(Max)-Max,
            variable_names(VNL)-VNL,
            vars_preffix(Preffix)-'V',
+           file(AFile)-AFile,
             % By default refactor even non loaded files
            if(Loaded)-true
           ],
@@ -438,7 +439,7 @@ ec_term_level_each(Level, Term, Into, Expander, Options1) :-
     ->MFileParam = clause(CRef),
       clause_property(CRef, line_count(Line)),
       merge_options([line(Line)], Options2, Options3)
-    ; option_module_files([if(Loaded)|Options2], MFileD),
+    ; option_module_files([if(Loaded), file(AFile)|Options2], MFileD),
       MFileParam = mfiled(MFileD),
       Options3 = Options2
     ),
@@ -479,6 +480,9 @@ ec_term_level_each(Level, Term, Into, Expander, Options1) :-
              ga(Term, Into, Expander),
              CleanupAttributes,
              false]),
+    ignore(( var(AFile),
+             File = AFile
+           )),
     setup_call_cleanup(
         ( '$current_source_module'(OldM),
           freeze(M, '$set_source_module'(_, M))
