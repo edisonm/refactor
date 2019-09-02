@@ -117,6 +117,26 @@ apply_var_renamer(Renamer, MO:Options1) :-
                  ),
                  MO:[variable_names(Dict)|Options]).
 
+/*
+apply_var_renamer(Renamer, MO:Options1) :-
+    foldl(select_option_default,
+          [variable_names(Dict)-Dict],
+          Options1, Options),
+    replace_sentence(Sent1, Sent,
+                     ( foldl(var_renamer_each(Renamer, Dict), Dict, Sent1, Sent),
+                       Sent1 \== Sent
+                     ),
+                     MO:[variable_names(Dict)|Options]).
+
+var_renamer_each(Renamer, Dict, Name1 = Var1) -->
+    ( { call(Renamer, Name1, Name),
+        \+ memberchk(Name = _, Dict)
+      }
+    ->substitute_value(Var1, '$VAR'(Name))
+    ; []
+    ).
+*/
+
 %!  rename_variable(?Name1:atom, +Name:atom, :Options) is det.
 %
 %   Rename a variable in a Term, provided that the name is new in such term.
