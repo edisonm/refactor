@@ -1197,8 +1197,8 @@ collapse_bindings(A=B) :- ignore(A=B).
 % TBD: merge subst_term with this:
 add_atomicvar_locations(Term, Pos, VNL, Into1, Into) :-
     sub_term(Sub1, Into1),
-    once(subterm_location_eq(TermLoc, Sub1, Term)),
-    subterm_location(ArgLoc, Arg1, Sub1),
+    once(location_subterm_eq(TermLoc, Sub1, Term)),
+    location_subterm_un(ArgLoc, Arg1, Sub1),
     once(( var(Arg1),
            \+ ( member(_ = Var, VNL),
                 Arg1 == Var
