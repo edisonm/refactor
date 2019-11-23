@@ -18,14 +18,14 @@ diff -ruN autovn.pl -
 
 test(autovn) :-
     execute_test(autovn,
-                  \ Options
+                 \ Options
                  ^( replace_sentence(f(A1, _A2, A3, A4, A5, A6, A7),
                                      f(A1, A3, A3, A4, A5, A5, A6, A7),
                                      Options),
                     remove_underscore_multi(Options),
                     underscore_singletons(Options)
                   ),
-                  [file(autovn)]).
+                 [file(autovn)]).
 
 /* $autovn2$
 diff -ruN autovn.pl -
@@ -41,11 +41,11 @@ diff -ruN autovn.pl -
 
 test(autovn2) :-
     execute_test(autovn2,
-                  \ Options
+                 \ Options
                  ^( replace_sentence(p(C,X), p(C,X), (X=f(_A)), Options),
                     anonymize_singletons(Options)
                   ),
-                  [file(autovn)]).
+                 [file(autovn)]).
 
 /* $autovn3$
 diff -ruN autovn.pl -
