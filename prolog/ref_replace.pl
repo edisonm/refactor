@@ -90,7 +90,7 @@
 :- multifile
     prolog:xref_open_source/2.  % +SourceId, -Stream
 
-:- dynamic
+:- thread_local
     rportray_pos/2,
     ref_position/3,
     rportray_skip/0.
@@ -368,9 +368,6 @@ cleanup_level(goal, Ref) :- !,
     retractall(ref_position(_, _, _)).
 cleanup_level(_, _).
 
-apply_ec_term_level(Level, Patt, Into, Expander, Options) :-
-    forall(ec_term_level_each(Level, Patt, Into, Expander, Options), true).
-
 with_counters(Goal, Options1) :-
     foldl(select_option_default,
           [max_tries(MaxTries)-MaxTries],
@@ -387,20 +384,14 @@ with_counters(Goal, Options1) :-
           print_message(Type,
                         format("~w changes of ~w attempts", [Count, Tries]))
         ),
-        [count,
-         tries,
-         max_tries],
-        [0,
-         0,
-         MaxTries]
+        [max_tries],
+        [MaxTries]
     ).
 
-:- public clause_file_module/3.
-
-param_file_module(clause(CRef), M, File) :-
+param_module_file(clause(CRef), M-File) :-
     clause_property(CRef, file(File)),
     clause_property(CRef, module(M)).
-param_file_module(mfiled(MFileD), M, File) :-
+param_module_file(mfiled(MFileD), M-File) :-
     get_dict(M1, MFileD, FileD),
     ( M1 = (-)
     ->true
@@ -408,12 +399,13 @@ param_file_module(mfiled(MFileD), M, File) :-
     ),
     get_dict(File, FileD, _).
 
-ec_term_level_each(Level, Patt, Into, Expander, Options1) :-
+apply_ec_term_level(Level, Patt, Into, Expander, Options1) :-
     (Level = goal -> DExpand=yes ; DExpand = no),
     (Level = sent -> SentPattern = Patt ; true), % speed up
     option(module(M), Options1, M),
     foldl(select_option_default,
-          [syntax_errors(SE)-error,
+          [max_tries(MaxTries)-MaxTries,
+           syntax_errors(SE)-error,
            subterm_positions(SentPos)-SentPos,
            term_position(Pos)-Pos,
            conj_width(ConjWidth)-120, % In (_,_), try to wrap lines
@@ -446,39 +438,6 @@ ec_term_level_each(Level, Patt, Into, Expander, Options1) :-
                subterm_positions(SentPos),
                variable_names(VNL),
                comments(Comments)|Options3],
-    maplist(set_context_value,
-            [sent_pattern,
-             sentence,
-             expanded,
-             options,
-             comments,
-             bindings,
-             subpos,
-             pos,
-             conj_width,
-             term_width,
-             list_width,
-             file,
-             preffix,
-             goal_args,
-             cleanup_attributes,
-             modified],
-            [SentPattern,
-             Sent,
-             Expanded,
-             Options,
-             Comments,
-             Bindings,
-             SentPos,
-             Pos,
-             ConjWidth,
-             TermWidth,
-             ListWidth,
-             File,
-             Preffix,
-             ga(Patt, Into, Expander),
-             CleanupAttributes,
-             false]),
     ignore(( var(AFile),
              File = AFile
            )),
@@ -486,14 +445,26 @@ ec_term_level_each(Level, Patt, Into, Expander, Options1) :-
         ( '$current_source_module'(OldM),
           freeze(M, '$set_source_module'(_, M))
         ),
-        ( index_change(Index),
-          param_file_module(MFileParam, M, File),
-          fetch_sentence_file(
-              Index, FixPoint, Max, M, File, SentPattern, Options, Expand,
-              SentPos, VNL, Expanded, Linearize, Sent, Bindings, Level,
-              data(Patt, Into, Expander, SentPos))
-        ),
+        process_sentences(
+            MFileParam, FixPoint, Max, SentPattern, Options, CleanupAttributes, M, File, Expanded, Expand,
+            ConjWidth, TermWidth, ListWidth, Pos, ga(Patt, Into, Expander), Linearize,
+            MaxTries, Preffix, Level, data(Patt, Into, Expander, SentPos)),
         '$set_source_module'(_, OldM)).
+
+process_sentences(
+    MFileParam, FixPoint, Max, SentPattern, Options, CleanupAttributes, M, File, Expanded, Expand, ConjWidth,
+    TermWidth, ListWidth, Pos, GoalArgs, Linearize, MaxTries, Preffix, Level, Data) :-
+    index_change(Index),
+    findall(MFile, param_module_file(MFileParam, MFile), MFileL),
+    concurrent_maplist(
+        process_sentence_file(
+            Index, FixPoint, Max, SentPattern, Options, CleanupAttributes, M, File,
+            Expanded, Expand, ConjWidth, TermWidth, ListWidth, Pos, GoalArgs, Linearize,
+            MaxTries, Preffix, Level, Data), MFileL, TriesL, CountL),
+    sum_list(TriesL, Tries),
+    sum_list(CountL, Count),
+    set_context_value(tries, Tries),
+    set_context_value(count, Count).
 
 fixpoint_file(none, _, Goal) :- ignore(Goal).
 fixpoint_file(true, Max, Goal) :-
@@ -528,18 +499,64 @@ norec_ff(term,       none).
 norec_ff(true,       true).
 norec_ff(none,       none).
 
-fetch_sentence_file(Index, FixPoint, Max, M, File, SentPattern, Options,
-                    Expand, SentPos, VNL, Expanded, Linearize,
-                    Sent, Bindings, Level, Data) :-
-    level_rec(Level, Rec),
-    rec_fixpoint_file(Rec, FixPoint, FPFile),
-    fixpoint_file(
-        FPFile, Max,
-        apply_commands(
-            Index, File, Level, M, Rec, FixPoint, Max,
-            gen_module_command(
-                SentPattern, Options, Expand, SentPos, Expanded, Linearize,
-                Sent, VNL, Bindings, Data))).
+process_sentence_file(Index, FixPoint, Max, SentPattern, Options, CleanupAttributes, M, File,
+                      Expanded, Expand, ConjWidth, TermWidth, ListWidth, Pos, GoalArgs,
+                      Linearize, MaxTries, Preffix, Level, Data, MFile, Tries, Count) :-
+    maplist(set_context_value,
+            [bindings,
+             cleanup_attributes,
+             comments,
+             expanded,
+             file,
+             goal_args,
+             modified,
+             tries,
+             count,
+             max_tries,
+             options,
+             pos,
+             preffix,
+             sent_pattern,
+             sentence,
+             subpos,
+             conj_width,
+             term_width,
+             list_width],
+            [Bindings,
+             CleanupAttributes,
+             Comments,
+             Expanded,
+             File,
+             GoalArgs,
+             false,
+             0,
+             0,
+             MaxTries,
+             Options,
+             Pos,
+             Preffix,
+             SentPattern,
+             Sent,
+             SentPos,
+             ConjWidth,
+             TermWidth,
+             ListWidth]),
+    \+ \+ ( option(comments(Comments),  Options, Comments),
+            option(subterm_positions(SentPos), Options, SentPos),
+            option(variable_names(VNL), Options, VNL),
+            MFile = M-File,
+            level_rec(Level, Rec),
+            rec_fixpoint_file(Rec, FixPoint, FPFile),
+            fixpoint_file(
+                FPFile, Max,
+                apply_commands(
+                    Index, File, Level, M, Rec, FixPoint, Max,
+                    gen_module_command(
+                        SentPattern, Options, Expand, SentPos, Expanded, Linearize,
+                        Sent, VNL, Bindings, Data)))
+          ),
+    refactor_context(tries, Tries),
+    refactor_context(count, Count).
 
 binding_varname(VNL, Var=Term) -->
     ( { atomic(Term),
@@ -818,7 +835,7 @@ will_occurs(Var, Sent, Pattern, Into, VNL, T) :-
               will_occurs(Var2, Sent, Pattern, Into, N)
             ; will_occurs(Var,  Sent, Pattern, Into, N)
             ), NL),
-    sumlist(NL, T).
+    sum_list(NL, T).
 
 will_occurs(Var, Sent, Pattern, Into, N) :-
     occurrences_of_var(Var, Sent, SN),

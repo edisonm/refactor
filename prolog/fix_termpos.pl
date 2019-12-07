@@ -47,7 +47,7 @@
 %   Contains the inner positions of a term, that exclude comments and some extra
 %   parenthesis.
 %
-:- dynamic term_innerpos/4.
+:- thread_local term_innerpos/4.
 
 %!  fix_termpos(@TermPos, +Options) is det
 %
