@@ -12,7 +12,7 @@ diff -ruN ex8.pl -
  :- module(ex8, [ex8/1]).
  
 -ex8([[a,b],[c,d],[e]]).
-+ex8([[a,b], [e]]).
++ex8([[a,b],[e]]).
  
 -ex8([[a,b],[c,d]]).
 +ex8([[a,b]]).

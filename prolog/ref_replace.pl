@@ -1,4 +1,3 @@
-% *** testing refactor_15.plt
 % *** testing refactor_40.plt
 % *** testing refactor_44.plt
 % *** testing refactor_52.plt
@@ -105,11 +104,10 @@
     refactor_context(?, ?),
     replace(+,?,?,0,:),
     rportray_list(+, 2, +, +),
-    with_context(?, ?, ?, ?, ?, ?, ?, 0),
+    with_context(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?),
     with_counters(0, +),
     with_from(0, ?),
     with_termpos(0, ?),
-    with_pattern_into(0, ?, ?),
     with_styles(0, +).
 
 %!  replace(+Level, +Patt, -Into, :Expander, :Options) is det
@@ -885,7 +883,8 @@ apply_change(Text, M, subst(TermPos, Priority, Pattern, Term, VNL, Into, _),
               with_termpos(
                   print_expansion_0(Into, Pattern, Term, TermPos,
                                     [priority(Priority), module(M),
-                                     variable_names(VNL)
+                                     variable_names(VNL),
+                                     text(Text)
                                      |Options],
                                     Text, From, To),
                   TermPos),
@@ -1167,13 +1166,6 @@ get_innerpos(OSubPos, ISubPos) :-
     ISubPos =.. [F, IFrom, ITo|Args].
 get_innerpos(SubPos, SubPos).
 
-get_outerpos(ISubPos, OSubPos) :-
-    ISubPos =.. [F, IFrom, ITo|Args],
-    term_innerpos(OFrom, OTo, IFrom, ITo),
-    !,
-    OSubPos =.. [F, OFrom, OTo|Args].
-get_outerpos(SubPos, SubPos).
-
 replace_at_subterm_location([], Rep, _, Rep).
 replace_at_subterm_location([N|L], Rep, Term1, Term2) :-
     compound(Term1),
@@ -1226,11 +1218,6 @@ trim_fake_args(N, Term1, Term) :-
     ; Term = Term1
     ).
 
-get_innerpos(From, To, IFrom, ITo) :-
-    term_innerpos(From, To, IFrom, ITo),
-    !.
-get_innerpos(From, To, From, To).
-
 %!  substitute_term_rec(+Module, +Term, +Priority, +Pattern, +Into, :Expander, +TermPos, +SentPos, Cmd) is nondet.
 %
 %   True when the DCG list contains a substitution for Pattern by Into in
@@ -1271,7 +1258,7 @@ substitute_term_pair(M, Term, key_value_position(_, _, Key, PosK, PosV), Data, C
 :- use_module(library(listing), []).
 
 term_priority(Term, M, N, Priority) :-
-    nonvar(Term),
+    compound(Term),
     term_priority_gnd(Term, M, N, PrG),
     ( arg(N, Term, Arg),
       term_needs_braces(M:Arg, PrG)
@@ -1469,7 +1456,7 @@ rportray('$sb'(TermPos), _) :-
 rportray('$sb'(_, ISubPos, RepL, Priority, Term), Options) :-
     \+ retract(rportray_skip),
     !,
-    ignore(( refactor_context(text, Text),
+    ignore(( option(text(Text), Options),
              print_subtext_sb_2(Term, ISubPos, RepL, Priority, Text, Options)
            )).
 rportray('$@'(Term), Options) :- write_term(Term, Options).
@@ -1488,17 +1475,17 @@ rportray(@@(Term, STerm), Options) :-
       arg(2, ITermPos, ITo),
       arg(1, OTermPos, OFrom),
       arg(2, OTermPos, OTo),
-      refactor_context(text, Text),
+      option(text(Text), Options),
       print_subtext(OFrom-IFrom, Text),
       write_term(Term, Options),
       print_subtext(ITo-OTo, Text)
     ; write_term(Term, Options)
     ).
 % Use a different pattern to guide the printing of Term:
-rportray('$@'(Into, '$sb'(_, SubPos, _, GPriority, Term)), Options) :-
+rportray('$@'(Into, '$sb'(_, SubPos, _, Priority, Term)), Options) :-
     !,
-    refactor_context(text, Text),
-    once(print_expansion_sb(Into, Term, Term, SubPos, GPriority, Options, Text)).
+    option(text(Text), Options),
+    once(print_expansion_sb(Into, Term, Term, SubPos, Priority, Options, Text)).
 rportray('$G'(Into, Goal), Opt) :-
     callable(Goal),
     \+ special_term(Goal),
@@ -1734,7 +1721,7 @@ rportray([E|T1], Opt) :-
       arg(2, ITermPos, To),
       write_term_string(Pos, Opt, T2, SB),
       sub_string(SB, 1, _, 1, SC),
-      refactor_context(text, Text),
+      option(text(Text), Opt),
       get_subtext(Text, TFrom, From, SL),
       get_subtext(Text, To, TTo, SR),
       format(atom(ST), "~s~s~s", [SL, SC, SR]),
@@ -1921,16 +1908,6 @@ trim_brackets(L, '$TEXT'(S), Opt) :-
     with_output_to(string(S1), write_term(L, Opt)),
     sub_string(S1, 1, _, 1, S).
 
-tail_position(list_position(_, _, _, OPos), list_position(_, To, _, Pos), TailPos) :-
-    ( Pos = none
-    ->succ(From, To),
-      TailPos = From-From
-    ; tail_position(OPos, Pos, TailPos)
-    ).
-tail_position(_, Pos, From-To) :-
-    arg(1, Pos, From),
-    arg(2, Pos, To).
-
 pos_indent(Pos, Indent) :- with_output_to(atom(Indent), line_pos(Pos)).
 
 collect_args(Indent, TermWidth, LineL, Pos1-[Sep, String|T], Pos-T) :-
@@ -1973,6 +1950,7 @@ compat_arithexpression(X, M) :-
 
 arithexpression(X) :- number(X), !.
 arithexpression(X) :-
+    callable(X),
     current_arithmetic_function(X),
     forall((compound(X), arg(_, X, V)), arithexpression(V)).
 
@@ -1994,32 +1972,33 @@ rportray_list_nl_comma(L, Pos, Opt) :-
     rportray_list(L, write_term, Sep, Opt1).
 
 rportray_list(L, Writter, Sep, Opt) :-
+    option(text(Text), Opt),
     deref_substitution(L, D),
     ( D = []
     ->true
-    ; term_write_sep_list_2(D, Writter, Sep, Opt)
+    ; term_write_sep_list_2(D, Writter, Text, Sep, Opt)
     ).
 
-term_write_sep_list_2([E|T], Writter, Sep, Opt) :-
+term_write_sep_list_2([E|T], Writter, Text, Sep, Opt) :-
     !,
     call(Writter, E, Opt),
-    term_write_sep_list_inner(T, Writter, Sep, Opt).
-term_write_sep_list_2(E, Writter, _, Opt) :- call(Writter, E, Opt).
+    term_write_sep_list_inner(T, Writter, Text, Sep, Opt).
+term_write_sep_list_2(E, Writter, _, _, Opt) :- call(Writter, E, Opt).
 
-term_write_sep_list_inner(T, Writter, Sep, Opt) :-
-    term_write_sep_list_inner_rec(T, Writter, Sep, Opt).
+term_write_sep_list_inner(T, Writter, Text, Sep, Opt) :-
+    term_write_sep_list_inner_rec(T, Writter, Text, Sep, Opt).
 
-term_write_sep_list_inner_rec(L, Writter, SepIn, Opt) :-
+term_write_sep_list_inner_rec(L, Writter, Text, SepIn, Opt) :-
     nonvar(L),
     L = [E|T],
     !,
     write(SepIn),
     call(Writter, E, Opt),
-    term_write_sep_list_inner_rec(T, Writter, SepIn, Opt).
-term_write_sep_list_inner_rec(T, Writter, SepIn, Opt) :-
+    term_write_sep_list_inner_rec(T, Writter, Text, SepIn, Opt).
+term_write_sep_list_inner_rec(T, Writter, Text, SepIn, Opt) :-
     ( T == []
     ->true
-    ; write_tail(T, Writter, SepIn, Opt)
+    ; write_tail(T, Writter, Text, SepIn, Opt)
     ).
 
 term_write_comma_2(Opt, Term) :- write_term(Term, Opt), write(', ').
@@ -2028,25 +2007,24 @@ sep_nl(LinePos, Sep, SepNl) :-
     with_output_to(atom(In), line_pos(LinePos)),
     atomic_list_concat([Sep, '\n', In], SepNl).
 
-write_tail(T, Writter, _, Opt) :-
+write_tail(T, Writter, _, _, Opt) :-
     var(T), !,
     call(Writter, T, Opt).
-write_tail([], _, _, _) :- !.
-write_tail('$LIST,NL'(L), Writter, _, Opt) :- !,
+write_tail([], _, _, _, _) :- !.
+write_tail('$LIST,NL'(L), Writter, Text, _, Opt) :- !,
     offset_pos('$OUTPOS', Pos),
     sep_nl(Pos, ',', Sep),
-    term_write_sep_list_inner(L, Writter, Sep, Opt).
-write_tail('$LIST,NL'(L, Offs), Writter, _, Opt) :-
+    term_write_sep_list_inner(L, Writter, Text, Sep, Opt).
+write_tail('$LIST,NL'(L, Offs), Writter, Text, _, Opt) :-
     offset_pos(Offs, Pos), !,
     sep_nl(Pos, ',', Sep),
-    term_write_sep_list_inner(L, Writter, Sep, Opt).
-write_tail('$sb'(Pos1, Pos2, RepL, Priority, Term), Writter, SepIn, Opt) :-
+    term_write_sep_list_inner(L, Writter, Text, Sep, Opt).
+write_tail('$sb'(Pos1, Pos2, RepL, Priority, Term), Writter, Text, SepIn, Opt) :-
     is_list(Term),
     nonvar(Pos1),
     arg(1, Pos1, From1),
     arg(2, Pos1, To1),
     !,
-    refactor_context(text, Text),
     arg(1, Pos2, IFrom),
     arg(2, Pos2, ITo),
     print_subtext(Text, From1, IFrom),
@@ -2060,10 +2038,10 @@ write_tail('$sb'(Pos1, Pos2, RepL, Priority, Term), Writter, SepIn, Opt) :-
       ; arg(2, Tail, To)
       ),
       print_subtext_sb_2(Term, list_position(From, To, PosL, Tail), RepL, Priority, Text, Opt)
-    ; term_write_sep_list_inner_rec(Term, Writter, SepIn, Opt)
+    ; term_write_sep_list_inner_rec(Term, Writter, Text, SepIn, Opt)
     ),
     print_subtext(Text, ITo, To1).
-write_tail(T, Writter, _, Opt) :-
+write_tail(T, Writter, _, _, Opt) :-
     write('|'),
     call(Writter, T, Opt).
 
@@ -2155,11 +2133,6 @@ fix_position_if_braced(term_position(_, _, _, _, _), M,
     !.
 fix_position_if_braced(_, _, _, _, _, _, no). % fail-safe
 
-comp_priority(M, GTerm, GPriority, Term, Priority) :-
-    \+ term_needs_braces(M:GTerm, GPriority),
-    term_needs_braces(M:Term, Priority).
-
-% :- meta_predicate term_needs_braces(:, +).
 % If Term is a replacement, '$sb'/6, we assume that the substitution will not
 % require braces (not sure if this is correct, but it works)
 term_needs_braces(_:Term, _) :- \+ callable(Term), !, fail.
@@ -2186,14 +2159,6 @@ print_expansion_sb(Into, Pattern, GTerm, TermPos, GPriority, Options, Text) :-
 do_print_expansion_sb(Pattern, Into, GTerm, TermPos, Options, Text) :-
     arg(1, TermPos, From),
     with_from(print_expansion_ne(Into, Pattern, GTerm, TermPos, Options, Text), From).
-
-print_subtext_sb(Into, GTerm, TermPos, GPriority, Options, Text) :-
-    with_cond_braces(print_subtext, Into, GTerm, TermPos, GPriority, Options, Text).
-
-print_subtext(_, _, TermPos, Options, Text) :-
-    get_subtext(TermPos, Text, SubText),
-    atom_string(SubText, Atom),
-    write_t(Atom, Options).
 
 with_cond_braces(Call, Into, GTerm, TermPos, GPriority, Options, Text) :-
     option(module(M), Options),
@@ -2408,60 +2373,18 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT),
     print_subtext(Text, From, To1),
     foldnl(print_expansion_arg(M, Into, Options, Text, A), 1, FromToL, ValL, _, true),
     print_subtext(Text, To2, To).
-print_expansion_pos(list_position(From, To, PosL, PosT), Into, Pattern, GTerm, Options1, Text) :-
-    maplist(normalize_pos, PosL, PosN),
-    from_to_pairs(PosN, From, To1, To2, FromToL, []),
-    length(PosL, N),
-    ( trim_list(N, Into, ArgL, ATail)
-    ->Delta = 0
-    % ; length(LTerm, N),               % Special case: list converted to sequence
-    %   once(list_sequence(LTerm, Into)),
-    %   trim_list(N, LTerm, ArgL, ATail),
-    %   Delta = 1
-    ),
-    trim_list(N, Pattern, PatL, PTail),
-    trim_list(N, GTerm,   GTrL, GTail),
-    pairs_keys_values(PatGTrL, PatL, GTrL),
-    !,
-    From1 is From + Delta,
-    option(module(M), Options1),
-    term_priority(Into, M, 1, Priority1),
-    select_option(priority(Priority), Options1, Options, Priority),
-    Options2=[priority(Priority1)|Options],
-    ( comp_priority(M, GTerm, Priority, Into, Priority)
-    ->write('(')
-    ; Delta = 1
-    ->write(' ')    % Only if [...] ---> (...)
-    ; true
-    ),
-    print_subtext(Text, From1, To1),
-    ( PosT \= none
-    ->arg(1, PosT, PTo),
-      term_priority(Into, M, 2, Priority2),
-      To2 is PTo+Delta,
-      foldnl(print_expansion_elem(Options2, Text, N), 1, FromToL, PosL, ArgL, PatGTrL, _, true),
-      arg(2, PosT, PFrom),
-      Options3 = [priority(Priority2)|Options],
-      print_expansion_elem(Options3, Text, 1, 1, PFrom-To, PosT, ATail, PTail-GTail, _, true)
-    ; nth1(N, PosL, E),
-      arg(2, E, To2),
-      foldnl(print_expansion_elem(Options2, Text, N), 1, FromToL, PosL, ArgL, PatGTrL, _, _),
-      term_priority(Into, M, 2, Priority2),
-      Options3 = [priority(Priority2)|Options],
-      term_write_sep_list_inner_rec(ATail, write_term, ', ', Options3),
-      print_subtext(Text, To2, To)
-    ),
-    ( comp_priority(M, GTerm, Priority, Into, Priority)
-    ->write(')')
-    ; true
-    ).
+print_expansion_pos(sub_list_position(BFrom, To, BTo, From, PosL, Tail), Into, Pattern, Term, Options, Text) :-
+    print_subtext(Text, BFrom, BTo),
+    print_expansion_list(PosL, From, To, Tail, Into, Pattern, Term, Options, Text, init).
+print_expansion_pos(list_position(From, To, PosL, Tail), Into, Pattern, Term, Options, Text) :-
+    print_expansion_list(PosL, From, To, Tail, Into, Pattern, Term, Options, Text, init).
 print_expansion_pos(brace_term_position(From, To, TermPos), {Into}, {Pattern},
-                    {GTerm}, Options, Text) :-
+                    {GTerm}, Options1, Text) :-
     arg(1, TermPos, AFrom),
     arg(2, TermPos, ATo),
     print_subtext(Text, From, AFrom),
-    option(module(M), Options),
-    print_expansion_arg(M, {Into}, Options, Text, 1, 1, ATo-To, v(1, TermPos, Into, Pattern, GTerm), _, true).
+    merge_options([priority(1200)], Options1, Options),
+    print_expansion_elem(Options, Text, 1, 1, ATo-To, TermPos, Into, Pattern-GTerm, _, true).
 print_expansion_pos(parentheses_term_position(From, To, TermPos), Into, Pattern,
                     GTerm, Options1, Text) :-
     arg(1, TermPos, AFrom),
@@ -2469,17 +2392,68 @@ print_expansion_pos(parentheses_term_position(From, To, TermPos), Into, Pattern,
     print_subtext(Text, From, AFrom),
     merge_options([priority(1200)], Options1, Options),
     print_expansion_elem(Options, Text, 1, 1, ATo-To, TermPos, Into, Pattern-GTerm, _, true).
-print_expansion_pos(sub_list_position(BFrom, To, BTo, From, PosL, Tail), Into, Pattern, GTerm, Options, Text) :-
-    print_subtext(Text, BFrom, BTo),
-    print_expansion_pos(list_position(From, To, PosL, Tail), Into, Pattern, GTerm, Options, Text).
+
+print_expansion_list(PosL, From, To, TPos, IntoL, PatternL, TermL, Options1, Text, Cont) :-
+    % writeq(user_error,
+    %        print_expansion_list(PosL, From, To, TPos, IntoL, PatternL, TermL, Options1, Text, Cont)),
+    % nl(user_error),
+    ( ( IntoL = '$sb'(sub_list_position(_, To2, _, From2, PosL2, TPos2), _, RepL, Priority, Into),
+        PosL = [Pos|_],
+        arg(1, Pos, From1)
+      ->print_subtext(Text, From, From1)
+      ; IntoL = '$sb'(list_position(From21, To2, PosL2, TPos2), _, RepL, Priority, Into),
+        ( Cont = cont,
+          PosL2 = [Pos2|_],
+          compound(Pos2),
+          arg(1, Pos2, From2)
+        ->write(', ')
+        ; From2 = From21
+        )
+      )
+    ->print_subtext_sb_2(Into, list_position(From2, To2, PosL2, TPos2), RepL, Priority, Text, Options1)
+    ; ( PosL = [Pos|PosT]
+      ->( normalize_pos(Pos, From1-To1),
+          IntoL = [Into|IT],
+          PatternL = [Pattern|PT],
+          TermL = [Term|TT]
+        ->option(module(M), Options1),
+          term_priority([_|_], M, 1, Priority1),
+          select_option(priority(Priority), Options1, Options, Priority),
+          Options2=[priority(Priority1)|Options],
+          print_subtext(Text, From, From1),
+          print_expansion(Into, Pattern, Term, Pos, Options2, Text),
+          print_expansion_list(PosT, To1, To, TPos, IT, PT, TT, Options1, Text, cont)
+        ; IntoL = []
+        ->arg(1, Pos, From1),
+          last(PosL, LPos),
+          arg(2, LPos, To1),
+          ( Cont = cont
+          ->true
+          ; print_subtext(Text, From, From1)
+          ),
+          print_subtext(Text, To1, To)
+        )
+      )
+    ->true
+    ; PosL = []
+    ->( TPos = none
+      ->( IntoL == []
+        ->print_subtext(Text, From, To)
+        ; print_expansion(IntoL, PatternL, TermL, From-To, Options1, Text)
+        )
+      ; normalize_pos(TPos, From1-To1),
+        print_subtext(Text, From, From1),
+        print_expansion(IntoL, PatternL, TermL, TPos, Options1, Text),
+        print_subtext(Text, To1, To)
+      )
+    ; write_term(IntoL, Options1)
+    ).
 
 print_subtext(RefPos, Text) :-
     get_subtext(RefPos, Text, SubText),
     print_text(SubText).
 
 print_text(Text) :- format("~s", [Text]), write(''). % reset partial(true) logic
-
-trim_list(N, L1, L, T) :- length(L, N), append(L, T, L1).
 
 print_subtext(Text, From, To) :-
     get_subtext(Text, From, To, SubText),
