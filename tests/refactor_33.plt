@@ -4,8 +4,8 @@
 
 test(self_refactor_1) :-
     rreset,
-    replace_term(print_expansion(A, B, C, D, E, F),
-                 print_expansion_(A, B, C, D, E, F), [module(ref_replace)]),
+    replace_term(print_expansion(A, B, C, D, E),
+                 print_expansion_(A, B, C, D, E), [module(ref_replace)]),
     with_output_to(string(Result), rshow), assertion(Result \== "").
 
 test(self_refactor_2) :-
