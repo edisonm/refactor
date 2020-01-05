@@ -441,6 +441,9 @@ apply_ec_term_level(Level, Patt, Into, Expander, Options1) :-
     Options = [syntax_errors(SE),
                subterm_positions(SentPos),
                variable_names(VNL),
+               conj_width(ConjWidth),
+               term_width(TermWidth),
+               list_width(ListWidth),
                comments(Comments)|Options3],
     ignore(( var(AFile),
              File = AFile
@@ -450,20 +453,19 @@ apply_ec_term_level(Level, Patt, Into, Expander, Options1) :-
           freeze(M, '$set_source_module'(_, M))
         ),
         process_sentences(
-            MFileParam, FixPoint, Max, SentPattern, Options, CleanupAttributes, M, File, Expanded, Expand,
-            ConjWidth, TermWidth, ListWidth, Pos, ga(Patt, Into, Expander), Linearize,
-            MaxTries, Preffix, Level, data(Patt, Into, Expander, SentPos)),
+            MFileParam, FixPoint, Max, SentPattern, Options, CleanupAttributes, M, File, Expanded, Expand, Pos,
+            ga(Patt, Into, Expander), Linearize, MaxTries, Preffix, Level, data(Patt, Into, Expander, SentPos)),
         '$set_source_module'(_, OldM)).
 
 process_sentences(
-    MFileParam, FixPoint, Max, SentPattern, Options, CleanupAttributes, M, File, Expanded, Expand, ConjWidth,
-    TermWidth, ListWidth, Pos, GoalArgs, Linearize, MaxTries, Preffix, Level, Data) :-
+    MFileParam, FixPoint, Max, SentPattern, Options, CleanupAttributes, M, File, Expanded, Expand,
+    Pos, GoalArgs, Linearize, MaxTries, Preffix, Level, Data) :-
     index_change(Index),
     findall(MFile, param_module_file(MFileParam, MFile), MFileL),
     concurrent_maplist(
         process_sentence_file(
             Index, FixPoint, Max, SentPattern, Options, CleanupAttributes, M, File,
-            Expanded, Expand, ConjWidth, TermWidth, ListWidth, Pos, GoalArgs, Linearize,
+            Expanded, Expand, Pos, GoalArgs, Linearize,
             MaxTries, Preffix, Level, Data), MFileL, TriesL, CountL),
     sum_list(TriesL, Tries),
     sum_list(CountL, Count),
@@ -504,7 +506,7 @@ norec_ff(true,       true).
 norec_ff(none,       none).
 
 process_sentence_file(Index, FixPoint, Max, SentPattern, Options, CleanupAttributes, M, File,
-                      Expanded, Expand, ConjWidth, TermWidth, ListWidth, Pos, GoalArgs,
+                      Expanded, Expand, Pos, GoalArgs,
                       Linearize, MaxTries, Preffix, Level, Data, MFile, Tries, Count) :-
     maplist(set_context_value,
             [bindings,
@@ -522,10 +524,7 @@ process_sentence_file(Index, FixPoint, Max, SentPattern, Options, CleanupAttribu
              preffix,
              sent_pattern,
              sentence,
-             subpos,
-             conj_width,
-             term_width,
-             list_width],
+             subpos],
             [Bindings,
              CleanupAttributes,
              Comments,
@@ -541,10 +540,7 @@ process_sentence_file(Index, FixPoint, Max, SentPattern, Options, CleanupAttribu
              Preffix,
              SentPattern,
              Sent,
-             SentPos,
-             ConjWidth,
-             TermWidth,
-             ListWidth]),
+             SentPos]),
     \+ \+ ( option(comments(Comments),  Options, Comments),
             option(subterm_positions(SentPos), Options, SentPos),
             option(variable_names(VNL), Options, VNL),
@@ -739,8 +735,8 @@ apply_commands(Index, File, Level, M, Rec, FixPoint, Max, GenMCmd) :-
         ).
 
 decreasing_recursion(nocs, _).
-decreasing_recursion(subst(_, _, _, _, _, _, S1),
-                     subst(_, _, _, _, _, _, S2)) :-
+decreasing_recursion(subst(_, _, _, _, S1),
+                     subst(_, _, _, _, S2)) :-
     freeze(S2, S1 > S2).
 
 do_recursion(dec(G), C, G, C).
@@ -860,20 +856,16 @@ gen_new_variable_names([Var|VarL], [Name1|NameL], Preffix, Count1,
 with_termpos(Goal, TermPos) :-
     with_context_values(Goal, [termpos], [TermPos]).
 
-apply_change(Text, M, subst(TermPos, Priority, Term, VNL, NewVNL, Into, _),
+apply_change(Text, M, subst(TermPos, Options, Term, Into, _),
              t(From, To, PasteText)) :-
-    wr_options(Options),
     call_cleanup(
         with_output_to(
             string(OutputText),
             ( stream_property(current_output, position(Pos1)),
               with_termpos(
                   print_expansion_1(Into, Term, TermPos,
-                                    [priority(Priority), module(M),
-                                     new_variable_names(NewVNL),
-                                     variable_names(VNL),
-                                     text(Text)
-                                     |Options],
+                                    [module(M),
+                                     text(Text)|Options],
                                     Text, From, To),
                   TermPos),
               stream_property(current_output, position(Pos2))
@@ -1025,11 +1017,18 @@ fix_subtermpos(top,    Into, TermPos, Options) :-
 %   Non-recursive version of substitute_term_rec//6.
 
 substitute_term_norec(Sub, M, Term, TermPos1, Priority, data(Pattern1, Into1, Expander, SentPos),
-                      subst(TermPos1, Priority, Term, VNL, NewVNL, Into, Size)) :-
+                      subst(TermPos1,
+                            SubstOptions,
+                            Term, Into, Size)) :-
+    wr_options(WriteOptions),
     refactor_context(sentence,     Sent),
     refactor_context(sent_pattern, SentPattern),
     subsumes_term(SentPattern-Pattern1, Sent-Term),
     refactor_context(options, Options),
+    merge_options([priority(Priority),
+                   variable_names(VNL),
+                   new_variable_names(NewVNL)
+                   |WriteOptions], Options, SubstOptions),
     option(decrease_metric(Metric), Options, ref_replace:pattern_size),
     call(Metric, Term, Pattern1, Size),
     with_context(Sub, M, Term, TermPos1, Priority, Sent, SentPos, Pattern1, Into1, Into, VNL, NewVNL, Expander, Options).
@@ -1209,7 +1208,7 @@ trim_fake_args(N, Term1, Term) :-
     ; Term = Term1
     ).
 
-%!  substitute_term_rec(+Module, +Term, +TermPos, +Priority, +Data Cmd) is nondet.
+%!  substitute_term_rec(+Module, +Term, +TermPos, +Priority, +Data, -Cmd) is nondet.
 %
 %   True when Cmd contains a substitution for Pattern by Into in
 %   SrcTerm, where Data = data(Pattern, Into, Expander, SentPos).
@@ -1674,7 +1673,7 @@ rportray((A, B), Opt) :-
       sum_list(WidthL, WidthTotal),
       Sep = ", ",
       string_length(Sep, SepLength),
-      refactor_context(conj_width, ConjWidth),
+      option(conj_width(ConjWidth), Opt),
       Pos1 + WidthTotal + (Length - 1) * SepLength =< ConjWidth
     ->CloseB = ""
     ; ( Display = yes
@@ -1742,7 +1741,7 @@ rportray([E|T1], Opt) :-
     ( maplist([Indent] +\ [Line1]^Line^string_concat(Indent, Line, Line1), LinesL, StringL),
       Sep = ", ",
       string_length(Sep, SepLength),
-      refactor_context(list_width, ListWidth),
+      option(list_width(ListWidth), Opt),
       length(StringL, Length),
       maplist(string_length, StringL, WidthL),
       sum_list(WidthL, WidthTotal),
@@ -1800,7 +1799,7 @@ rportray(Term, OptL) :-
     ->Space = ''
     ; Space = ' '
     ),
-    refactor_context(term_width, TermWidth),
+    option(term_width(TermWidth), OptL),
     ( Term =.. [Name, Left, Right],
       current_op(OptPri, Type, M:Name),
       valid_op_type_arity(Type, 2)
