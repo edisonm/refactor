@@ -39,7 +39,7 @@ test(meta1) :-
                  replace(body_rec,
                          findall(E, G, L),
                          findall(E, order_by(asc(E),
-                                             '$BODYB'(G2)), L),
+                                             $@('$BODYB'(G2))), L),
                          ( duplicate_term(G, G2),
                            G2=G
                          )), [file(meta1)]).
