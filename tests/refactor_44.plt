@@ -3,6 +3,23 @@
 :- include(refactor_common).
 :- use_module(library(clambda)).
 
+/* $autovn2$
+diff -ruN autovn1.pl -
+--- autovn1.pl (source)
++++ autovn1.pl (target)
+@@ -1 +1 @@
+-p(_Y, g( _)).
++p(f(_), g( _)).
+*/
+
+test(autovn2) :-
+    execute_test(autovn2,
+                 \ Options
+                 ^( replace_sentence(p(X,C), p(X,C), (X=f(_A)), Options),
+                    anonymize_singletons(Options)
+                  ),
+                 [file(autovn1)]).
+
 /* $autovn$
 diff -ruN autovn.pl -
 --- autovn.pl (source)
@@ -24,26 +41,6 @@ test(autovn) :-
                                      Options),
                     remove_underscore_multi(Options),
                     underscore_singletons(Options)
-                  ),
-                 [file(autovn)]).
-
-/* $autovn2$
-diff -ruN autovn.pl -
---- autovn.pl (source)
-+++ autovn.pl (target)
-@@ -2,4 +2,4 @@
- 
- f(X, X, _, _, _Y, _Z, V1/V1).
- 
--p(g( _), _Y).
-+p(g( _), f(_)).
-*/
-
-test(autovn2) :-
-    execute_test(autovn2,
-                 \ Options
-                 ^( replace_sentence(p(C,X), p(C,X), (X=f(_A)), Options),
-                    anonymize_singletons(Options)
                   ),
                  [file(autovn)]).
 

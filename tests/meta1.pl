@@ -12,4 +12,4 @@ p(L, L2, L3) :-
                 ;once(sub_string(E, _, _, _, b))
                 )
               )), RL),
-    writeln(user_error, RL).
+    writeln(user_output, RL).

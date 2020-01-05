@@ -1,5 +1,3 @@
-% *** testing refactor_40.plt
-% *** testing refactor_44.plt
 % *** testing refactor_52.plt
 
 /*  Part of Refactoring Tools for SWI-Prolog
@@ -52,10 +50,10 @@
 
   Note for implementors/hackers:
 
-  * Be careful with some variables, they uses destructive assignment --TODO:
+  * Be careful with some variables, they use destructive assignment --TODO:
     document them.
 
-  * format("~a", [Atom]) does not behaves as write_term(Atom, Options), since an
+  * format("~a", [Atom]) does not behaves as write_term(Atom, Options), since a
     space is not added to separate operators from the next term, for instance
     after rewriting :- dynamic a/1, you would get :- dynamica/1.
 
@@ -1073,7 +1071,7 @@ with_context(Sub, M, Term1, TermPos1, Priority, Sent1, SentPos1, Pattern1, Into1
     gen_new_variable_names(Sent1, Term1, Into1, VNL),
     trim_fake_pos(TermPos1, TTermPos1, N),
     substitute_value(TermPos1, TTermPos1, SentPos1, TSentPos1),
-    trim_fake_args_ll(N, [[Term5, Term4, Term3, Term2], [Term1],
+    trim_fake_args_ll(N, [[Term5, Term4, Term3, Term2], [Term2],
                           [Into5, Into4, Into3, Into1], [Into1]],
                       [TermL, [TTerm1], IntoL, [TInto1]]),
     /* Note: fix_subtermpos/1 is a very expensive predicate, due to that we
@@ -1453,11 +1451,11 @@ rportray('$sb'(TermPos), _) :-
     refactor_context(text, Text),
     print_subtext(TermPos, Text).
 */
-rportray('$sb'(_, ISubPos, RepL, Priority, Term), Options) :-
+rportray('$sb'(SubPos, _, RepL, Priority, Term), Options) :-
     \+ retract(rportray_skip),
     !,
     ignore(( option(text(Text), Options),
-             print_subtext_sb_2(Term, ISubPos, RepL, Priority, Text, Options)
+             print_subtext_sb_2(Term, SubPos, RepL, Priority, Text, Options)
            )).
 rportray('$@'(Term), Options) :- write_term(Term, Options).
 rportray(\\(Term), Options) :-
@@ -1901,8 +1899,9 @@ trim_brackets('$sb'(OTermPos, ITermPos, RepL1, Priority, Term),
          )),
     succ(From, From1),
     succ(To1, To),
-    RepL = ['$sb'(From-From1, '$NOOP'),
-            '$sb'(To1-To, '$NOOP')|RepL1].
+    sort(['$sb'(From-From1, '$NOOP'),
+          '$sb'(To1-To, '$NOOP')
+          |RepL1], RepL).
 trim_brackets(L, '$TEXT'(S), Opt) :-
     L = [_|_],
     with_output_to(string(S1), write_term(L, Opt)),

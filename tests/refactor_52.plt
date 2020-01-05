@@ -31,7 +31,7 @@ diff -ruN meta1.pl -
 +                          ; once(sub_string(E, _, _, _, b))
 +                          )
 +                        ))), RL),
-     writeln(user_error, RL).
+     writeln(user_output, RL).
 */
 
 test(meta1) :-
