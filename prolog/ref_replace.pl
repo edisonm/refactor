@@ -393,10 +393,10 @@ with_counters(Goal, Options1) :-
         [MaxTries]
     ).
 
-param_module_file(clause(CRef), M-File) :-
+param_module_file(clause(CRef), M, File) :-
     clause_property(CRef, file(File)),
     clause_property(CRef, module(M)).
-param_module_file(mfiled(MFileD), M-File) :-
+param_module_file(mfiled(MFileD), M, File) :-
     get_dict(M1, MFileD, FileD),
     ( M1 = (-)
     ->true
@@ -458,18 +458,32 @@ apply_ec_term_level(Level, Patt, Into, Expander, Options1) :-
             ga(Patt, Into, Expander), Linearize, MaxTries, Preffix, Level, data(Patt, Into, Expander, SentPos)),
         '$set_source_module'(_, OldM)).
 
+:- use_module(library(countsols)).
+:- use_module(library(concurrent_forall)).
+
+param_module_file_sorted(MFileParam, M, File) :-
+    order_by([desc(Size)],
+             ( param_module_file(MFileParam, M, File),
+               ignore(size_file(File, Size))
+             )).
+
 process_sentences(
     MFileParam, FixPoint, Max, SentPattern, Options, CleanupAttributes, M, File, Expanded, Expand,
     Pos, GoalArgs, Linearize, MaxTries, Preffix, Level, Data) :-
     index_change(Index),
-    findall(MFile, param_module_file(MFileParam, MFile), MFileL),
-    concurrent_maplist(
+    ini_counter(0, STries),
+    ini_counter(0, SCount),
+    concurrent_forall(
+        param_module_file_sorted(MFileParam, M, File),
         process_sentence_file(
-            Index, FixPoint, Max, SentPattern, Options, CleanupAttributes, M, File,
-            Expanded, Expand, Pos, GoalArgs, Linearize,
-            MaxTries, Preffix, Level, Data), MFileL, TriesL, CountL),
-    sum_list(TriesL, Tries),
-    sum_list(CountL, Count),
+            Index, FixPoint, Max, SentPattern, Options, CleanupAttributes,
+            M, File, Expanded, Expand, Pos, GoalArgs, Linearize, MaxTries,
+            Preffix, Level, Data, Tries, Count),
+        ( inc_counter(STries, Tries, _),
+          inc_counter(SCount, Count, _)
+        )),
+    STries = count(Tries),
+    SCount = count(Count),
     set_context_value(tries, Tries),
     set_context_value(count, Count).
 
@@ -506,9 +520,9 @@ norec_ff(term,       none).
 norec_ff(true,       true).
 norec_ff(none,       none).
 
-process_sentence_file(Index, FixPoint, Max, SentPattern, Options, CleanupAttributes, M, File,
-                      Expanded, Expand, Pos, GoalArgs,
-                      Linearize, MaxTries, Preffix, Level, Data, MFile, Tries, Count) :-
+process_sentence_file(Index, FixPoint, Max, SentPattern, Options, CleanupAttributes,
+                      M, File, Expanded, Expand, Pos, GoalArgs,
+                      Linearize, MaxTries, Preffix, Level, Data, Tries, Count) :-
     maplist(set_context_value,
             [bindings,
              cleanup_attributes,
@@ -545,7 +559,6 @@ process_sentence_file(Index, FixPoint, Max, SentPattern, Options, CleanupAttribu
     \+ \+ ( option(comments(Comments),  Options, Comments),
             option(subterm_positions(SentPos), Options, SentPos),
             option(variable_names(VNL), Options, VNL),
-            MFile = M-File,
             level_rec(Level, Rec),
             rec_fixpoint_file(Rec, FixPoint, FPFile),
             fixpoint_file(
