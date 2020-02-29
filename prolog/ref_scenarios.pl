@@ -58,8 +58,11 @@
           ]).
 
 :- use_module(library(assertions)).
+:- use_module(library(typeprops)).
 :- use_module(library(substitute)).
 :- use_module(library(option_utils)).
+:- use_module(library(ref_context)).
+:- use_module(library(ref_message)).
 :- use_module(library(ref_replace)).
 :- use_module(library(ref_replacers)).
 :- use_module(library(clambda)).

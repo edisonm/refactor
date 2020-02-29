@@ -40,7 +40,8 @@
                        ]).
 
 :- use_module(library(apply)).
-:- use_module(library(ref_replace)).
+:- use_module(library(ref_context)).
+:- use_module(library(ref_message)).
 
 %!  term_innerpos(OFrom, OTo, InnerFrom, InnerTo)
 %
