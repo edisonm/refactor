@@ -32,14 +32,21 @@
     POSSIBILITY OF SUCH DAMAGE.
 */
 
-:- module(deref_reexport, [deref_reexport/2]).
+:- module(deref_reexport,
+          [deref_reexport/2,
+           deref_reexport/3
+          ]).
 
 :- use_module(library(called_from)).
 :- use_module(library(from_utils)).
 :- use_module(library(infer_alias)).
 :- use_module(library(pretty_decl)).
+:- use_module(library(file_to_module)).
 
 deref_reexport(Alias, Options) :-
+    deref_reexport(Alias, _, Options).
+
+deref_reexport(Alias, Reexported, Options) :-
     absolute_file_name(Alias, AFile, [file_type(prolog), access(read)]),
     module_property(M, file(AFile)),
     module_property(M, exports(ExL)),
@@ -49,17 +56,17 @@ deref_reexport(Alias, Options) :-
          )
     ->print_message(information, format("~w does not have reexports", [Alias]))
     ; freeze(H1, once((member(F/A, ExL), functor(H1, F, A)))),
-      collect_called_from(H1, RM, _, _, Options),
-      findall(File/CM, called_from_w(_, M, RM, CM, File), FileCMU),
+      collect_called_from(H1, Reexported, _, _, Options),
+      findall(File/CM, called_from_w(_, M, Reexported, CM, File), FileCMU),
       sort(FileCMU, FileCML),
       findall(File/CM-RMPIG,
               ( member(File/CM, FileCML),
-                findall((RM-F/A),
-                        ( called_from_w(H2, M, RM, CM, File),
+                findall((Reexported-F/A),
+                        ( called_from_w(H2, M, Reexported, CM, File),
                           functor(H2, F, A),
-                          ( RM = M
+                          ( Reexported = M
                           ->true
-                          ; \+ file_to_module:declared_use_module(F, A, RM, CM, _, File)
+                          ; \+ declared_use_module(F, A, Reexported, CM, _, File)
                           )
                         ), RMPIU),
                 sort(RMPIU, RMPIL),
@@ -82,15 +89,15 @@ update_use_module(AFile, M, RMPIL, File, CM) :-
     module_property(M, exports(ExL)),
     replace_sentence((:- use_module(A)),
                      DeclL,
-                     collect_decls(AFile, RMPIL, CM, A, ExL, ExL, DeclL),
+                     collect_decls(AFile, File, RMPIL, CM, A, ExL, ExL, DeclL),
                      [file(File)]),
     replace_sentence((:- use_module(A, ImS)),
                      DeclL,
-                     collect_decls(AFile, RMPIL, CM, A, ExL, ImS, DeclL),
+                     collect_decls(AFile, File, RMPIL, CM, A, ExL, ImS, DeclL),
                      [file(File)]).
 
-collect_decls(AFile, RMPIL, CM, A, ExL, ImS, DeclL) :-
-    absolute_file_name(A, AF, [file_type(prolog), access(read)]),
+collect_decls(AFile, File, RMPIL, CM, A, ExL, ImS, DeclL) :-
+    absolute_file_name(A, AF, [file_type(prolog), access(read), relative_to(File)]),
     AF = AFile,
     ( ImS = except(Exc)
     ->subtract(ExL, Exc, ImL)

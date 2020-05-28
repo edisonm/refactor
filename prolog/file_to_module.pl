@@ -34,7 +34,8 @@
 
 :- module(file_to_module,
           [file_to_module/1, % +Alias
-           file_to_module/2  % +Alias, +Options
+           file_to_module/2, % +Alias, +Options
+           declared_use_module/6
           ]).
 
 :- use_module(library(prolog_metainference)).
@@ -321,10 +322,10 @@ declared_use_module(F, A, IM, M, EA, File) :-
         subtract(ExA, NotExL, ExL)
       )
     ),
-    absolute_file_name(EA, EFile, [file_type(prolog), access(read)]),
+    from_to_file(From, File),
+    absolute_file_name(EA, EFile, [file_type(prolog), access(read), relative_to(File)]),
     EFile = ImplFile,
-    memberchk(F/A, ExL),
-    from_to_file(From, File).
+    memberchk(F/A, ExL).
 
 del_use_module_ex(M, FileL) :-
     replace_sentence((:- use_module(EA)),
@@ -382,12 +383,7 @@ add_use_module_ex(M, DelL, FileL) :-
               \+ module_file(IM, ImportingFile),
               \+ declared_use_module(F, A, IM, M, _, ImportingFile),
               declared_use_module(F, A, IM, M, EA, File),
-              memberchk(File, FileL),
-              absolute_file_name(EA,
-                                 ImplementFile,
-                                 [file_type(prolog),
-                                  access(read)]),
-              module_property(IM, file(ImplementFile))
+              memberchk(File, FileL)
             ),
             FileAliasPIU),
     sort(FileAliasPIU, FileAliasPIL),
