@@ -428,29 +428,34 @@ unfold_goal(MGoal, MO:Options1) :-
 
 :- meta_predicate remove_call(+,0,:).
 remove_call(Call, Expander, Options) :-
-    replace_term(Term, _, (do_remove_call(Term, Call), Expander), Options).
+    replace_term(Term, Into,
+                 ( refactor_context(pattern, P),
+                   do_remove_call(Call, Term, P, X),
+                   Expander,
+                   refactor_context(into, X),
+                   copy_term(P-X, Term-Into)
+                 ), Options).
 
 :- meta_predicate remove_call(+,:).
 remove_call(Call, Options) :-
     remove_call(Call, true, Options).
 
-do_remove_call(Term, Call) :-
-    ( subsumes_term((_ :- Call), Term)
-    ->refactor_context(pattern, (X :- _)),
+do_remove_call(Call, Term, P, X) :-
+    ( subsumes_term((_ :- Call), Term),
+      P = (X :- _),
       Term = (_ :- Call)
-    ; subsumes_term((Call, _), Term)
-    ->refactor_context(pattern, (_, X)),
+    ; subsumes_term((Call, _), Term),
+      P = (_, X),
       Term = (Call, _)
-    ; subsumes_term((_, Call), Term)
-    ->refactor_context(pattern, (X, _)),
+    ; subsumes_term((_, Call), Term),
+      P = (X, _),
       Term = (_, Call)
     ; subsumes_term(Call, Term),
       refactor_context(sentence, Sent),
-      Term \== Sent
-    ->X = true,
+      Term \== Sent,
+      X = true,
       Term = Call
-    ),
-    refactor_context(into, X).
+    ).
 
 :- meta_predicate replace_conjunction(?, ?, 0, :).
 replace_conjunction(Conj, Repl, Expander, MO:Options1) :-
