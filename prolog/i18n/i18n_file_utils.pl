@@ -50,6 +50,7 @@
            subtract_po_file/2]).
 
 :- use_module(library(lists)).
+:- use_module(library(pairs)).
 :- use_module(library(readutil)).
 :- use_module(library(ref_changes)).
 :- use_module(library(term_info)).

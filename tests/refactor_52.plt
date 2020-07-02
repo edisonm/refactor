@@ -1,6 +1,7 @@
 :- begin_tests(refactor_52).
 
 :- include(refactor_common).
+:- user:use_module(library(solution_sequences)).
 
 /* $meta1$
 diff -ruN meta1.pl -

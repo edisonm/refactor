@@ -38,7 +38,11 @@
            declared_use_module/6
           ]).
 
+:- use_module(library(lists)).
+:- use_module(library(option)).
+:- use_module(library(pairs)).
 :- use_module(library(prolog_metainference)).
+:- use_module(library(solution_sequences)).
 :- use_module(library(clambda)).
 :- use_module(library(infer_alias)).
 :- use_module(library(list_sequence)).
@@ -696,7 +700,7 @@ collect_import_decls(M, FileL, ExcludeL, MDL, Tail) :-
                         ->true
                         )
                       ), REL),
-              current_module(EM, EF),
+              module_property(EM, file(EF)),
               library_alias(EF, EA),
               \+ black_list_um(EA),
               ( EM=M, REL \= []

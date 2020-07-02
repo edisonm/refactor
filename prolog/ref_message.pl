@@ -37,6 +37,7 @@
            textpos_line/4
           ]).
 
+:- use_module(library(codesio)).
 :- use_module(library(ref_context)).
 
 %!  refactor_message(+Type, +Message) is det.

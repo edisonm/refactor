@@ -57,6 +57,11 @@
            remove_call/3
           ]).
 
+:- use_module(library(lists)).
+:- use_module(library(occurs)).
+:- use_module(library(ordsets)).
+:- use_module(library(option)).
+:- use_module(library(pairs)).
 :- use_module(library(assertions)).
 :- use_module(library(typeprops)).
 :- use_module(library(substitute)).
@@ -291,7 +296,7 @@ rename_predicate(M:Name1/Arity, Name, Options1) :-
     replace_term(Name1/Arity, Name/Arity,
                  ( catch(absolute_file_name(Alias, File, [file_type(prolog)]),
                          _, fail),
-                   current_module(M, File)
+                   module_property(M, file(File))
                  ),
                  [sentence((:- use_module(Alias, _)))|Options1]),
     ( CM = M
@@ -352,7 +357,7 @@ rsum(Module, UML) :-
     group_pairs_by_key(Sorted, Grouped),
     findall(UM,
             ( member(Import-IL, Grouped),
-              current_module(Import, IFile),
+              module_property(Import, file(IFile)),
               smallest_alias(IFile, IA),
               UM = '$@'(:- use_module(IA, '$C'((nl,write('\t     ')),'$LIST,NL'(IL))))
             ), UML).
@@ -410,7 +415,7 @@ unfold_goal(MGoal, MO:Options1) :-
                      ( catch(absolute_file_name(Alias, IFile, [file_type(prolog)]),
                              _,
                              fail),
-                       current_module(Import, IFile),
+                       module_property(Import, file(IFile)),
                        findall(F/A, retract(add_import(Module, Import, F, A)), UL),
                        UL \= [],
                        sort(UL, L2),

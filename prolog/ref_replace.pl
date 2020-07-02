@@ -59,7 +59,11 @@
 :- use_module(library(apply)).
 :- use_module(library(codesio)).
 :- use_module(library(lists)).
+:- use_module(library(occurs)).
 :- use_module(library(option)).
+:- use_module(library(pairs)).
+:- use_module(library(settings)).
+:- use_module(library(solution_sequences)).
 :- use_module(library(neck)).
 :- use_module(library(foldnl)).
 :- use_module(library(term_size)).

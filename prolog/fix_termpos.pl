@@ -40,6 +40,8 @@
                        ]).
 
 :- use_module(library(apply)).
+:- use_module(library(lists)).
+:- use_module(library(option)).
 :- use_module(library(ref_context)).
 :- use_module(library(ref_message)).
 

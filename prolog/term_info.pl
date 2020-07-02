@@ -39,6 +39,8 @@
           ]).
 
 :- use_module(library(apply)).
+:- use_module(library(lists)).
+:- use_module(library(option)).
 :- use_module(library(prolog_source)).
 :- use_module(library(clambda)).
 :- use_module(library(module_files)).

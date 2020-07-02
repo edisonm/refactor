@@ -41,6 +41,8 @@
            rsave/1
           ]).
 
+:- use_module(library(lists)).
+:- use_module(library(readutil)).
 :- use_module(library(trim_utils)).
 :- use_module(library(file_changes)).
 :- use_module(library(ref_changes)).

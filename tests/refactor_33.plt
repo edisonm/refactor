@@ -1,6 +1,7 @@
 :- begin_tests(refactor_33).
 
 :- include(refactor_common).
+:- use_module(library(filesex)).
 
 test(self_refactor_1) :-
     rreset,
@@ -14,7 +15,7 @@ test(self_refactor_2) :-
     with_output_to(string(Result), rshow), assertion(Result \== "").
 
 test(save_changes) :-
-    current_module(plunit_refactor_33, F),
+    module_property(plunit_refactor_33, file(F)),
     absolute_file_name('ex1_.pl', Ex1, [file_type(prolog), relative_to(F)]),
     tmp_file_stream(text, File, Stream),
     close(Stream),

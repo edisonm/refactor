@@ -39,6 +39,8 @@
                        replace_entry_po/4,
                        i18n_refactor/4]).
 
+:- use_module(library(lists)).
+:- use_module(library(pairs)).
 :- use_module(library(ref_changes)).
 :- use_module(library(ref_replacers)).
 :- use_module(library(i18n/i18n_file_utils)).

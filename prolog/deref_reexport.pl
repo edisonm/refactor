@@ -37,6 +37,8 @@
            deref_reexport/3
           ]).
 
+:- use_module(library(lists)).
+:- use_module(library(pairs)).
 :- use_module(library(called_from)).
 :- use_module(library(from_utils)).
 :- use_module(library(infer_alias)).

@@ -46,6 +46,8 @@
            apply_command_q/1
           ]).
 
+:- use_module(library(lists)).
+:- use_module(library(listing)).
 :- use_module(library(ref_shell)).
 :- use_module(library(ref_changes),
               [reset_changes/0,
