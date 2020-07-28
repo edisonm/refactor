@@ -621,8 +621,9 @@ expand_if_required(Expand, M, Sent, SentPos, In, Expanded) :-
     ->Expanded = Sent
     ; '$expand':expand_terms(prolog_source:expand, Sent, SentPos, In, Expanded)
     ),
-    '$set_source_module'(CM, CM),
-    M = CM,
+    ignore(( '$set_source_module'(CM, CM),
+             M = CM
+           )),
     prolog_source:update_state(Sent, Expanded, M).
 
 make_linear_if_required(Sent, Linearize, Linear, Bindings) :-
