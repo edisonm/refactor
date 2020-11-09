@@ -938,7 +938,7 @@ do_trim_hack('$NOOP'(_), '').
 remove_hacks(H, T) :-
     trim_hacks(H, S),
     deref_substitution(S, T).
-    
+
 match_vars_with_names(VNL1, Var, Name) :-
     ignore(( member(Name=Var1, VNL1),
              Var == Var1
