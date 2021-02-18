@@ -65,7 +65,7 @@
 :- use_module(library(settings)).
 :- use_module(library(solution_sequences)).
 :- use_module(library(neck)).
-:- use_module(library(foldnl)).
+:- use_module(library(foldil)).
 :- use_module(library(term_size)).
 :- use_module(library(prolog_source), []). % expand/4
 :- use_module(library(readutil)).
@@ -2320,7 +2320,7 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT), Into, Term, Opti
     nth1(N, PosKL, E),
     arg(2, E, To2),
     print_subtext(Text, From, To1),
-    foldnl(print_expansion_arg(M, Into, Options, Text, A), 1, FromToL, ValL, _, true),
+    foldil(print_expansion_arg(M, Into, Options, Text, A), 1, FromToL, ValL, _, true),
     print_subtext(Text, To2, To).
 print_expansion_pos(sub_list_position(BFrom, To, BTo, From, PosL, Tail), Into, Term, Options, Text) :-
     print_subtext(Text, BFrom, BTo),
