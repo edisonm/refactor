@@ -78,7 +78,7 @@
 :- use_module(library(term_info)).
 :- use_module(library(sequence_list)).
 :- use_module(library(clambda)).
-:- use_module(library(mapnlist)).
+:- use_module(library(mapilist)).
 :- use_module(library(linearize)).
 :- use_module(library(substitute)).
 :- use_module(library(subpos_utils)).
@@ -2306,7 +2306,7 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT), Into, Term, Opti
     ; NT = '$TEXTQ'(FT)
     ),
     !,
-    mapnlist([Into, Term] +\ N^Pos^(PosK-v(N, Pos, Arg, TAr))^
+    mapilist([Into, Term] +\ N^Pos^(PosK-v(N, Pos, Arg, TAr))^
             ( arg(N, Into, Arg),
               arg(N, Term, TAr),
               normalize_pos(Pos, PosK)
