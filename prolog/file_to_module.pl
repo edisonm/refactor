@@ -98,7 +98,8 @@ file_to_module(Alias, Options1) :-
     select_option(module(M),         Options1, Options2, M),
     select_option(exclude(ExcludeL), Options2, Options3, []),
     select_option(addcl(AddL),       Options3, Options4, []),
-    select_option(delcl(DelL),       Options4, _, []),
+    select_option(near2(Nr2L),       Options4, Options5, []), 
+    select_option(delcl(DelL),       Options5, _, []),
     absolute_file_name(Alias, File, [file_type(prolog), access(read)]),
     files_to_move(M, File, FileL),
     format('% from context ~a~n', [M]),
@@ -135,7 +136,7 @@ file_to_module(Alias, Options1) :-
     decl_to_use_module(consult, M, PIL1, Alias, ReexportL),
     decl_to_use_module(include, M, PIL1, Alias, ReexportL),
     append(ExcludeL, PIFx, ExTL),
-    add_use_module(M, FileL, Alias, AddL, ExTL),
+    add_use_module(M, FileL, Alias, Nr2L, AddL, ExTL),
     add_use_module_ex(M, DelL, FileL),
     del_use_module_ex(M, FileL),
     add_module_decl(NewM, PIL1, File),
@@ -262,7 +263,7 @@ ren_qualification_decl(M, NewM, PIL, Options) :-
                           [sentence((:- Decl))|Options])
            )).
 
-add_use_module(M, FileL, Alias, AddL, ExcludeL) :-
+add_use_module(M, FileL, Alias, Nr2L, AddL, ExcludeL) :-
     findall(CM-(F/A),
             ( ( module_to_import_db(F, A, M, CM, _File),
                 implemented_in_file(F, A, M, File),
@@ -276,12 +277,15 @@ add_use_module(M, FileL, Alias, AddL, ExcludeL) :-
     sort(CMPIU, CMPIL),
     group_pairs_by_key(CMPIL, CMPIG),
     forall(member(CM-PIL, CMPIG),
-           add_use_module_cm(M, Alias, AddL, CM, PIL)).
+           add_use_module_cm(M, Alias, Nr2L, AddL, CM, PIL)).
 
-add_use_module_cm(M, Alias, AddL, CM, PIL) :-
+add_use_module_cm(M, Alias, Nr2L, AddL, CM, PIL) :-
     ( module_property(CM, file(MFile))
-    ->reverse([(:- module(CM, _))|AddL], TopCL),
-      once(( member(Term, TopCL),
+    ->once(( ( member(Term, Nr2L)
+             ; reverse(AddL, AddR),
+               member(Term, AddR)
+             ; Term = (:- module(CM, _))
+             ),
              replace_sentence(Term,
                               [Term,
                                (:- use_module(Alias))],
