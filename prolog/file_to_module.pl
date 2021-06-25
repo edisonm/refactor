@@ -279,19 +279,20 @@ add_use_module(M, FileL, Alias, Nr2L, AddL, ExcludeL) :-
     forall(member(CM-PIL, CMPIG),
            add_use_module_cm(M, Alias, Nr2L, AddL, CM, PIL)).
 
+add_use_module1_file(Alias, MFile, TermL) :-
+    once(( member(Term, TermL),
+           replace_sentence(Term,
+                            [Term,
+                             (:- use_module(Alias))],
+                            [max_changes(1), changes(C), file(MFile)]),
+           C \= 0
+         )).
+
 add_use_module_cm(M, Alias, Nr2L, AddL, CM, PIL) :-
     ( module_property(CM, file(MFile))
-    ->once(( ( member(Term, Nr2L)
-             ; reverse(AddL, AddR),
-               member(Term, AddR)
-             ; Term = (:- module(CM, _))
-             ),
-             replace_sentence(Term,
-                              [Term,
-                               (:- use_module(Alias))],
-                              [max_changes(1), changes(C), file(MFile)]),
-             C \= 0
-           )),
+    ->reverse(AddL, AddR),
+      append([Nr2L, AddR, [(:- module(CM, _))]], TermL),
+      add_use_module1_file(Alias, MFile, TermL),
       module_property(M, file(MainF)),
       replace_sentence((:- use_module(MainA, ExL)),
                        [],
