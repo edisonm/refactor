@@ -62,8 +62,6 @@
 :- use_module(library(ordsets)).
 :- use_module(library(option)).
 :- use_module(library(pairs)).
-:- use_module(library(assertions)).
-:- use_module(library(typeprops)).
 :- use_module(library(substitute)).
 :- use_module(library(option_utils)).
 :- use_module(library(ref_context)).
