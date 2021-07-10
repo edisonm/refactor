@@ -450,7 +450,7 @@ apply_ec_term_level(Level, Patt, Into, Expander, Options1) :-
         '$set_source_module'(_, OldM)).
 
 :- use_module(library(countsols)).
-:- use_module(library(concurrent_forall)).
+:- use_module(library(conc_forall)).
 
 param_module_file_sorted(MFileParam, M, File) :-
     order_by([desc(Size)],
@@ -464,7 +464,7 @@ process_sentences(
     index_change(Index),
     ini_counter(0, STries),
     ini_counter(0, SCount),
-    concurrent_forall(
+    conc_forall(
         param_module_file_sorted(MFileParam, M, File),
         process_sentence_file(
             Index, FixPoint, Max, SentPattern, Options, CleanupAttributes,
