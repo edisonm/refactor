@@ -221,6 +221,12 @@
 %   * '$LISTC'(L)
 %     Print each element of L in a way similar to portray_clause
 %
+%   * '$LISTC.NL'(L)
+%     Print each element of L in a way similar to portray_clause followed by a
+%     dot and a new line.  If Level is sent, the tool will add this
+%     automatically if the replacement is a list, and in the case of an empty
+%     list, the sentence will be removed.
+%
 %   * '$LIST,'(L)
 %     Print each element of L placing a comma between them
 %
@@ -228,9 +234,10 @@
 %     Print each element of L followed by a comma
 %
 %   * '$LIST,NL'(L)
-%     Print each element of L followed by a comma and a new line If Level is
-%     sent, the tool will add this automatically if the replacement is a list,
-%     and in the case of an empty list, the sentence will be removed.
+%     Print each element of L followed by a comma and a new line
+%
+%   * '$LISTNL'(L)
+%     Print each element of L followed by a new line.
 %
 %   * '$LIST.NL'(L)
 %     Print each element of L followed by a dot and a new line without clause
@@ -1558,7 +1565,11 @@ rportray('$LISTNL.'(L), Opt) :-
 rportray('$LIST,NL'(L), Opt) :-
     offset_pos('$OUTPOS', Pos),
     !,
-    rportray_list_nl_comma(L, Pos, Opt).
+    rportray_list_nl(',',L, Pos, Opt).
+rportray('$LISTNL'(L), Opt) :-
+    offset_pos('$OUTPOS', Pos),
+    !,
+    rportray_list_nl('', L, Pos, Opt).
 rportray('$TAB'(Term, Offs), Opt) :-
     offset_pos(Offs-'$OUTPOS', Delta),
     !,
@@ -1567,7 +1578,11 @@ rportray('$TAB'(Term, Offs), Opt) :-
 rportray('$LIST,NL'(L, Offs), Opt) :-
     offset_pos(Offs, Pos),
     !,
-    rportray_list_nl_comma(L, Pos, Opt).
+    rportray_list_nl(',', L, Pos, Opt).
+rportray('$LISTNL'(L, Offs), Opt) :-
+    offset_pos(Offs, Pos),
+    !,
+    rportray_list_nl('', L, Pos, Opt).
 rportray('$LISTB,NL'(L), Opt) :-
     offset_pos('$OUTPOS'+1, Pos),
     !,
@@ -1921,9 +1936,15 @@ rportray_list_nl_b(L, Pos, Opt) :-
     write(']').
 
 rportray_list_nl_comma(L, Pos, Opt) :-
+    rportray_list_nl(',', L, Pos, Opt).
+
+rportray_list_nl(L, Pos, Opt) :-
+    rportray_list_nl('', L, Pos, Opt).
+
+rportray_list_nl(Pre, L, Pos, Opt) :-
     term_priority([_|_], user, 1, Priority),
     merge_options([priority(Priority)], Opt, Opt1),
-    sep_nl(Pos, ',', Sep),
+    sep_nl(Pos, Pre, Sep),
     rportray_list(L, write_term, Sep, Opt1).
 
 rportray_list(L, Writter, Sep, Opt) :-
