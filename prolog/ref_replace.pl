@@ -1574,11 +1574,11 @@ rportray('$LISTNL.'(L), Opt) :-
 rportray('$LIST,NL'(L), Opt) :-
     offset_pos('$OUTPOS', Pos),
     !,
-    rportray_list_nl(',',L, Pos, Opt).
+    rportray_list_nl_comma(L, Pos, Opt).
 rportray('$LISTNL'(L), Opt) :-
     offset_pos('$OUTPOS', Pos),
     !,
-    rportray_list_nl('', L, Pos, Opt).
+    rportray_list_nl(L, Pos, Opt).
 rportray('$TAB'(Term, Offs), Opt) :-
     offset_pos(Offs-'$OUTPOS', Delta),
     !,
@@ -1587,11 +1587,11 @@ rportray('$TAB'(Term, Offs), Opt) :-
 rportray('$LIST,NL'(L, Offs), Opt) :-
     offset_pos(Offs, Pos),
     !,
-    rportray_list_nl(',', L, Pos, Opt).
+    rportray_list_nl_comma(L, Pos, Opt).
 rportray('$LISTNL'(L, Offs), Opt) :-
     offset_pos(Offs, Pos),
     !,
-    rportray_list_nl('', L, Pos, Opt).
+    rportray_list_nl(L, Pos, Opt).
 rportray('$LISTB,NL'(L), Opt) :-
     offset_pos('$OUTPOS'+1, Pos),
     !,
