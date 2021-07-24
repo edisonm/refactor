@@ -63,7 +63,6 @@
 :- use_module(library(option)).
 :- use_module(library(pairs)).
 :- use_module(library(substitute)).
-:- use_module(library(assertions)).
 :- use_module(library(option_utils)).
 :- use_module(library(ref_context)).
 :- use_module(library(ref_message)).
@@ -383,7 +382,7 @@ match_clause_head_body((M:Head :- Body), M:Head, Body) :- !.
 match_clause_head_body(Head, Head, true).
 
 :- meta_predicate qualify_meta_call(0, ?, -).
-:- pred qualify_meta_call(0, ?, -goal).
+
 qualify_meta_call(M:Goal1, CM, M:Goal) :-
     qualify_meta_call(Goal1, M, CM, true, Goal).
 
