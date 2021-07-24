@@ -106,10 +106,10 @@
     with_counters(0, +),
     with_styles(0, +).
 
-%!  replace(+Level, +Patt, -Into, :Expander, :Options) is det
+%!  replace(+Level, +Pattern, -Into, :Expander, :Options) is det
 %
 %   Given a Level of operation, in all terms of the source code that subsumes
-%   Patt, replace each Patt with Into, provided that Expander succeeds.
+%   Pattern, replace each Pattern with Into, provided that Expander succeeds.
 %   Expander can be used to finalize the shape of Into as well as to veto the
 %   expansion (if fails). The Options argument is used to control the behavior
 %   and scope of the replacement.
@@ -272,7 +272,7 @@
 %     ```
 %
 %   * '$SEEK'(T, O)
-%     Seek 0 in the current output before to print T.
+%     Seek O in the current output before to print T.
 %
 %   * '$TAB'(T, O)
 %     Print as many spaces as needed to make O the current write position
