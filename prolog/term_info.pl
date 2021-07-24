@@ -56,10 +56,6 @@ get_term_info(M, Pattern, Term, AllChk, File, Options) :-
     call(AllChk, File),
     get_term_info_file(Pattern, Term, File, Options).
 
-fix_exception(error(Error, stream(_,  Line, Row, Pos)), File,
-              error(Error, file(File, Line, Row, Pos))) :- !.
-fix_exception(E, _, E).
-
 ti_open_source(Path, In) :-
     b_setval(ti_open_source, yes),
     prolog_open_source(Path, In),
@@ -68,14 +64,9 @@ ti_open_source(Path, In) :-
 with_source_file(File, In, Goal) :-
     prolog_canonical_source(File, Path),
     print_message(informational, format("Reading ~w", Path)),
-    catch(setup_call_cleanup(ti_open_source(Path, In),
-                             call(Goal),
-                             prolog_close_source(In)),
-          E1,
-          ( fix_exception(E1, Path, E),
-            print_message(error, E),
-            fail
-          )).
+    setup_call_cleanup(ti_open_source(Path, In),
+                       call(Goal),
+                       prolog_close_source(In)).
 
 fetch_term_info(Pattern, Term, Options, In) :-
     ( ( option(line(Line), Options),

@@ -736,7 +736,7 @@ apply_commands(Index, File, Level, M, Rec, FixPoint, Max, GenMCmd) :-
         with_source_file(
             File, In,
             apply_commands_stream(
-                FPTerm, GenMCmd, Level, M, nocs, Max, In, Text1, Text)),
+                FPTerm, GenMCmd, File, Level, M, nocs, Max, In, Text1, Text)),
         [text, file], [Text1, File]),
         ( Text1 \= Text
         ->nb_set_refactor_context(modified, true),
@@ -761,9 +761,18 @@ increase_counter(Count1) :-
     succ(Count, Count1),
     nb_set_refactor_context(count, Count1).
 
-do_genmcmd(GenMCmd, Level, M, CS, Command, In, Max) :-
+fix_exception(error(Error, stream(_,  Line, Row, Pos)), File,
+              error(Error, file(File, Line, Row, Pos))) :- !.
+fix_exception(E, _, E).
+
+do_genmcmd(GenMCmd, File, Level, M, CS, Command, In, Max) :-
     decreasing_recursion(CS, Command),
-    call(GenMCmd, Level, M, Command, In),
+    catch(call(GenMCmd, Level, M, Command, In),
+          E1,
+          ( fix_exception(E1, File, E),
+            print_message(error, E),
+            fail
+          )),
     increase_counter(Count1),
     ( nonvar(Max),
       Count1 >= Max
@@ -771,18 +780,18 @@ do_genmcmd(GenMCmd, Level, M, CS, Command, In, Max) :-
     ; true
     ).
 
-apply_commands_stream(FPTerm, GenMCmd, Level, M, CS, Max, In, Text1, Text) :-
+apply_commands_stream(FPTerm, GenMCmd, File, Level, M, CS, Max, In, Text1, Text) :-
     IPosText = 0-"",
     rec_command_info(FPTerm, GenMCmd, CI),
-    ignore(forall(do_genmcmd(GenMCmd, Level, M, CS, Command, In, Max),
-                  apply_commands_stream_each(FPTerm, CI, M, Max, Command,
+    ignore(forall(do_genmcmd(GenMCmd, File, Level, M, CS, Command, In, Max),
+                  apply_commands_stream_each(FPTerm, File, CI, M, Max, Command,
                                              Text1, IPosText)
                  )),
     IPosText = Pos-Text6,
     sub_string(Text1, Pos, _, 0, TText),
     string_concat(Text6, TText, Text).
 
-apply_commands_stream_each(FPTerm, CI, M, Max, Command, Text1, IPosText) :-
+apply_commands_stream_each(FPTerm, File, CI, M, Max, Command, Text1, IPosText) :-
     ( apply_change(Text1, M, Command, FromToPText1),
       ( do_recursion(CI, Command, GenMCmd, CS)
       ->FromToPText1 = t(From, To, PasteText),
@@ -797,7 +806,7 @@ apply_commands_stream_each(FPTerm, CI, M, Max, Command, Text1, IPosText) :-
             ( open_codes_stream(Text2, In)
               % seek(In, Pos, bof, _)
             ),
-            apply_commands_stream(FPTerm, GenMCmd, term, M, CS, Max, In,
+            apply_commands_stream(FPTerm, GenMCmd, File, term, M, CS, Max, In,
                                   Text2, Text3),
             close(In)),
         set_refactor_context(text, Text1),
