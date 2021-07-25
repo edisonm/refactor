@@ -277,7 +277,7 @@
 %   * '$TAB'(T, O)
 %     Print as many spaces as needed to make O the current write position
 %
-%   Defined options are:
+%   Specific options for this predicate are:
 %
 %   * fixpoint(+Value)
 %     States that the replacement should be applied recursively, until no more
@@ -302,6 +302,81 @@
 %   * decrease_metric(:Metric) is a predicate of arity 3 of the form
 %     predicate(+Term, +Pattern, -Size) to define the metric used to perform the
 %     decreasing control (by default pattern_size/3).
+%
+%   * line(-Line)
+%     Unifies Line with the line number of the sentence being refactorized.
+%
+%   * clause(+Ref)
+%     Apply the refactoring to the clause refered by Ref.
+%
+%   * max_tries(MaxTries)
+%     Apply no more than MaxTries changes
+%
+%   * syntax_errors(SE)
+%     Default error
+%
+%   * subterm_positions(SentPos)
+%
+%   * term_position(Pos)
+%
+%   * conj_width(+ConjWidth)
+%     Print several conjunctions in the same line, provided that they don't
+%     surpasses ConjWidth columns.
+%     Default is 120
+%
+%   * term_width(+TermWidth)
+%     Split long terms so that when printed, they don't surpasses TermWidth
+%     columns.
+%     Default is 120
+%
+%   * list_width(+ListWidth)
+%     Split long lists so that when printed, they don't surpasses ListWidth
+%     columns.
+%     Default is 120
+%
+%   * linearize(+Linearize)
+%     Linearize is a subset of [atom, term], which will linearize the term to
+%     avoid bounded variables or atoms.  In some refactoring scenarios this is
+%     important if we want to avoid ambiguities.  For instance, supose that you
+%     want to replayce f(A, B), by f(B, A), but if one of the matching terms is
+%     f(X, X), the change will not be performed, even if the two arguments have
+%     different layouts.  To avoid we should use the option linearize([term]).
+%     Default is [].
+%
+%   * sentence(-SentPattern)
+%     Unifies SentPattern with the Sentence being processed.  This is useful in
+%     some refactoring scenarios.
+%
+%   * comments(-Comments)
+%     Passed to read_term/2 to get the list of Comments.
+%
+%   * expand(Expand)
+%
+%   * expanded(Expanded)
+%
+%   * cleanup_attributes(CleanupAttributes)
+%     Default yes
+%
+%   * fixpoint(FixPoint)
+%     Default decreasing
+%
+%   * max_changes(Max)
+%
+%   * variable_names(VNL)
+%
+%   * vars_preffix(Preffix)
+%     Default 'V'
+%
+%   * file(AFile)
+%
+%   * if(Loaded)
+%     if Loaded is true (default), refactor non loaded files too
+%
+%   * subterm_boundary(+Boundary)
+%     Processed by fix_termpos/2 to stablish the boundaries of the subterms.
+%
+%   Other options are processed by the predicate option_module_files/2 and allows
+%   to select the files or modules that are going to be modified.
 
 replace(Level, Patt, Into, Expander, MOptions) :-
     %% At this point we are not interested in styles
@@ -522,50 +597,21 @@ process_sentence_file(Index, FixPoint, Max, SentPattern, Options, CleanupAttribu
                       M, File, Expanded, Expand, Pos, GoalArgs,
                       Linearize, MaxTries, Preffix, Level, Data, Tries, Count) :-
     maplist(set_refactor_context,
-            [bindings,
-             cleanup_attributes,
-             comments,
-             expanded,
-             file,
-             goal_args,
-             modified,
-             tries,
-             count,
-             max_tries,
-             options,
-             pos,
-             preffix,
-             sent_pattern,
-             sentence,
-             subpos],
-            [Bindings,
-             CleanupAttributes,
-             Comments,
-             Expanded,
-             File,
-             GoalArgs,
-             false,
-             0,
-             0,
-             MaxTries,
-             Options,
-             Pos,
-             Preffix,
-             SentPattern,
-             Sent,
-             SentPos]),
+            [bindings, cleanup_attributes, comments, expanded, file, goal_args, modified,
+             tries, count, max_tries, options, pos, preffix, sent_pattern, sentence, subpos],
+            [Bindings, CleanupAttributes,  Comments, Expanded, File, GoalArgs,  false,
+             0,     0,     MaxTries,  Options, Pos, Preffix, SentPattern,  Sent,     SentPos]),
     \+ \+ ( option(comments(Comments),  Options, Comments),
             option(subterm_positions(SentPos), Options, SentPos),
             option(variable_names(VNL), Options, VNL),
             level_rec(Level, Rec),
             rec_fixpoint_file(Rec, FixPoint, FPFile),
-            fixpoint_file(
-                FPFile, Max,
-                apply_commands(
-                    Index, File, Level, M, Rec, FixPoint, Max,
-                    gen_module_command(
-                        SentPattern, Options, Expand, SentPos, Expanded, Linearize,
-                        Sent, VNL, Bindings, Data)))
+            fixpoint_file(FPFile, Max,
+                          apply_commands(
+                              Index, File, Level, M, Rec, FixPoint, Max,
+                              gen_module_command(
+                                  SentPattern, Options, Expand, SentPos, Expanded,
+                                  Linearize, Sent, VNL, Bindings, Data)))
           ),
     refactor_context(tries, Tries),
     refactor_context(count, Count).
@@ -1006,7 +1052,7 @@ fix_subtermpos(top,    Into, TermPos, Options) :-
 
 %!  substitute_term_norec(+Sub, +M, +Term, +Priority, +Pattern, +Into, :Expander, +TermPos, SentPos, Cmd) is nondet.
 %
-%   Non-recursive version of substitute_term_rec//6.
+%   Non-recursive version of substitute_term_rec/6.
 
 substitute_term_norec(Sub, M, Term, TermPos1, Priority, data(Pattern1, Into1, Expander, SentPos),
                       subst(TermPos1,
@@ -1206,7 +1252,7 @@ trim_fake_args(N, Term1, Term) :-
 %   SrcTerm, where Data = data(Pattern, Into, Expander, SentPos).
 %   This predicate must be cautious about handling bindings:
 %
-%   - Overall bindings do not affect further substitutions because we are
+%   - Overall bindings do not affect further substitutions because they are
 %     managed by findall/3 in do_replace/6.
 %   - Pattern must not be instantiated by either unification with SrcTerm or the
 %     execution of Expander.  This is needed for substitute_term/7 to find the
@@ -1661,7 +1707,7 @@ rportray((A, B), Opt) :-
       Sep = ", ",
       string_length(Sep, SepLength),
       option(conj_width(ConjWidth), Opt),
-      Pos1 + WidthTotal + (Length - 1) * SepLength =< ConjWidth
+      Pos1 + WidthTotal + (Length - 1) * SepLength < ConjWidth
     ->CloseB = ""
     ; ( Display = yes
       ->Format = "( ~s~s)",
@@ -1893,9 +1939,9 @@ collect_args(Indent, TermWidth, LineL, Pos1-[Sep, String|T], Pos-T) :-
     ( LineL = [Line1],
       string_concat(Indent, String, Line1),
       string_length(String, Width),
-      Pos1 + 2 + Width < TermWidth
-    ->Sep = ", ",
-      Pos is Pos1 + 2 + Width
+      Pos is Pos1 + 2 + Width,
+      Pos < TermWidth
+    ->Sep = ", "
     ; atom_concat(",\n", Indent, Sep),
       last(LineL, Last),
       string_length(Last, Pos),
