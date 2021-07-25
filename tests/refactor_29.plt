@@ -35,7 +35,7 @@ diff -ruN exapp.pl -
 test(exapp_1) :-
     execute_test(exapp, exapp_1,
                  replace_term(append(A,B,C), C='$APP'(A, B), is_list(A)),
-                 [fixpoint(none),linearize([term])]).
+                 [fixpoint(none),linearize([vars])]).
 
 /* $exapp_3$
 diff -ruN exapp.pl -

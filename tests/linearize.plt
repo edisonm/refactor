@@ -20,7 +20,7 @@ test(linearize1) :-
                      f(X,Y),
                      f(Y,X)
                  ),
-                [file(linearize), linearize([term])]).
+                [file(linearize), linearize([vars])]).
 
 /* $linearize2$
 diff -ruN linearize.pl -

@@ -18,6 +18,6 @@ diff -ruN ex3.pl -
 test(ex3) :-
     execute_test(ex3, replace_sentence((A :- display(B)),
                                        (A :- A, B, display(B)), true),
-                [module(ex3), linearize([atom])]).
+                [module(ex3), linearize([atms])]).
 
 :- end_tests(refactor_03).

@@ -335,7 +335,7 @@
 %     Default is 120
 %
 %   * linearize(+Linearize)
-%     Linearize is a subset of [atom, term], which will linearize the term to
+%     Linearize is a subset of [vars, atms], which will linearize the term to
 %     avoid bounded variables or atoms.  In some refactoring scenarios this is
 %     important if we want to avoid ambiguities.  For instance, supose that you
 %     want to replayce f(A, B), by f(B, A), but if one of the matching terms is

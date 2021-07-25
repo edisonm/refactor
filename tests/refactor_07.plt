@@ -18,7 +18,7 @@ diff -ruN ex7.pl -
 test(ex7_1) :-
     execute_test(ex7, ex7_1,
                  replace_sentence(aaa([[X,_]],[Y], []),
-                                  aab([['$VAR'('_')]], e, [X], [[c,Y],[b,c,Y]])), [linearize([atom])]).
+                                  aab([['$VAR'('_')]], e, [X], [[c,Y],[b,c,Y]])), [linearize([atms])]).
 
 % Note the difference with previous test, the layout of [d] is
 % preserved, due to is exactly the same term, although is via the
@@ -38,6 +38,6 @@ diff -ruN ex7.pl -
 test(ex7_2) :-
     execute_test(ex7, ex7_2,
                  replace_sentence(aaa([[X,_]],[Y], []),
-                                  aaa([['$VAR'('_')]], [X], [[c,Y],[b,c,Y]]), true), [linearize([atom])]).
+                                  aaa([['$VAR'('_')]], [X], [[c,Y],[b,c,Y]]), true), [linearize([atms])]).
 
 :- end_tests(refactor_07).
