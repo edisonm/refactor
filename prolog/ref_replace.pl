@@ -830,15 +830,15 @@ apply_commands_stream(FPTerm, GenMCmd, File, Level, M, CS, Max, In, Text1, Text)
     IPosText = 0-"",
     rec_command_info(FPTerm, GenMCmd, CI),
     ignore(forall(do_genmcmd(GenMCmd, File, Level, M, CS, Command, In, Max),
-                  apply_commands_stream_each(FPTerm, File, CI, M, Max, Command,
+                  apply_commands_stream_each(FPTerm, File, Level, CI, M, Max, Command,
                                              Text1, IPosText)
                  )),
     IPosText = Pos-Text6,
     sub_string(Text1, Pos, _, 0, TText),
     string_concat(Text6, TText, Text).
 
-apply_commands_stream_each(FPTerm, File, CI, M, Max, Command, Text1, IPosText) :-
-    ( apply_change(Text1, M, Command, FromToPText1),
+apply_commands_stream_each(FPTerm, File, Level, CI, M, Max, Command, Text1, IPosText) :-
+    ( apply_change(Text1, M, Level, Command, FromToPText1),
       ( do_recursion(CI, Command, GenMCmd, CS)
       ->FromToPText1 = t(From, To, PasteText),
         get_out_pos(Text1, IPosText, From, Line, LPos),
@@ -918,14 +918,14 @@ gen_new_variable_names([Var|VarL], [Name1|NameL], Preffix, Count1,
     ),
     gen_new_variable_names(VarL, NameL, Preffix, Count, Sent, Pattern, Into, VNL2, VNL).
 
-apply_change(Text, M, subst(TermPos, Options, Term, Into, _),
+apply_change(Text, M, Level, subst(TermPos, Options, Term, Into, _),
              t(From, To, PasteText)) :-
     call_cleanup(
         with_output_to(
             string(OutputText),
             ( stream_property(current_output, position(Pos1)),
               with_termpos(
-                  print_expansion_1(Into, Term, TermPos,
+                  print_expansion_1(Into, Term, TermPos, Level,
                                     [module(M),
                                      text(Text)|Options],
                                     Text, From, To),
@@ -944,13 +944,6 @@ wr_options([portray_goal(ref_replace:rportray),
             partial(true),
             character_escapes(false)]).
 
-print_expansion_1(Into, Term, TermPos, Options, Text, From, To) :-
-    get_innerpos(TermPos, ITermPos),
-    ( nonvar(Into)
-    ->print_expansion_2(Into, Term, ITermPos, Options, Text, From, To)
-    ; print_expansion_3(Into, Term, ITermPos, Options, Text, From, To)
-    ).
-
 call_expander(Expander, TermPos, Pattern, Into) :-
     refactor_context(tries, Tries),
     refactor_context(max_tries, MaxTries),
@@ -966,23 +959,6 @@ call_expander(Expander, TermPos, Pattern, Into) :-
                               )),
                         [termpos, pattern, into],
                         [TermPos, Pattern, Into]).
-
-special_term(top,    Pattern, Term, '$LISTC'(List)) :-
-    nonvar(Pattern),
-    memberchk(Pattern, [[], end_of_file]),
-    !,
-    ( \+ is_list(Term)
-    ->List = [Term]
-    ; List = Term
-    ).
-special_term(sub_cw, _, Term,  Term).
-special_term(sub,    _, Term,  Term).
-special_term(top,    _, Term1, Term) :- top_term(Term1, Term).
-
-top_term(Var, Var) :- var(Var), !.
-top_term(List, '$LISTC.NL'(List)) :- List = [_|_], !.
-top_term([], '$RM') :- !.
-top_term(Term, Term).
 
 trim_hacks(Term, Trim) :-
     substitute(trim_hack, Term, Trim).
@@ -1106,8 +1082,7 @@ with_context(Sub, M, Term1, TermPos1, Priority, Sent1, SentPos1, Pattern1, Into1
        The predicate performs destructive assignment (as in imperative
        languages), modifying term position once the predicate is called */
     fix_subtermpos(TTerm1, TInto1, Sub, TSentPos1, Options),
-    replace_subterm_locations(NewVNL, TermL, TTerm1, IntoL, TInto1, M, TTermPos1, Priority, TInto7),
-    special_term(Sub, TTerm1, TInto7, Into).
+    replace_subterm_locations(NewVNL, TermL, TTerm1, IntoL, TInto1, M, TTermPos1, Priority, Into).
 
 sleq(Term, Into, Term) :- Term == Into.
 
@@ -1120,7 +1095,7 @@ subterm_location_same_term([N|L], Term1, Term2, SubTerm) :-
     arg(N, Term2, SubTerm2),
     subterm_location_same_term(L, SubTerm1, SubTerm2, SubTerm).
 
-:- dynamic partial_path_db/1.
+:- thread_local partial_path_db/1.
 
 is_scanneable(Term) :-
     compound(Term),
@@ -1347,6 +1322,7 @@ get_output_position(From, Pos) :-
 write_term_dot_nl(Term, OptL) :-
     write_term(Term, OptL),
     write('.\n').
+
 rportray_clause_dot_nl(Clause, OptL) :-
     rportray_clause(Clause, OptL),
     write('.\n').
@@ -2085,6 +2061,32 @@ print_expansion_rm_dot(TermPos, Text, From, To) :-
 
 % Hacks that can only work at 1st level:
 
+print_expansion_1(Into1, Term, TermPos, Level, Options, Text, From, To) :-
+    get_innerpos(TermPos, ITermPos),
+    ( Level = sent
+    ->( nonvar(Term),
+        memberchk(Term, [[], end_of_file])
+      ->( \+ is_list(Into1)
+        ->Into = '$LISTC'([Into1])
+        ; Into = '$LISTC'(Into1)
+        )
+      ; Into1 = []
+      ->Into = '$RM'
+      ; is_list(Into1),
+        % Note that the same_length/2 check only cover a particular case, when
+        % the number of sentences is preserved:
+        \+ same_length(Into1, Term)
+      ->Into = '$LISTC.NL'(Into1)
+      ; Into = Into1
+      )
+    ; Into = Into1
+    ),
+    print_expansion_2(Into, Term, ITermPos, Options, Text, From, To).
+
+print_expansion_2(Into, Term, TermPos, Options, Text, From, To) :-
+    var(Into),
+    !,
+    print_expansion_3(Into, Term, TermPos, Options, Text, From, To).
 print_expansion_2('$RM', _, TermPos, _, Text, From, To) :-
     !,
     print_expansion_rm_dot(TermPos, Text, From, To).
@@ -2116,8 +2118,7 @@ print_expansion_2('$TEXTQ'(Into, Offs), _, TermPos, Options, _, From, To) :-
     arg(2, TermPos, To1),
     write_q(Into, Options),
     To is To1+Pos.
-print_expansion_2('$LIST.NL'(IntoL), Term, TermPos, Options1,
-                  Text, From, To) :-
+print_expansion_2('$LIST.NL'(IntoL), Term, TermPos, Options1, Text, From, To) :-
     !,
     merge_options([priority(1200)], Options1, Options),
     print_expansion_rm_dot(TermPos, Text, From, To),
