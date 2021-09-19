@@ -23,7 +23,7 @@ diff -ruN ex54.pl -
 +/*b*/b.
 +a.
 +f(a).
-+c.
++/*c*/c.
 */
 
 test(ex54_2) :-
