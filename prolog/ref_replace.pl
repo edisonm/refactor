@@ -1613,7 +1613,7 @@ rportray('$LISTC.NL'(CL), Opt) :-
     !,
     merge_options([priority(1200), portray_clause(true)], Opt, Opt1),
     option(text(Text), Opt),
-    term_write_sep_list_2(CL, rportray_clause, Text, '.\n', '.\n', Opt1).
+    term_write_sep_list_3(CL, rportray_clause, Text, '.\n', '.\n', Opt1).
 rportray('$LIST.NL'(L), Opt) :-
     !,
     merge_options([priority(1200)], Opt, Opt1),
@@ -2029,10 +2029,38 @@ term_write_sep_list_inner(L, Writter, Text, SepElem, SepTail, Opt) :-
     call(Writter, E, Opt),
     term_write_sep_list_inner(T, Writter, Text, SepElem, SepTail, Opt).
 term_write_sep_list_inner(T, Writter, Text, SepElem, SepTail, Opt) :-
-    ( T == []
-    ->true
-    ; write_tail(T, Writter, Text, SepElem, SepTail, Opt)
-    ).
+    write_tail(T, []/0, Writter, Text, SepElem, SepTail, Opt).
+
+term_write_sep_list_3([E|T], Writter, Text, SepElem, SepTail, Opt) :-
+    !,
+    call(Writter, E, Opt),
+    get_pred(E, D),
+    term_write_sep_list_inner_3(T, D, Writter, Text, SepElem, SepTail, Opt).
+term_write_sep_list_3(E, Writter, _, _, _, Opt) :-
+    call(Writter, E, Opt).
+
+get_pred(T, F/A) :-
+    deref_substitution(T, C),
+    once(clause_head(C, H)),
+    deref_substitution(H, D),
+    functor(D, F, A).
+
+clause_head(H :-  _, H).
+clause_head(H --> _, H).
+clause_head(H,       H).
+
+
+term_write_sep_list_inner_3(L, D, Writter, Text, SepElem, SepTail, Opt) :-
+    nonvar(L),
+    L = [E|T],
+    !,
+    write(SepElem),
+    get_pred(E, F),
+    ignore((D \= F, nl)),
+    call(Writter, E, Opt),
+    term_write_sep_list_inner_3(T, F, Writter, Text, SepElem, SepTail, Opt).
+term_write_sep_list_inner_3(T, D, Writter, Text, SepElem, SepTail, Opt) :-
+    write_tail(T, D, Writter, Text, SepElem, SepTail, Opt).
 
 term_write_comma_2(Opt, Term) :- write_term(Term, Opt), write(', ').
 
@@ -2040,24 +2068,26 @@ sep_nl(LinePos, Sep, SepNl) :-
     with_output_to(atom(In), line_pos(LinePos)),
     atomic_list_concat([Sep, '\n', In], SepNl).
 
-write_tail(T, Writter, _, _, SepTail, Opt) :-
+write_tail(T, _, Writter, _, _, SepTail, Opt) :-
     var(T),
     !,
     write(SepTail),
     call(Writter, T, Opt).
-write_tail([], _, _, _, _, _) :- !.
-write_tail('$LIST,NL'(L), Writter, Text, _, _, Opt) :-
+write_tail([], _, _, _, _, _, _) :- !.
+write_tail('$LIST,NL'(L), _, Writter, Text, _, _, Opt) :-
     !,
     offset_pos('$OUTPOS', Pos),
     sep_nl(Pos, ',', Sep),
     term_write_sep_list_inner(L, Writter, Text, Sep, '|', Opt).
-write_tail('$LIST,NL'(L, Offs), Writter, Text, _, _, Opt) :-
+write_tail('$LIST,NL'(L, Offs), _, Writter, Text, _, _, Opt) :-
     offset_pos(Offs, Pos),
     !,
     sep_nl(Pos, ',', Sep),
     term_write_sep_list_inner(L, Writter, Text, Sep, '|', Opt).
-write_tail(T, Writter, _, _, SepTail, Opt) :-
+write_tail(T, D, Writter, _, _, SepTail, Opt) :-
+    get_pred(T, F),
     write(SepTail),
+    ignore((D \= F, nl)),
     call(Writter, T, Opt).
 
 print_expansion_rm_dot(TermPos, Text, From, To) :-

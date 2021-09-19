@@ -18,15 +18,19 @@ test(ex54_1) :-
 diff -ruN ex54.pl -
 --- ex54.pl (source)
 +++ ex54.pl (target)
-@@ -1 +1,4 @@
+@@ -1 +1,8 @@
 -a. /*b*/b. /*c*/c.
 +/*b*/b.
++
 +a.
++a :- x.
++
 +f(a).
++
 +/*c*/c.
 */
 
 test(ex54_2) :-
-    execute_test(ex54_2, replace_sentence([a,b,X],[b,a,f(a),X]),[file(ex54)]).
+    execute_test(ex54_2, replace_sentence([a,b,X],[b,a,a:-x,f(a),X]),[file(ex54)]).
 
 :- end_tests(refactor_54).
