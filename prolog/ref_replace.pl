@@ -1103,16 +1103,19 @@ with_context(Sub, M, Term1, TermPos1, Priority, Sent1, SentPos1, Pattern1, Into1
     gen_new_variable_names(Sent1, Term1, Into1, VNL, NewVNL),
     trim_fake_pos(TermPos1, TTermPos1, N),
     substitute_value(TermPos1, TTermPos1, SentPos1, TSentPos1),
-    trim_fake_args_ll(N, [[Term5, Term4, Term3, Term2], [Term2],
-                          [Into5, Into4, Into3, Into1], [Into1]],
-                      [TermL, [TTerm1], IntoL, [TInto1]]),
+    trim_fake_args_ll(N, [[   _, Term2, Into1],
+                          [orig, Term5, Into5],
+                          [pexp, Term4, Into4],
+                          [rawt, Term3, Into3],
+                          [texp, Term2, Into1]],
+                      [[_, TTerm1, TInto1]|SpecTermIntoLL]),
     /* Note: fix_subtermpos/1 is a very expensive predicate, due to that we
        delay its execution until its result be really needed, and we only
        apply it to the subterm positions being affected by the refactoring.
        The predicate performs destructive assignment (as in imperative
        languages), modifying term position once the predicate is called */
     fix_subtermpos(TTerm1, TInto1, Sub, TSentPos1, Options),
-    replace_subterm_locations(NewVNL, TermL, TTerm1, IntoL, TInto1, M, TTermPos1, Priority, TInto7),
+    replace_subterm_locations(NewVNL, SpecTermIntoLL, TTerm1, TInto1, M, TTermPos1, Priority, TInto7),
     special_term(Sub, TTerm1, TInto1, TInto7, Into).
 
 sleq(Term, Into, Term) :- Term == Into.
@@ -1132,23 +1135,34 @@ is_scanneable(Term) :-
     compound(Term),
     \+ memberchk(Term, ['$@'(_)]).
 
-find_term_path(Term2, Into2, [TermLoc2, IntoLoc2, ArgLoc2, SubLoc2], [TermLoc1, IntoLoc1, ArgLoc1, SubLoc1]) :-
+find_term_path([Spec, Term2, Into2],
+               [Spec2, TermLoc2, IntoLoc2, ArgLoc2, SubLoc2],
+               [Spec1, TermLoc1, IntoLoc1, ArgLoc1, SubLoc1]) :-
     ( Into2 \== Term2,
       location_subterm_un(IntoLoc2, Into2, is_scanneable, Sub2),
       location_subterm_eq(TermLoc2, Term2, Sub2),
-      ArgLoc1 = SubLoc1
+      ArgLoc1 = SubLoc1,
+      ( ArgLoc2 = []
+      ->Spec1 = Spec2
+      ; Spec1 = Spec
+      )
     ; ArgLoc2 = [],
-      SubLoc2 = []
+      SubLoc2 = [],
+      Spec1 = Spec2
     ),
     append(IntoLoc2, SubLoc1, IntoLoc1),
     append(TermLoc2, ArgLoc1, TermLoc1).
 
-curr_subterm_replacement(TermL, Term1, IntoL, Into1, TermLoc1, IntoLoc1, ArgLocL, Size) :-
+curr_subterm_replacement(SpecTermIntoLL, Term1, Into1, TermLoc1, IntoLoc1, ArgLocL, Size) :-
     retractall(partial_path_db(_)),
-    foldl(find_term_path, TermL, IntoL, [TermLoc, IntoLoc, TermLoc, IntoLoc], [TermLoc1, IntoLoc1, _, _]),
-    location_subterm_un(IntoLoc1, Into1, is_scanneable, Sub1),
+    foldl(find_term_path, SpecTermIntoLL,
+          [orig, TermLoc, IntoLoc, TermLoc, IntoLoc], [Spec1, TermLoc1, IntoLoc1, _, _]),
+    once(location_subterm_un(IntoLoc1, Into1, is_scanneable, Sub1)),
     \+ partial_path_db(IntoLoc1),
-    % Sub1 \== [],
+    % Next check avoids things like [A|[]] being printed:
+    \+ ( memberchk(Spec1, [rawt, texp]),
+         Sub1 == []
+       ),
     subterm_location(sleq(Arg1, Sub1), Term1, TermLoc1),
     append(IntoLoc1, _, PIntoLoc1),
     assertz(partial_path_db(PIntoLoc1)),
@@ -1161,10 +1175,10 @@ curr_subterm_replacement(TermL, Term1, IntoL, Into1, TermLoc1, IntoLoc1, ArgLocL
     transpose(ArgLocLL, [[Ord1|_], ArgLocL]),
     Size is -Ord1.
 
-replace_subterm_locations(VNL, TermL, Term1, IntoL, Into1, M, TermPos, Priority, Into) :-
+replace_subterm_locations(VNL, SpecTermIntoLL, Term1, Into1, M, TermPos, Priority, Into) :-
     findall(([TermLoc1, IntoLoc1]-ArgLocL),
             order_by([desc(Size)],
-                     curr_subterm_replacement(TermL, Term1, IntoL, Into1, TermLoc1, IntoLoc1, ArgLocL, Size)),
+                     curr_subterm_replacement(SpecTermIntoLL, Term1, Into1, TermLoc1, IntoLoc1, ArgLocL, Size)),
             TermLocArgLocLL),
     foldl(perform_replacement(VNL, M, TermPos, Priority, Term1, Into1), TermLocArgLocLL, Into1-[], Into-VL),
     maplist(collapse_bindings, VL).
@@ -1240,7 +1254,11 @@ trim_fake_pos(Pos1, Pos, N) :-
       N = 0
     ).
 
-trim_fake_args_ll(N) --> maplist(maplist(trim_fake_args(N))).
+trim_fake_args_ll(N, L, T) :-
+    maplist(trim_fake_args_l(N), L, T).
+
+trim_fake_args_l(N, [E|L], [E|T]) :-
+    maplist(trim_fake_args(N), L, T).
 
 trim_fake_args(N, Term1, Term) :-
     ( N > 0,
