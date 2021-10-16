@@ -25,6 +25,6 @@ test(newvars) :-
                     remove_underscore_multi(Options),
                     anonymize_all_singletons(Options)
                   ),
-                  [file(newvars), vars_preffix('A')]).
+                  [file(newvars), vars_prefix('A')]).
 
 :- end_tests(refactor_45).

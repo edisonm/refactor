@@ -115,7 +115,7 @@
 %   and scope of the replacement.
 %
 %   The predicate is efficient enough to be used also as a walker to capture all
-%   matches of Term, and failing to avoid the replacement. For example:
+%   matches of Term, by printing a message and failing. For example:
 %
 %     ```
 %     replace(
@@ -126,7 +126,7 @@
 %     ```
 %
 %   will display all the occurrences of use_module/1 declarations in the file
-%   F. Would be useful for some complex refactoring scenarios.
+%   F. This would be useful for some complex refactoring scenarios.
 %
 %   The levels of operations stablishes where to look for matching terms, and
 %   could take one of the following values:
@@ -283,10 +283,10 @@
 %     States that the replacement should be applied recursively, until no more
 %     modifications are caused by the replacement.
 %
-%     Value=decreasing is the default, and means that the recursion stops if the
-%     transformed term contains more terms that could potentially match to avoid
-%     loops.  If the level is a non recursive one (see level_rec/2), such value
-%     is equivalent to none.
+%     Value=decreasing is the default, meaning that the recursion stops if the
+%     transformed term contains more terms that could potentially match.  If the
+%     level is a non recursive one (see level_rec/2), such value is equivalent
+%     to none.
 %
 %     Value=file means that the recursion is performed over the hole file.
 %
@@ -311,13 +311,6 @@
 %
 %   * max_tries(MaxTries)
 %     Apply no more than MaxTries changes
-%
-%   * syntax_errors(SE)
-%     Default error
-%
-%   * subterm_positions(SentPos)
-%
-%   * term_position(Pos)
 %
 %   * conj_width(+ConjWidth)
 %     Print several conjunctions in the same line, provided that they don't
@@ -347,33 +340,48 @@
 %     Unifies SentPattern with the Sentence being processed.  This is useful in
 %     some refactoring scenarios.
 %
-%   * comments(-Comments)
-%     Passed to read_term/2 to get the list of Comments.
-%
 %   * expand(Expand)
+%     Apply the program transformation to let the goal_expansion hook in
+%     ref_replace.pl be called.  It only have sense if the expansion level is
+%     goal, in such level the default value is yes, otherwise is no.
 %
 %   * expanded(Expanded)
+%     Unifies Expanded with the current sentence after the expansion has been
+%     applied (if applicable)
 %
 %   * cleanup_attributes(CleanupAttributes)
-%     Default yes
-%
-%   * fixpoint(FixPoint)
-%     Default decreasing
+%     Remove attributes that could potentially be present in the sentence being
+%     refactorized, in particular, if level is goal the term could contain the
+%     attribute '$var_info'.  Default value is yes.
 %
 %   * max_changes(Max)
+%     Maximum number of changes performed by the refactoring.
 %
-%   * variable_names(VNL)
-%
-%   * vars_preffix(Preffix)
-%     Default 'V'
+%   * vars_prefix(Prefix)
+%     Prefix added to new variables. Default 'V'
 %
 %   * file(AFile)
+%     Unifies AFile with the file being reinstantiated.  If AFile is instantiated
+%     on call of the predicate, limits the refactoring to such file.
 %
 %   * if(Loaded)
-%     if Loaded is true (default), refactor non loaded files too
+%     if Loaded is true (default), refactor non loaded files too.
 %
 %   * subterm_boundary(+Boundary)
 %     Processed by fix_termpos/2 to stablish the boundaries of the subterms.
+%
+%   Options processed by read_term/2:
+%
+%   * variable_names(-VNL)
+%
+%   * comments(-Comments)
+%
+%   * syntax_errors(SE)
+%     Default error
+%
+%   * subterm_positions(-SentPos)
+%
+%   * term_position(-Pos)
 %
 %   Other options are processed by the predicate option_module_files/2 and allows
 %   to select the files or modules that are going to be modified.
@@ -498,7 +506,7 @@ apply_ec_term_level(Level, Patt, Into, Expander, Options1) :-
            fixpoint(FixPoint)-decreasing,
            max_changes(Max)-Max,
            variable_names(VNL)-VNL,
-           vars_preffix(Preffix)-'V',
+           vars_prefix(Prefix)-'V',
            file(AFile)-AFile,
             % By default refactor even non loaded files
            if(Loaded)-true
@@ -528,7 +536,7 @@ apply_ec_term_level(Level, Patt, Into, Expander, Options1) :-
         ),
         process_sentences(
             MFileParam, FixPoint, Max, SentPattern, Options, CleanupAttributes, M, File, Expanded, Expand, Pos,
-            ga(Patt, Into, Expander), Linearize, MaxTries, Preffix, Level, data(Patt, Into, Expander, SentPos)),
+            ga(Patt, Into, Expander), Linearize, MaxTries, Prefix, Level, data(Patt, Into, Expander, SentPos)),
         '$set_source_module'(_, OldM)).
 
 :- use_module(library(countsols)).
@@ -542,7 +550,7 @@ param_module_file_sorted(MFileParam, M, File) :-
 
 process_sentences(
     MFileParam, FixPoint, Max, SentPattern, Options, CleanupAttributes, M, File, Expanded, Expand,
-    Pos, GoalArgs, Linearize, MaxTries, Preffix, Level, Data) :-
+    Pos, GoalArgs, Linearize, MaxTries, Prefix, Level, Data) :-
     index_change(Index),
     ini_counter(0, STries),
     ini_counter(0, SCount),
@@ -551,7 +559,7 @@ process_sentences(
         process_sentence_file(
             Index, FixPoint, Max, SentPattern, Options, CleanupAttributes,
             M, File, Expanded, Expand, Pos, GoalArgs, Linearize, MaxTries,
-            Preffix, Level, Data, Tries, Count),
+            Prefix, Level, Data, Tries, Count),
         ( inc_counter(STries, Tries, _),
           inc_counter(SCount, Count, _)
         )),
@@ -595,12 +603,12 @@ norec_ff(none,       none).
 
 process_sentence_file(Index, FixPoint, Max, SentPattern, Options, CleanupAttributes,
                       M, File, Expanded, Expand, Pos, GoalArgs,
-                      Linearize, MaxTries, Preffix, Level, Data, Tries, Count) :-
+                      Linearize, MaxTries, Prefix, Level, Data, Tries, Count) :-
     maplist(set_refactor_context,
             [bindings, cleanup_attributes, comments, expanded, file, goal_args, modified,
-             tries, count, max_tries, options, pos, preffix, sent_pattern, sentence, subpos],
+             tries, count, max_tries, options, pos, prefix, sent_pattern, sentence, subpos],
             [Bindings, CleanupAttributes,  Comments, Expanded, File, GoalArgs,  false,
-             0,     0,     MaxTries,  Options, Pos, Preffix, SentPattern,  Sent,     SentPos]),
+             0,     0,     MaxTries,  Options, Pos, Prefix, SentPattern,  Sent,     SentPos]),
     \+ \+ ( option(comments(Comments),  Options, Comments),
             option(subterm_positions(SentPos), Options, SentPos),
             option(variable_names(VNL), Options, VNL),
@@ -878,12 +886,12 @@ string_concat_to(RText, t(From, To, PasteText), Pos-Text1, To-Text) :-
     string_concat(Text1, Text2, Text3),
     string_concat(Text3, PasteText, Text).
 
-gen_new_variable_name(VNL, Preffix, Count, Name) :-
-    atom_concat(Preffix, Count, Name),
+gen_new_variable_name(VNL, Prefix, Count, Name) :-
+    atom_concat(Prefix, Count, Name),
     \+ member(Name=_, VNL), !.
-gen_new_variable_name(VNL, Preffix, Count1, Name) :-
+gen_new_variable_name(VNL, Prefix, Count1, Name) :-
     succ(Count1, Count),
-    gen_new_variable_name(VNL, Preffix, Count, Name).
+    gen_new_variable_name(VNL, Prefix, Count, Name).
 
 will_occurs(Var, Sent, Pattern, Into, VNL, T) :-
     findall(N,
@@ -903,20 +911,20 @@ will_occurs(Var, Sent, Pattern, Into, N) :-
     N is SN-PN+IN.
 
 gen_new_variable_names([], _, _, _, _, _, _, VNL, VNL).
-gen_new_variable_names([Var|VarL], [Name1|NameL], Preffix, Count1,
+gen_new_variable_names([Var|VarL], [Name1|NameL], Prefix, Count1,
                        Sent, Pattern, Into, VNL1, VNL) :-
     ( nonvar(Name1)
     ->VNL2 = VNL1,
       Count = Count1
     ; will_occurs(Var, Sent, Pattern, Into, VNL1, N),
       N > 1
-    ->gen_new_variable_name(VNL1, Preffix, Count1, Name),
+    ->gen_new_variable_name(VNL1, Prefix, Count1, Name),
       succ(Count1, Count),
       VNL2 = [Name=Var|VNL1]
     ; VNL2 = ['_'=Var|VNL1],
       Count = Count1
     ),
-    gen_new_variable_names(VarL, NameL, Preffix, Count, Sent, Pattern, Into, VNL2, VNL).
+    gen_new_variable_names(VarL, NameL, Prefix, Count, Sent, Pattern, Into, VNL2, VNL).
 
 apply_change(Text, M, subst(TermPos, Options, Term, Into, _),
              t(From, To, PasteText)) :-
@@ -1005,12 +1013,12 @@ match_vars_with_names(VNL1, Var, Name) :-
            )).
 
 gen_new_variable_names(Sent, Term, Into, VNL, NewVNL) :-
-    refactor_context(preffix, Preffix),
+    refactor_context(prefix, Prefix),
     refactor_context(variable_names, VNL1),
     trim_hacks(Into, TInto),
     term_variables(TInto, VarL),
     maplist(match_vars_with_names(VNL1), VarL, NameL),
-    gen_new_variable_names(VarL, NameL, Preffix, 1, Sent, Term, TInto, VNL1, VNL),
+    gen_new_variable_names(VarL, NameL, Prefix, 1, Sent, Term, TInto, VNL1, VNL),
     once(append(NewVNL, VNL1, VNL)).
 
 check_bindings(Sent, Sent2, Options) :-

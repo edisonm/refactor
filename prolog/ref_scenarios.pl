@@ -544,8 +544,8 @@ call_to_predicate(Term, Suffix, OptL) :-
               sort(TVarU, TVarL),
               ord_intersect(SVarL, TVarL, ArgL),
               Sent = (Head :- _),
-              functor(Head, Preffix, _),
-              atomic_list_concat([Preffix, '_', Suffix], Name),
+              functor(Head, Prefix, _),
+              atomic_list_concat([Prefix, '_', Suffix], Name),
               Pred =.. [Name|ArgL]
             ), [file(F), fixpoint(none), sentence(Sent)|OptL]),
     findall(File, new_pred(File, _, _), FileU),
