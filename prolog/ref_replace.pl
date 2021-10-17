@@ -100,7 +100,7 @@
     apply_commands(?, +, +, ?, +, +, +, 4),
     fixpoint_file(+, +, 0),
     replace(+,?,?,0,:),
-    rportray_list(+, 2, +, +),
+    rportray_list(+, +, 2, +, +),
     with_context(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?),
     with_cond_braces_2(4, ?, ?, ?, ?, ?, ?),
     with_counters(0, +),
@@ -1627,14 +1627,14 @@ rportray('$APP'(L1, L2), Opt) :-
       write_term(N, Opt)
     ).
 rportray('$,'(A, B), Opt) :- !, write_term(A, Opt), write_term(B, Opt).
-rportray('$LIST'(L), Opt) :- !, rportray_list(L, write_term, '', Opt).
-rportray('$LIST,'(L), Opt) :- !, rportray_list(L, write_term, ',', Opt).
+rportray('$LIST'(L), Opt) :- !, rportray_list(L, nb, write_term, '', Opt).
+rportray('$LIST,'(L), Opt) :- !, rportray_list(L, bn, write_term, ',', Opt).
 rportray('$LIST,_'(L), Opt) :- !, maplist(term_write_comma_2(Opt), L).
-rportray('$LIST'(L, Sep), Opt) :- !, rportray_list(L, write_term, Sep, Opt).
+rportray('$LIST'(L, Sep), Opt) :- !, rportray_list(L, nb, write_term, Sep, Opt).
 rportray('$LISTC'(CL), Opt) :-
     !,
     merge_options([priority(1200)], Opt, Opt1),
-    rportray_list(CL, rportray_clause_dot_nl, '', Opt1).
+    rportray_list(CL, nb, rportray_clause_dot_nl, '', Opt1).
 rportray('$LISTC.NL'(CL), Opt) :-
     !,
     merge_options([priority(1200), portray_clause(true)], Opt, Opt1),
@@ -1643,19 +1643,19 @@ rportray('$LISTC.NL'(CL), Opt) :-
 rportray('$LIST.NL'(L), Opt) :-
     !,
     merge_options([priority(1200)], Opt, Opt1),
-    rportray_list(L, write_term_dot_nl, '', Opt1).
+    rportray_list(L, nb, write_term_dot_nl, '', Opt1).
 rportray('$LISTNL.'(L), Opt) :-
     !,
     merge_options([priority(1200)], Opt, Opt1),
-    rportray_list(L, write_term, '.\n', Opt1).
+    rportray_list(L, nb, write_term, '.\n', Opt1).
 rportray('$LIST,NL'(L), Opt) :-
     offset_pos('$OUTPOS', Pos),
     !,
-    rportray_list_nl_comma(L, Pos, Opt).
+    rportray_list_nl_comma(L, nb, Pos, Opt).
 rportray('$LISTNL'(L), Opt) :-
     offset_pos('$OUTPOS', Pos),
     !,
-    rportray_list_nl(L, Pos, Opt).
+    rportray_list_nl(L, nb, Pos, Opt).
 rportray('$TAB'(Term, Offs), Opt) :-
     offset_pos(Offs-'$OUTPOS', Delta),
     !,
@@ -1664,21 +1664,19 @@ rportray('$TAB'(Term, Offs), Opt) :-
 rportray('$LIST,NL'(L, Offs), Opt) :-
     offset_pos(Offs, Pos),
     !,
-    rportray_list_nl_comma(L, Pos, Opt).
+    rportray_list_nl_comma(L, nb, Pos, Opt).
 rportray('$LISTNL'(L, Offs), Opt) :-
     offset_pos(Offs, Pos),
     !,
-    rportray_list_nl(L, Pos, Opt).
+    rportray_list_nl(L, nb, Pos, Opt).
 rportray('$LISTB,NL'(L), Opt) :-
     offset_pos('$OUTPOS'+1, Pos),
     !,
-    deref_substitution(L, D),
-    rportray_list_nl_b(D, Pos, Opt).
+    rportray_list_nl(L, wb, Pos, Opt).
 rportray('$LISTB,NL'(L, Offs), Opt) :-
     offset_pos(Offs, Pos),
     !,
-    deref_substitution(L, D),
-    rportray_list_nl_b(D, Pos, Opt).
+    rportray_list_nl(L, wb, Pos, Opt).
 rportray('$NL'(Term, Offs), Opt) :-
     offset_pos(Offs, Pos),
     !,
@@ -2019,37 +2017,34 @@ offset_pos(Offs, Pos) :-
     arithexpression(Expr),
     catch(Pos is round(Expr), _, fail).
 
-rportray_list_nl_b([], _, Opt) :- !, write_term([], Opt).
-rportray_list_nl_b(L, Pos, Opt) :-
-    write('['),
-    rportray_list_nl_comma(L, Pos, Opt),
-    write(']').
+rportray_list_nl(L, WB, Pos, Opt) :-
+    rportray_list_nl_comma(L, WB, Pos, Opt).
 
-rportray_list_nl_comma(L, Pos, Opt) :-
-    rportray_list_nl(',', L, Pos, Opt).
+rportray_list_nl_comma(L, WB, Pos, Opt) :-
+    rportray_list_nl(',', L, WB, Pos, Opt).
 
-rportray_list_nl(L, Pos, Opt) :-
-    rportray_list_nl('', L, Pos, Opt).
-
-rportray_list_nl(Pre, L, Pos, Opt) :-
-    term_priority([_|_], user, 1, Priority),
-    merge_options([priority(Priority)], Opt, Opt1),
+rportray_list_nl(Pre, L, WB, Pos, Opt) :-
     sep_nl(Pos, Pre, Sep),
-    rportray_list(L, write_term, Sep, Opt1).
+    rportray_list(L, WB, write_term, Sep, Opt).
 
-rportray_list(L, Writter, SepElem, Opt) :-
+rportray_list(L, WB, Writter, SepElem, Opt) :-
     option(text(Text), Opt),
     deref_substitution(L, D),
-    ( D = []
-    ->true
-    ; term_write_sep_list_2(D, Writter, Text, SepElem, '|', Opt)
-    ).
+    term_write_sep_list_2(D, WB, Writter, Text, SepElem, '|', Opt).
 
-term_write_sep_list_2([E|T], Writter, Text, SepElem, SepTail, Opt) :-
+term_write_sep_list_2([], nb, _, _, _, _, _) :- !.
+term_write_sep_list_2([E|T], WB, Writter, Text, SepElem, SepTail, Opt) :-
     !,
-    call(Writter, E, Opt),
-    term_write_sep_list_inner(T, Writter, Text, SepElem, SepTail, Opt).
-term_write_sep_list_2(E, Writter, _, _, _, Opt) :- call(Writter, E, Opt).
+    term_priority([_|_], user, 1, Priority),
+    merge_options([priority(Priority)], Opt, Opt1),
+    cond_bracket(WB, '['),
+    call(Writter, E, Opt1),
+    term_write_sep_list_inner(T, Writter, Text, SepElem, SepTail, Opt1),
+    cond_bracket(WB, ']').
+term_write_sep_list_2(E, _, Writter, _, _, _, Opt) :- call(Writter, E, Opt).
+
+cond_bracket(wb, Bracket) :- write(Bracket).
+cond_bracket(nb, _).
 
 term_write_sep_list_inner(L, Writter, Text, SepElem, SepTail, Opt) :-
     nonvar(L),
@@ -2059,7 +2054,8 @@ term_write_sep_list_inner(L, Writter, Text, SepElem, SepTail, Opt) :-
     call(Writter, E, Opt),
     term_write_sep_list_inner(T, Writter, Text, SepElem, SepTail, Opt).
 term_write_sep_list_inner(T, Writter, Text, SepElem, SepTail, Opt) :-
-    write_tail(T, []/0, Writter, Text, SepElem, SepTail, Opt).
+    get_pred(T, F),
+    write_tail(T, F, Writter, Text, SepElem, SepTail, Opt).
 
 term_write_sep_list_3([E|T], Writter, Text, SepElem, SepTail, Opt) :-
     !,
@@ -2117,7 +2113,7 @@ write_tail('$LIST,NL'(L, Offs), _, Writter, Text, _, _, Opt) :-
 write_tail(T, D, Writter, _, _, SepTail, Opt) :-
     get_pred(T, F),
     write(SepTail),
-    ignore((D \= F, nl)),
+    ignore((D \= F, nl)), % this only makes sense on list of clauses
     call(Writter, T, Opt).
 
 print_expansion_rm_dot(TermPos, Text, From, To) :-
