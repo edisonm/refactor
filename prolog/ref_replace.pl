@@ -2495,8 +2495,11 @@ print_expansion_list(PosL, From, To, TPos, IntoL, TermL, Options1, Text, Cont) :
           print_expansion_list(PosT, To1, To, TPos, IT, TT, Options1, Text, cont)
         ; IntoL = []
         ->arg(1, Pos, From1),
-          last(PosL, LPos),
-          arg(2, LPos, To1),
+          ( TPos = none
+          ->last(PosL, LPos),
+            arg(2, LPos, To1)
+          ; arg(2, TPos, To1)
+          ),
           ( Cont = cont
           ->true
           ; print_subtext(Text, From, From1)
