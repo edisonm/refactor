@@ -2508,9 +2508,14 @@ print_expansion_list(PosL, From, To, TPos, IntoL, TermL, Options1, Text, Cont) :
     ; PosL = []
     ->( TPos = none
       ->( IntoL == []
-        ->print_subtext(Text, From, To)
-        ; print_expansion(IntoL, TermL, From-To, Options1, Text)
-        )
+        ->true
+        ; ( Cont = cont
+          ->write('|')
+          ; true
+          ),
+          print_expansion(IntoL, TermL, From-From, Options1, Text)
+        ),
+        print_subtext(Text, From, To)
       ; normalize_pos(TPos, From1-To1),
         print_subtext(Text, From, From1),
         print_expansion(IntoL, TermL, TPos, Options1, Text),
