@@ -1877,14 +1877,13 @@ rportray(Term, OptL) :-
       cond_display(Display, '('),
       offset_pos('$OUTPOS', Pos),
       write_term(Left, OptL1),
-      write(Space),
+      write_space(Space),
       offset_pos('$OUTPOS', Pos2),
       term_priority_gnd(Term, M, 2, RP),
       merge_options([priority(RP)], OptL, OptL2),
       write_pos_lines(Pos2,
                       ( write_q(Name, Opt2),
-                        write_t(Space, Opt2),
-                        write(''),
+                        write_space(Space),
                         write_term(Right, OptL2)
                       ), Lines),
       ( Lines = [Line],
@@ -1895,8 +1894,7 @@ rportray(Term, OptL) :-
         write_t(Atom, OptL2)
       ; write_pos_lines(Pos,
                         ( write_q(Name, Opt2),
-                          write_t(Space, Opt2),
-                          write(''),
+                          write_space(Space),
                           write_term(Right, OptL2)
                         ), Lines2),
         ( ( maplist(string_length, Lines, WidthL),
@@ -1939,6 +1937,12 @@ rportray(Term, OptL) :-
       write_t(')',  Opt1)
     ),
     !.
+
+write_space(Space) :-
+    ( Space = ''
+    ->true
+    ; write(Space)
+    ).
 
 trim_brackets(L, _, _) :- var(L), !, fail.
 trim_brackets(Term, Trim, Opt) :-
