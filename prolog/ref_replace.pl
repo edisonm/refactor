@@ -1805,28 +1805,22 @@ rportray([E|T1], Opt) :-
     write_t('[', Opt),
     term_priority([_|_], user, 1, Priority),
     merge_options([priority(Priority)], Opt, Opt1),
-    maplist(write_term_lines(Pos1, Opt1), T, LinesL),
+    T = [Elem|Tail],
+    write_pos_rawstr(Pos1, write_term(Elem, Opt1), String),
     pos_indent(Pos1, Indent),
-    ( maplist([Indent] +\ [Line1]^Line^string_concat(Indent, Line, Line1), LinesL, StringL),
-      Sep = ", ",
-      string_length(Sep, SepLength),
-      option(list_width(ListWidth), Opt),
-      length(StringL, Length),
-      maplist(string_length, StringL, WidthL),
-      sum_list(WidthL, WidthTotal),
-      Pos1 + WidthTotal + (Length - 1) * SepLength =< ListWidth,
-      CloseB = "]"
-    ->atomics_to_string(StringL, Sep, S)
-    ; Sep = ",\n",
-      with_output_to(string(CloseB),
+    option(list_width(ListWidth), Opt),
+    foldl(concat_list_elem(ListWidth, Pos1, Opt1), Tail, String-LinesLL, Last-[Last]),
+    ( LinesLL = [S1]
+    ->CloseB = "]"
+    ; with_output_to(string(CloseB),
                      ( nl,
                        line_pos(Pos),
                        write(']')
                      )),
-      maplist(\ L^S^atomics_to_string(L, '\n', S), LinesL, StringL),
-      atomics_to_string(StringL, Sep, S1),
-      string_concat(Indent, S, S1)
+      with_output_to(string(Sep), writeln(',')),
+      atomic_list_concat(LinesLL, Sep, S1)
     ),
+    atom_concat(Indent, S, S1),
     atomic_list_concat([S, EndText, CloseB], Atom),
     write_t(Atom, Opt1).
 % Better formatting:
@@ -1942,6 +1936,23 @@ rportray(Term, OptL) :-
       write_t(')',  Opt1)
     ),
     !.
+
+concat_list_elem(ListWidth, Pos, Opt1, Elem, String1-LinesL1, String-LinesL) :-
+    ( with_output_to(string(String),
+                     ( stream_property(current_output, position(Pos1)),
+                       write(String1),
+                       write(', '),
+                       write_term(Elem, Opt1),
+                       stream_property(current_output, position(Pos2)),
+                       stream_position_data(char_count, Pos2, B2),
+                       stream_position_data(line_count, Pos1, L1),
+                       stream_position_data(line_count, Pos2, L2)
+                     )),
+      L1 = L2, B2 =< ListWidth
+    ->LinesL1 = LinesL
+    ; write_pos_rawstr(Pos, write_term(Elem, Opt1), String),
+      LinesL1 = [String1|LinesL]
+    ).
 
 write_space(Space) :-
     ( Space = ''
