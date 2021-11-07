@@ -63,6 +63,7 @@
 :- use_module(library(option)).
 :- use_module(library(pairs)).
 :- use_module(library(settings)).
+:- use_module(library(atomics_string)).
 :- use_module(library(solution_sequences)).
 :- use_module(library(neck)).
 :- use_module(library(foldil)).
@@ -1300,8 +1301,11 @@ substitute_term_into(parentheses_term_position(_, _, Pos), M, Term, Data, Cmd) :
     substitute_term_rec(M, Term, Pos, 1200, Data, Cmd).
 substitute_term_into(term_position(_, _, _, _, PosL), M, Term, Data, Cmd) :-
     substitute_term_args(PosL, M, Term, Data, Cmd).
-substitute_term_into(list_position(_, _, EP, TP), M, Term, Data, Cmd) :-
-    substitute_term_list(EP, TP, M, Term, Data, Cmd).
+substitute_term_into(Pos, M, Term, Data, Cmd) :-
+    member(Pos, [list_position(_, _, _, _),
+                 sub_list_position(_, _, _, _, _, _, _)]),
+    neck,
+    substitute_term_list(Pos, M, Term, Data, Cmd).
 substitute_term_into(map_position(_, _, _, _, PosL), M, Term, Data, Cmd) :-
     member(Pos, PosL),
     substitute_term_pair(M, Term, Pos, Data, Cmd).
@@ -1344,14 +1348,11 @@ substitute_term_args(PAL, M, Term, Data, Cmd) :-
     term_priority(Term, M, N, Priority),
     substitute_term_rec(M, Arg, PA, Priority, Data, Cmd).
 
-substitute_term_list([EP|EPs], TP, M, [Elem|Term], Data, Cmd) :-
-    ( term_priority([_|_], M, 1, Priority),
-      substitute_term_rec(M, Elem, EP, Priority, Data, Cmd)
-    ; substitute_term_list(EPs, TP, M, Term, Data, Cmd)
-    ).
-substitute_term_list([], TP, M, Tail, Data, Cmd) :-
-    term_priority([_|_], M, 2, Priority),
-    substitute_term_rec(M, Tail, TP, Priority, Data, Cmd).
+substitute_term_list(Pos, M, [Elem|Tail], Data, Cmd) :-
+    member(Loc-Term, [1-Elem, 2-Tail]),
+    subpos_location([Loc], Pos, SubPos),
+    term_priority([_|_], M, Loc, Priority),
+    substitute_term_rec(M, Term, SubPos, Priority, Data, Cmd).
 
 compound_positions(Line1, Pos2, Pos1, Pos) :- Line1 =< 1, !, Pos is Pos1+Pos2.
 compound_positions(_, Pos, _, Pos).
@@ -1477,7 +1478,7 @@ with_cond_braces_2(Call, Term, TermPos, RepL, GPriority, Text, Options) :-
     call(Call, TermPos, RepL, Text, Options),
     cond_display(Display, ')').
 
-print_subtext_2(sub_list_position(BFrom, To, BTo, From, PosL, Tail), RepL, Text, Options) :-
+print_subtext_2(sub_list_position(BFrom, To, BTo, _, From, PosL, Tail), RepL, Text, Options) :-
     !,
     print_subtext(BFrom-BTo, Text),
     print_subtext_2(list_position(From, To, PosL, Tail), RepL, Text, Options).
@@ -1608,7 +1609,7 @@ rportray('$APP'(L1, L2), Opt) :-
     ( nonvar(L1),
       L1 = '$sb'(OTermPos, ITermPos, RepL1, Priority, Term)
     ->once(( ITermPos = list_position(_, LTo, _, Pos)
-           ; ITermPos = sub_list_position(_, LTo, _, _, _, Pos)
+           ; ITermPos = sub_list_position(_, LTo, _, _, _, _, Pos)
            ; Pos = ITermPos
            )),
       ( Pos = none
@@ -1970,7 +1971,7 @@ trim_brackets(Term, Trim, Opt) :-
 trim_brackets('$sb'(OTermPos, ITermPos, RepL1, Priority, Term),
               '$sb'(OTermPos, ITermPos, RepL,  Priority, Term), _) :-
     once(( ITermPos = list_position(From, To, _, _)
-         ; ITermPos = sub_list_position(From, To, _, _, _, _)
+         ; ITermPos = sub_list_position(From, To, _, _, _, _, _)
          ; ITermPos = From-To,
            Term == []
          )),
@@ -2187,6 +2188,30 @@ print_expansion_2('$LIST.NL'(IntoL), Term, TermPos, Options1, Text, From, To) :-
     merge_options([priority(1200)], Options1, Options),
     print_expansion_rm_dot(TermPos, Text, From, To),
     with_from(term_write_stop_nl_list(IntoL, Term, TermPos, Options, Text), From).
+print_expansion_2(Into, Term, Pos, Options, Text, From, To) :-
+    % Hey, this is the place, don't overthink about it (test 60)
+    Pos = sub_list_position(From, To, _, From1, STo, PosL, Tail),
+    !,
+    print_subtext(From-From1, Text),
+    ( Into == []
+    ->true
+    ; ( is_list(Into)
+      ->true
+      ; ( get_subtext(From1-STo, Text, Sep1),
+          replace_sep(",", "|", Sep1, Sep)
+        ->print_text(Sep)
+        ; write('|') % just in case, but may be never reached
+        )
+      ),
+      print_expansion_3(Into, Term, list_position(From1, To, PosL, Tail), Options, Text, _, _)
+    ),
+    ( is_list(Into),
+      Into \== []
+    ->true
+    ; last(PosL, Pos2),
+      arg(2, Pos2, To2),
+      print_subtext(To2-To, Text)
+    ).
 print_expansion_2(Into, Term, TermPos, Options, Text, From, To) :-
     print_expansion_3(Into, Term, TermPos, Options, Text, From, To).
 
@@ -2464,7 +2489,7 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT), Into, Term, Opti
     print_subtext(Text, From, To1),
     foldil(print_expansion_arg(M, Into, Options, Text, A), 1, FromToL, ValL, _, true),
     print_subtext(Text, To2, To).
-print_expansion_pos(sub_list_position(BFrom, To, BTo, From, PosL, Tail), Into, Term, Options, Text) :-
+print_expansion_pos(sub_list_position(BFrom, To, BTo, _, From, PosL, Tail), Into, Term, Options, Text) :-
     print_subtext(Text, BFrom, BTo),
     print_expansion_list(PosL, From, To, Tail, Into, Term, Options, Text, init).
 print_expansion_pos(list_position(From, To, PosL, Tail), Into, Term, Options, Text) :-
@@ -2483,7 +2508,7 @@ print_expansion_pos(parentheses_term_position(From, To, TermPos), Into, Term, Op
     print_expansion_elem(Options, Text, 1, 1, ATo-To, TermPos, Into, Term, _, true).
 
 print_expansion_list(PosL, From, To, TPos, IntoL, TermL, Options1, Text, Cont) :-
-    ( ( IntoL = '$sb'(sub_list_position(_, To2, _, From2, PosL2, TPos2), _, RepL, Priority, Into),
+    ( ( IntoL = '$sb'(sub_list_position(_, To2, _, _, From2, PosL2, TPos2), _, RepL, Priority, Into),
         PosL = [Pos|_],
         arg(1, Pos, From1)
       ->print_subtext(Text, From, From1)
@@ -2541,6 +2566,12 @@ print_expansion_list(PosL, From, To, TPos, IntoL, TermL, Options1, Text, Cont) :
       )
     ; write_term(IntoL, Options1)
     ).
+
+replace_sep(S1, S2, Text1, Text2) :-
+    atomics_string([L, S1, R], Text1),
+    \+ sub_string(R, _, _, _, S1),
+    atomics_string([L, S2, R], Text2),
+    !.
 
 print_subtext(RefPos, Text) :-
     get_subtext(RefPos, Text, SubText),
