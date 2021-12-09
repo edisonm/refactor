@@ -66,7 +66,6 @@
 :- use_module(library(atomics_string)).
 :- use_module(library(solution_sequences)).
 :- use_module(library(neck)).
-:- use_module(library(foldil)).
 :- use_module(library(term_size)).
 :- use_module(library(prolog_source), []). % expand/4
 :- use_module(library(readutil)).
@@ -2365,7 +2364,7 @@ print_expansion_ne(Into, Term, RefPos, Options, Text) :-
     ; write_term(Into, Options)
     ).
 
-print_expansion_arg(M, MInto, Options1, Text, Length, I, From-To,
+print_expansion_arg(M, MInto, Options1, Text, From-To,
                     v(N, RefPos, Into, Term), Freeze1, Freeze) :-
     ( N = 0,
       Into == Term
@@ -2374,20 +2373,17 @@ print_expansion_arg(M, MInto, Options1, Text, Length, I, From-To,
       freeze(Freeze, print_subtext(Text, From, To))
     ; term_priority(MInto, M, N, Priority),
       merge_options([priority(Priority)], Options1, Options),
-      print_expansion_elem(Options, Text, Length, I, From-To, RefPos, Into, Term, Freeze1, Freeze)
+      print_expansion_elem(Options, Text, From-To, RefPos, Into, Term, Freeze1, Freeze)
     ).
 
-print_expansion_elem(Options, Text, Length, I, From-To, RefPos, Into, Term, Freeze1, Freeze) :-
+print_expansion_elem(Options, Text, From-To, RefPos, Into, Term, Freeze1, Freeze) :-
     ( Into == '$RM',
       Term \== '$RM'
-    ->( Length = I
-      ->Freeze = true
-      ; Freeze = Freeze1
-      )
+    ->true
     ; Freeze1 = true,
-      print_expansion(Into, Term, RefPos, Options, Text),
-      freeze(Freeze, print_subtext(Text, From, To))
-    ).
+      print_expansion(Into, Term, RefPos, Options, Text)
+    ),
+    freeze(Freeze, print_subtext(Text, From, To)).
 
 escape_term($@(_)).
 escape_term($$(_)).
@@ -2487,7 +2483,7 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT), Into, Term, Opti
     nth1(N, PosKL, E),
     arg(2, E, To2),
     print_subtext(Text, From, To1),
-    foldil(print_expansion_arg(M, Into, Options, Text, A), 1, FromToL, ValL, _, true),
+    foldl(print_expansion_arg(M, Into, Options, Text), FromToL, ValL, _, true),
     print_subtext(Text, To2, To).
 print_expansion_pos(sub_list_position(BFrom, To, BTo, _, From, PosL, Tail), Into, Term, Options, Text) :-
     print_subtext(Text, BFrom, BTo),
@@ -2499,13 +2495,13 @@ print_expansion_pos(brace_term_position(From, To, TermPos), {Into}, {Term}, Opti
     arg(2, TermPos, ATo),
     print_subtext(Text, From, AFrom),
     merge_options([priority(1200)], Options1, Options),
-    print_expansion_elem(Options, Text, 1, 1, ATo-To, TermPos, Into, Term, _, true).
+    print_expansion_elem(Options, Text, ATo-To, TermPos, Into, Term, _, true).
 print_expansion_pos(parentheses_term_position(From, To, TermPos), Into, Term, Options1, Text) :-
     arg(1, TermPos, AFrom),
     arg(2, TermPos, ATo),
     print_subtext(Text, From, AFrom),
     merge_options([priority(1200)], Options1, Options),
-    print_expansion_elem(Options, Text, 1, 1, ATo-To, TermPos, Into, Term, _, true).
+    print_expansion_elem(Options, Text, ATo-To, TermPos, Into, Term, _, true).
 
 print_expansion_list(PosL, From, To, TPos, IntoL, TermL, Options1, Text, Cont) :-
     ( ( IntoL = '$sb'(sub_list_position(_, To2, _, _, From2, PosL2, TPos2), _, RepL, Priority, Into),
