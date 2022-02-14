@@ -318,17 +318,17 @@
 %   * conj_width(+ConjWidth)
 %     Print several conjunctions in the same line, provided that they don't
 %     surpasses ConjWidth columns.
-%     Default is 120
+%     Default is 160
 %
 %   * term_width(+TermWidth)
 %     Split long terms so that when printed, they don't surpasses TermWidth
 %     columns.
-%     Default is 120
+%     Default is 160
 %
 %   * list_width(+ListWidth)
 %     Split long lists so that when printed, they don't surpasses ListWidth
 %     columns.
-%     Default is 120
+%     Default is 160
 %
 %   * linearize(+Linearize)
 %     Linearize is a subset of [vars, atms], which will linearize the term to
@@ -497,9 +497,9 @@ apply_ec_term_level(Level, Patt, Into, Expander, Options1) :-
            syntax_errors(SE)-error,
            subterm_positions(SentPos)-SentPos,
            term_position(Pos)-Pos,
-           conj_width(ConjWidth)-120, % In (_,_), try to wrap lines
-           term_width(TermWidth)-120, % In terms, try to wrap lines
-           list_width(ListWidth)-120, % In lists, try to wrap lines
+           conj_width(ConjWidth)-160, % In (_,_), try to wrap lines
+           term_width(TermWidth)-160, % In terms, try to wrap lines
+           list_width(ListWidth)-160, % In lists, try to wrap lines
            linearize(Linearize)-[],
            sentence(SentPattern)-SentPattern,
            comments(Comments)-Comments,
