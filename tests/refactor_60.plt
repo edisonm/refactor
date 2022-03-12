@@ -30,10 +30,10 @@ diff -ruN listtail.pl -
 test(listtail2) :-
     execute_test(listtail2, replace_term([_,_], x),[file(listtail)]).
 
-/* $listtail2$
-diff -ruN refactor/tests/listtail.pl -
---- refactor/tests/listtail.pl (source)
-+++ refactor/tests/listtail.pl (target)
+/* $listtail3$
+diff -ruN listtail.pl -
+--- listtail.pl (source)
++++ listtail.pl (target)
 @@ -1,2 +1,2 @@
 -f([a, b, c /*,*/ ,  /*,*/ d, e ]).
 -f([a, b, c /*,*/ |  [/*,*/ d, e ] ]).
