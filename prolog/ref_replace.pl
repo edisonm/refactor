@@ -2197,7 +2197,8 @@ print_expansion_2(Into, Term, Pos, Options, Text, From, To) :-
     ; ( is_list(Into)
       ->true
       ; ( get_subtext(From1-STo, Text, Sep1),
-          replace_sep(",", "|", Sep1, Sep)
+          option(comments(Comments), Options, []),
+          replace_sep(",", "|", From1, Comments, Sep1, Sep)
         ->print_text(Sep)
         ; write('|') % just in case, but may be never reached
         )
@@ -2563,11 +2564,20 @@ print_expansion_list(PosL, From, To, TPos, IntoL, TermL, Options1, Text, Cont) :
     ; write_term(IntoL, Options1)
     ).
 
-replace_sep(S1, S2, Text1, Text2) :-
-    atomics_string([L, S1, R], Text1),
-    \+ sub_string(R, _, _, _, S1),
-    atomics_string([L, S2, R], Text2),
-    !.
+replace_sep(S1, S2, From1, Comments, Text1, Text2) :-
+    sub_string(Text1, Before, _, After, S1),
+    \+ ( member(Pos-Comment, Comments),
+         stream_position_data(char_count, Pos, From2),
+         From is From2-From1,
+         string_length(Comment, Length),
+         To is From + Length,
+         Before > From,
+         Before < To
+       ),
+    !,
+    sub_string(Text1, 0, Before, _, L),
+    sub_string(Text1, _, After,  0, R),
+    atomics_string([L, S2, R], Text2).
 
 print_subtext(RefPos, Text) :-
     get_subtext(RefPos, Text, SubText),
