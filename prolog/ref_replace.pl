@@ -97,7 +97,7 @@
     rportray_skip/0.
 
 :- meta_predicate
-    apply_commands(?, +, +, ?, +, +, +, 4),
+    apply_commands(?, +, +, ?, +, +, +, +, 4),
     fixpoint_file(+, +, 0),
     replace(+,?,?,0,:),
     rportray_list(+, +, 2, +, +),
@@ -525,6 +525,7 @@ apply_ec_term_level(Level, Patt, Into, Expander, Options1) :-
     ),
     Options = [syntax_errors(SE),
                subterm_positions(SentPos),
+               term_position(Pos),
                variable_names(VNL),
                conj_width(ConjWidth),
                term_width(TermWidth),
@@ -615,11 +616,12 @@ process_sentence_file(Index, FixPoint, Max, SentPattern, Options, CleanupAttribu
     \+ \+ ( option(comments(Comments),  Options, Comments),
             option(subterm_positions(SentPos), Options, SentPos),
             option(variable_names(VNL), Options, VNL),
+            option(term_position(Pos), Options, Pos),
             level_rec(Level, Rec),
             rec_fixpoint_file(Rec, FixPoint, FPFile),
             fixpoint_file(FPFile, Max,
                           apply_commands(
-                              Index, File, Level, M, Rec, FixPoint, Max,
+                              Index, File, Level, M, Rec, FixPoint, Max, Pos,
                               gen_module_command(
                                   SentPattern, Options, Expand, SentPos, Expanded,
                                   Linearize, Sent, VNL, Bindings, Data)))
@@ -722,7 +724,8 @@ substitute_term_level(body, M, Sent, SentPos, _, Data, Cmd) :-
 substitute_term_level(body_rec, M, Sent, SentPos, _, Data, Cmd) :-
     substitute_term_body(rec, M, Sent, SentPos, Data, Cmd).
 
-substitute_term_body(Rec, M, Sent, parentheses_term_position(_, _, TermPos), Data, Cmd) :- !,
+substitute_term_body(Rec, M, Sent, parentheses_term_position(_, _, TermPos), Data, Cmd) :-
+    !,
     substitute_term_body(Rec, M, Sent, TermPos, Data, Cmd).
 substitute_term_body(Rec, M, (_ :- Body), term_position(_, _, _, _, [_, BodyPos]), Data,
                      Cmd) :-
@@ -730,7 +733,8 @@ substitute_term_body(Rec, M, (_ :- Body), term_position(_, _, _, _, [_, BodyPos]
     substitute_term(Rec, sub, M, Body, BodyPos, Priority, Data, Cmd).
 
 substitute_term_head(Rec, M, Clause, parentheses_term_position(_, _, TermPos), Priority,
-                     Data, Cmd) :- !,
+                     Data, Cmd) :-
+    !,
     substitute_term_head(Rec, M, Clause, TermPos, Priority, Data, Cmd).
 substitute_term_head(Rec, M, Clause, TermPos, Priority, Data, Cmd) :-
     ( Clause = (MHead :- _)
@@ -781,7 +785,7 @@ rec_ft(none,       not).
 rec_ft(false,      not).
 
 % This is weird due to the operators
-apply_commands(Index, File, Level, M, Rec, FixPoint, Max, GenMCmd) :-
+apply_commands(Index, File, Level, M, Rec, FixPoint, Max, Pos, GenMCmd) :-
     ( pending_change(_, File, Text1)
     ->true
     ; exists_file(File)
@@ -793,13 +797,13 @@ apply_commands(Index, File, Level, M, Rec, FixPoint, Max, GenMCmd) :-
         with_source_file(
             File, In,
             apply_commands_stream(
-                FPTerm, GenMCmd, File, Level, M, nocs, Max, In, Text1, Text)),
+                FPTerm, GenMCmd, File, Level, M, nocs, Max, Pos, In, Text1, Text)),
         [text, file], [Text1, File]),
-        ( Text1 \= Text
-        ->nb_set_refactor_context(modified, true),
-          save_change(Index, File-Text)
-        ; true
-        ).
+    ( Text1 \= Text
+    ->nb_set_refactor_context(modified, true),
+      save_change(Index, File-Text)
+    ; true
+    ).
 
 decreasing_recursion(nocs, _).
 decreasing_recursion(subst(_, _, _, _, S1),
@@ -837,57 +841,69 @@ do_genmcmd(GenMCmd, File, Level, M, CS, Command, In, Max) :-
     ; true
     ).
 
-apply_commands_stream(FPTerm, GenMCmd, File, Level, M, CS, Max, In, Text1, Text) :-
-    IPosText = 0-"",
+apply_commands_stream(FPTerm, GenMCmd, File, Level, M, CS, Max, Pos, In, Text1, Text) :-
+    IPosText = 0-[],
     rec_command_info(FPTerm, GenMCmd, CI),
     ignore(forall(do_genmcmd(GenMCmd, File, Level, M, CS, Command, In, Max),
-                  apply_commands_stream_each(FPTerm, File, CI, M, Max, Command,
-                                             Text1, IPosText)
+                  apply_commands_stream_each(FPTerm, File, CI, M, Max, Pos,
+                                             Command, Text1, IPosText)
                  )),
-    IPosText = Pos-Text6,
-    sub_string(Text1, Pos, _, 0, TText),
-    string_concat(Text6, TText, Text).
+    IPosText = Pos1-Text2,
+    sub_string(Text1, Pos1, _, 0, Text3),
+    reverse([Text3|Text2], TextR),
+    atomics_string(TextR, Text).
 
-apply_commands_stream_each(FPTerm, File, CI, M, Max, Command, Text1, IPosText) :-
-    ( apply_change(Text1, M, Command, FromToPText1),
-      ( do_recursion(CI, Command, GenMCmd, CS)
-      ->FromToPText1 = t(From, To, PasteText),
-        get_out_pos(Text1, IPosText, From, Line, LPos),
+apply_commands_stream_each(FPTerm, File, CI, M, Max, Pos, Command, Text, IPosText) :-
+    ( apply_change(Text, M, Command, FromToPText1),
+      ( do_recursion(CI, Command, GenMCmd, CS),
+        FromToPText1 = t(From, To, PasteText1),
+        get_out_pos(Text, Pos, From, LPos),
         with_output_to(atom(LeftText),
-                       ( forall(between(2, Line, _), nl),
-                         line_pos(LPos)
-                       )),
-        atomics_to_string([LeftText, PasteText, "."], Text2),
-        set_refactor_context(text, Text2),
-        setup_call_cleanup(
-            ( open_codes_stream(Text2, In)
-              % seek(In, Pos, bof, _)
-            ),
-            apply_commands_stream(FPTerm, GenMCmd, File, term, M, CS, Max, In,
-                                  Text2, Text3),
-            close(In)),
+                       line_pos(LPos)),
+        atomics_string([LeftText, PasteText1, "."], Text1),
         set_refactor_context(text, Text1),
-        string_concat(Text4, ".", Text3),
-        string_concat(LeftText, Text5, Text4),
-        FromToPText = t(From, To, Text5)
+        setup_call_cleanup(
+            ( open_codes_stream(Text1, In),
+              stream_property(In, position(Pos2))
+            ),
+            apply_commands_stream(FPTerm, GenMCmd, File, term, M, CS, Max, Pos2, In,
+                                  Text1, Text2),
+            close(In)),
+        set_refactor_context(text, Text),
+        Text1 \= Text2
+      ->atomics_string([LeftText, PasteText2, "."], Text2),
+        FromToPText = t(From, To, PasteText2)
       ; FromToPText = FromToPText1
       ),
-      string_concat_to(Text1, FromToPText, IPosText, Pos-Text6),
-      nb_setarg(1, IPosText, Pos),
+      string_concat_to(Text, FromToPText, IPosText, Pos6-Text6),
+      nb_setarg(1, IPosText, Pos6),
       nb_setarg(2, IPosText, Text6)
     ).
 
-get_out_pos(RText, Pos-Text1, From, Line, LPos) :-
-    Length is max(0, From - Pos),
-    sub_string(RText, Pos, Length, _, Text2),
-    string_concat(Text1, Text2, Text3),
-    textpos_line(Text3, From, Line, LPos).
+get_out_pos(Text, Pos, From, LPos) :-
+    stream_position_data(line_position, Pos, LPos1),
+    stream_position_data(char_count, Pos, Pos1),
+    Length is max(0, From-Pos1),
+    sub_string(Text, Pos1, Length, _, Text2),
+    with_output_to(atom(_),
+                   ( line_pos(LPos1),
+                     format("~s", [Text2]),
+                     stream_property(current_output, position(Pos2)),
+                     stream_position_data(line_position, Pos2, LPos)
+                   )).
 
-string_concat_to(RText, t(From, To, PasteText), Pos-Text1, To-Text) :-
+/* This was too slow --EMM
+get_out_pos(RText, Pos-Text1, From, LPos) :-
     Length is max(0, From - Pos),
     sub_string(RText, Pos, Length, _, Text2),
     string_concat(Text1, Text2, Text3),
-    string_concat(Text3, PasteText, Text).
+    textpos_line(Text3, From, LPos).
+*/
+
+string_concat_to(RText, t(From, To, PasteText), Pos-Text1, To-[PasteText, Text2|Text1]) :-
+    Length is max(0, From - Pos),
+    sub_string(RText, Pos, Length, _, Text2).
+    % atomics_string([Text1, Text2, PasteText], Text).
 
 gen_new_variable_name(VNL, Prefix, Count, Name) :-
     atom_concat(Prefix, Count, Name),
@@ -1365,7 +1381,7 @@ get_output_position(Pos) :-
 
 get_output_position(From, Pos) :-
     refactor_context(text, Text),
-    textpos_line(Text, From, _Line1, Pos1),
+    textpos_line(Text, From, Pos1),
     stream_property(current_output, position(StrPos)),
     stream_position_data(line_count, StrPos, Line1),
     stream_position_data(line_position, StrPos, Pos2),
@@ -2347,7 +2363,7 @@ print_expansion_ne('$NL', Term, _, _, Text) :- % Print an indented new line
     Term \== '$NL',
     !,
     refactor_context(from, From),
-    textpos_line(Text, From, _, LinePos),
+    textpos_line(Text, From, LinePos),
     nl,
     line_pos(LinePos).
 /*
