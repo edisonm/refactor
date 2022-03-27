@@ -34,8 +34,7 @@
 
 :- module(ref_message,
           [refactor_message/2,
-           textpos_line/3,
-           textpos_line/4
+           textpos_line/3
           ]).
 
 :- use_module(library(codesio)).

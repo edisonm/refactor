@@ -2728,20 +2728,18 @@ nl_indent(and, Op, LinePos) :-
     line_pos(LinePos).
 
 line_pos(LinePos) :-
-    setting(listing:tab_distance, N),
-    N > 0,
-    LinePos >= N,
-    !,
-    write('\t'),
-    LinePos1 is LinePos - N,
-    line_pos(LinePos1).
-line_pos(LinePos) :-
-    LinePos > 0,
-    !,
-    write(' '),
-    LinePos1 is LinePos - 1,
-    line_pos(LinePos1).
-line_pos(_) :- write('').
+    ( setting(listing:tab_distance, N),
+      N =\= 0
+    ->Tabs is LinePos div N,
+      Spcs is LinePos mod N
+    ; Tabs = 0,
+      Spcs = LinePos
+    ),
+    TabsSpcs is Tabs+Spcs,
+    format("~`\tt~*|~` t~*|", [Tabs, TabsSpcs]),
+    fail.
+line_pos(_) :-    
+    write('').
 
 write_t(Term, Options1) :-
     write_qt(false, Term, Options1).
