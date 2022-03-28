@@ -1705,7 +1705,6 @@ rportray('$NL'(Term, Offs), Opt) :-
     !,
     nl,
     line_pos(Pos),
-    write(''),
     write_term(Term, Opt).
 rportray('$SEEK'(Term, Offs), Opt) :-
     offset_pos(Offs, Pos),
@@ -2154,7 +2153,7 @@ print_expansion_rm_dot(TermPos, Text, From, To) :-
     arg(1, TermPos, From),
     arg(2, TermPos, Before),
     sub_string(Text, Before, _, 0, Right),
-    sub_string(Right, Next, _, _, "."),
+    once(sub_string(Right, Next, _, _, ".")),
     To is Before+Next+2.
 
 % Hacks that can only work at 1st level:
@@ -2731,12 +2730,11 @@ line_pos(LinePos) :-
     ( setting(listing:tab_distance, N),
       N =\= 0
     ->Tabs is LinePos div N,
-      Spcs is LinePos mod N
-    ; Tabs = 0,
-      Spcs = LinePos
+      Spcs is Tabs + LinePos mod N
+    ; Tabs is 0,
+      Spcs is LinePos
     ),
-    TabsSpcs is Tabs+Spcs,
-    format("~`\tt~*|~` t~*|", [Tabs, TabsSpcs]),
+    format("~`\tt~*|~` t~*|", [Tabs, Spcs]),
     fail.
 line_pos(_) :-    
     write('').
