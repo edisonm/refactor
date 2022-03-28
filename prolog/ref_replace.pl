@@ -949,20 +949,15 @@ apply_change(Text, M, subst(TermPos, Options, Term, Into, _),
              t(From, To, PasteText)) :-
     call_cleanup(
         with_output_to(
-            string(OutputText),
-            ( stream_property(current_output, position(Pos1)),
-              with_termpos(
+            string(PasteText),
+            ( with_termpos(
                   print_expansion_1(Into, Term, TermPos,
                                     [module(M),
                                      text(Text)|Options],
                                     Text, From, To),
-                  TermPos),
-              stream_property(current_output, position(Pos2))
+                  TermPos)
             )),
-        retractall(rportray_pos(_, _))),
-    stream_position_data(char_count, Pos1, B1),
-    stream_position_data(char_count, Pos2, B2),
-    get_subtext(OutputText, B1, B2, PasteText).
+        retractall(rportray_pos(_, _))).
 
 wr_options([portray_goal(ref_replace:rportray),
             spacing(next_argument),
