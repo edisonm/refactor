@@ -15,9 +15,9 @@
 test(refspeed1) :-
     rreset,
     gen_random_pred(p1(id, randatm, randstr),  5000, [file(plbin(random1))]),
-    call_time(replace_term(p1(A, B, C), p2(A, B, C), [file(plbin(random1))]), Stats),
-    Wall = Stats.wall,
+    call_time(replace_term(p1(A, B, C), p2(A, B, C), [file(plbin(random1)), concurrent(false)]), Stats),
     writeln(user_error, Stats),
+    Wall = Stats.wall,
     assertion(Wall < 5).
 
 :- end_tests(refspeed).

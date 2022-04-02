@@ -558,7 +558,9 @@ process_sentences(
     index_change(Index),
     ini_counter(0, STries),
     ini_counter(0, SCount),
-    conc_forall(
+    option(concurrent(Conc), Options, true),
+    cond_forall(
+        Conc,
         param_module_file_sorted(MFileParam, M, File),
         process_sentence_file(
             Index, FixPoint, Max, SentPattern, Options, CleanupAttributes,
@@ -642,7 +644,7 @@ binding_varname(VNL, Var=Term) -->
 
 gen_module_command(SentPattern, Options, Expand, SentPos, Expanded, Linearize,
                   _Pos, Sent, VNL, Bindings, Data, Level, M, In, Text, Command) :-
-    ref_fetch_term_info(SentPattern, RawSent, Options, In, Once),
+    ref_fetch_term_info(SentPattern, RawSent, In, Options, Once),
     b_setval('$variable_names', VNL),
     % stream_property(In, position(Pos2)),
     % stream_position_data(char_count, Pos1, B1),
@@ -665,13 +667,13 @@ gen_module_command(SentPattern, Options, Expand, SentPos, Expanded, Linearize,
 cond_cut_once(once).
 cond_cut_once(mult(CP)) :- prolog_cut_to(CP).
 
-ref_fetch_term_info(SentPattern, Sent, Options, In, once) :-
+ref_fetch_term_info(SentPattern, Sent, In, Options, once) :-
     nonvar(SentPattern),
     memberchk(SentPattern, [[], end_of_file]),
     !,
     option(comments([]), Options),
-    ref_term_info_file(SentPattern, Sent, Options, In).
-ref_fetch_term_info(SentPattern, Sent, Options, In, mult(CP)) :-
+    ref_term_info_file(SentPattern, Sent, In, Options).
+ref_fetch_term_info(SentPattern, Sent, In, Options, mult(CP)) :-
     repeat,
       prolog_current_choice(CP),
       ( fetch_term_info(SentPattern, Sent, Options, In)
@@ -679,12 +681,16 @@ ref_fetch_term_info(SentPattern, Sent, Options, In, mult(CP)) :-
         fail
       ).
 
-ref_term_info_file(end_of_file, end_of_file, Options, In) :-
+ref_term_info_file(end_of_file, end_of_file, In, Options) :-
     seek(In, 0, eof, Size),
+    ref_term_null_option(Size, In, Options).
+ref_term_info_file([], [], In, Options) :-
+    ref_term_null_option(0, In, Options).
+
+ref_term_null_option(Size, In, Options) :-
     option(subterm_positions(Size-Size), Options),
-    option(variable_names([]), Options).
-ref_term_info_file([], [], Options, _) :-
-    option(subterm_positions(0-0), Options),
+    stream_property(In, position(Pos)),
+    option(term_position(Pos), Options),
     option(variable_names([]), Options).
 
 expand_if_required(Expand, M, Sent, SentPos, In, Expanded) :-
@@ -846,9 +852,6 @@ do_genmcmd(GenMCmd, File, Level, M, CS, Max, In, Text, Command) :-
     ; true
     ).
 
-with_text(Goal, Text) :-     with_refactor_context(Goal, [text], [Text]).
-
-% GenMCmd = gen_module_command
 apply_commands_stream(FPTerm, GenMCmd, File, Level, M, CS, Max, Pos, In, Text1, Text) :-
     IPosText = 0-[],
     rec_command_info(FPTerm, GenMCmd, CI),
@@ -862,8 +865,7 @@ apply_commands_stream(FPTerm, GenMCmd, File, Level, M, CS, Max, Pos, In, Text1, 
     reverse([Text3|Text2], TextR),
     atomics_string(TextR, Text).
 
-apply_commands_stream_each(FPTerm, File, CI, M, Max, Pos1,
-                           Command, Text, IPosText) :-
+apply_commands_stream_each(FPTerm, File, CI, M, Max, Pos1, Command, Text, IPosText) :-
     apply_change(Text, M, Command, FromToPText1),
     ( do_recursion(CI, Command, GenMCmd, CS),
       FromToPText1 = t(From, To, PasteText1),
@@ -2742,7 +2744,7 @@ line_pos(LinePos) :-
     ),
     format("~`\tt~*|~` t~*|", [Tabs, Spcs]),
     fail.
-line_pos(_) :-    
+line_pos(_) :-
     write('').
 
 write_t(Term, Options1) :-

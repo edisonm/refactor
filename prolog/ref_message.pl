@@ -65,26 +65,28 @@ refactor_location(From) :-
     ).
 
 textpos_line(Text, CharPos, Line, LinePos) :-
-    setup_call_cleanup(( open_codes_stream(Text, In),
-                         open_null_stream(Out)
-                       ),
-                       ( copy_stream_data(In, Out, CharPos),
-                         stream_property(In, position(Pos)),
-                         stream_position_data(line_count, Pos, Line),
-                         stream_position_data(line_position, Pos, LinePos)
-                       ),
-                       ( close(Out),
-                         close(In)
-                       )).
+    setup_call_cleanup(
+        ( open_codes_stream(Text, In),
+          open_null_stream(Out)
+        ),
+        ( copy_stream_data(In, Out, CharPos),
+          stream_property(In, position(Pos)),
+          stream_position_data(line_count, Pos, Line),
+          stream_position_data(line_position, Pos, LinePos)
+        ),
+        ( close(Out),
+          close(In)
+        )).
 
 textpos_line(Text, CharPos, LinePos) :-
-    setup_call_cleanup(( open_codes_stream(Text, In),
-                         open_null_stream(Out)
-                       ),
-                       ( copy_stream_data(In, Out, CharPos),
-                         stream_property(In, position(Pos)),
-                         stream_position_data(line_position, Pos, LinePos)
-                       ),
-                       ( close(Out),
-                         close(In)
-                       )).
+    setup_call_cleanup(
+        ( open_codes_stream(Text, In),
+          open_null_stream(Out)
+        ),
+        ( copy_stream_data(In, Out, CharPos),
+          stream_property(In, position(Pos)),
+          stream_position_data(line_position, Pos, LinePos)
+        ),
+        ( close(Out),
+          close(In)
+        )).
