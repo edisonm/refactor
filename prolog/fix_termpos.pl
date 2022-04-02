@@ -89,7 +89,7 @@ fix_termpos(TermPos, Options) :-
 %   position specifier. The current implementation is aware of comments and
 %   extra parenthesis, asserting such information in term_innerpos/4 facts.
 %
-%   @tbd This implementation have performance issues, needs optimization.
+%   @tbd This implementation has performance issues, needs optimization.
 %
 
 fix_subtermpos(Pos) :-

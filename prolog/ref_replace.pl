@@ -97,7 +97,7 @@
     rportray_skip/0.
 
 :- meta_predicate
-    apply_commands(?, +, +, ?, +, +, +, +, 4),
+    apply_commands(?, +, +, ?, +, +, +, +, 5),
     fixpoint_file(+, +, 0),
     replace(+,?,?,0,:),
     rportray_list(+, +, 2, +, +),
@@ -624,7 +624,7 @@ process_sentence_file(Index, FixPoint, Max, SentPattern, Options, CleanupAttribu
                               Index, File, Level, M, Rec, FixPoint, Max, Pos,
                               gen_module_command(
                                   SentPattern, Options, Expand, SentPos, Expanded,
-                                  Linearize, Sent, VNL, Bindings, Data)))
+                                  Linearize, Pos, Sent, VNL, Bindings, Data)))
           ),
     refactor_context(tries, Tries),
     refactor_context(count, Count).
@@ -641,9 +641,14 @@ binding_varname(VNL, Var=Term) -->
     ).
 
 gen_module_command(SentPattern, Options, Expand, SentPos, Expanded, Linearize,
-                   Sent, VNL, Bindings, Data, Level, M, Cmd, In) :-
+                  _Pos, Sent, VNL, Bindings, Data, Level, M, In, Text, Command) :-
     ref_fetch_term_info(SentPattern, RawSent, Options, In, Once),
     b_setval('$variable_names', VNL),
+    % stream_property(In, position(Pos2)),
+    % stream_position_data(char_count, Pos1, B1),
+    % stream_position_data(char_count, Pos2, B2),
+    % get_subtext(Text, B1, B2, SubText),
+    set_refactor_context(text, Text),
     expand_if_required(Expand, M, RawSent, SentPos, In, Expanded),
     make_linear_if_required(RawSent, Linearize, Sent, Bindings),
     foldl(binding_varname(VNL), Bindings, RVNL, VNL),
@@ -654,7 +659,7 @@ gen_module_command(SentPattern, Options, Expand, SentPos, Expanded, Linearize,
       fail
     ),
     set_refactor_context(variable_names, RVNL),
-    substitute_term_level(Level, M, Sent, SentPos, 1200, Data, Cmd),
+    substitute_term_level(Level, M, Sent, SentPos, 1200, Data, Command),
     nb_setarg(1, S, yes).
 
 cond_cut_once(once).
@@ -798,7 +803,7 @@ apply_commands(Index, File, Level, M, Rec, FixPoint, Max, Pos, GenMCmd) :-
             File, In,
             apply_commands_stream(
                 FPTerm, GenMCmd, File, Level, M, nocs, Max, Pos, In, Text1, Text)),
-        [text, file], [Text1, File]),
+        [file], [File]),
     ( Text1 \= Text
     ->nb_set_refactor_context(modified, true),
       save_change(Index, File-Text)
@@ -826,9 +831,9 @@ fix_exception(error(Error, stream(_,  Line, Row, Pos)), File,
               error(Error, file(File, Line, Row, Pos))) :- !.
 fix_exception(E, _, E).
 
-do_genmcmd(GenMCmd, File, Level, M, CS, Command, In, Max) :-
+do_genmcmd(GenMCmd, File, Level, M, CS, Max, In, Text, Command) :-
     decreasing_recursion(CS, Command),
-    catch(call(GenMCmd, Level, M, Command, In),
+    catch(call(GenMCmd, Level, M, In, Text, Command),
           E1,
           ( fix_exception(E1, File, E),
             print_message(error, E),
@@ -841,44 +846,47 @@ do_genmcmd(GenMCmd, File, Level, M, CS, Command, In, Max) :-
     ; true
     ).
 
+with_text(Goal, Text) :-     with_refactor_context(Goal, [text], [Text]).
+
+% GenMCmd = gen_module_command
 apply_commands_stream(FPTerm, GenMCmd, File, Level, M, CS, Max, Pos, In, Text1, Text) :-
     IPosText = 0-[],
     rec_command_info(FPTerm, GenMCmd, CI),
-    ignore(forall(do_genmcmd(GenMCmd, File, Level, M, CS, Command, In, Max),
-                  apply_commands_stream_each(FPTerm, File, CI, M, Max, Pos,
-                                             Command, Text1, IPosText)
-                 )),
+    ignore(
+        forall(
+            do_genmcmd(GenMCmd, File, Level, M, CS, Max, In, Text1, Command),
+            apply_commands_stream_each(
+                FPTerm, File, CI, M, Max, Pos, Command, Text1, IPosText))),
     IPosText = Pos1-Text2,
     sub_string(Text1, Pos1, _, 0, Text3),
     reverse([Text3|Text2], TextR),
     atomics_string(TextR, Text).
 
-apply_commands_stream_each(FPTerm, File, CI, M, Max, Pos, Command, Text, IPosText) :-
-    ( apply_change(Text, M, Command, FromToPText1),
-      ( do_recursion(CI, Command, GenMCmd, CS),
-        FromToPText1 = t(From, To, PasteText1),
-        get_out_pos(Text, Pos, From, LPos),
-        with_output_to(atom(LeftText),
-                       line_pos(LPos)),
-        atomics_string([LeftText, PasteText1, "."], Text1),
-        set_refactor_context(text, Text1),
-        setup_call_cleanup(
-            ( open_codes_stream(Text1, In),
-              stream_property(In, position(Pos2))
-            ),
-            apply_commands_stream(FPTerm, GenMCmd, File, term, M, CS, Max, Pos2, In,
-                                  Text1, Text2),
-            close(In)),
-        set_refactor_context(text, Text),
-        Text1 \= Text2
-      ->atomics_string([LeftText, PasteText2, "."], Text2),
-        FromToPText = t(From, To, PasteText2)
-      ; FromToPText = FromToPText1
-      ),
-      string_concat_to(Text, FromToPText, IPosText, Pos6-Text6),
-      nb_setarg(1, IPosText, Pos6),
-      nb_setarg(2, IPosText, Text6)
-    ).
+apply_commands_stream_each(FPTerm, File, CI, M, Max, Pos1,
+                           Command, Text, IPosText) :-
+    apply_change(Text, M, Command, FromToPText1),
+    ( do_recursion(CI, Command, GenMCmd, CS),
+      FromToPText1 = t(From, To, PasteText1),
+      get_out_pos(Text, Pos1, From, LPos),
+      with_output_to(atom(LeftText),
+                     line_pos(LPos)),
+      atomics_string([LeftText, PasteText1, "."], Text1),
+      setup_call_cleanup(
+          ( open_codes_stream(Text1, In),
+            stream_property(In, position(Pos3)),
+            set_refactor_context(text, Text1)
+          ),
+          apply_commands_stream(FPTerm, GenMCmd, File, term, M,
+                                CS, Max, Pos3, In, Text1, Text2),
+          close(In)),
+      Text1 \= Text2
+    ->atomics_string([LeftText, PasteText2, "."], Text2),
+      FromToPText = t(From, To, PasteText2)
+    ; FromToPText = FromToPText1
+    ),
+    string_concat_to(Text, FromToPText, IPosText, Pos6-Text6),
+    nb_setarg(1, IPosText, Pos6),
+    nb_setarg(2, IPosText, Text6).
 
 get_out_pos(Text, Pos, From, LPos) :-
     stream_position_data(line_position, Pos, LPos1),
@@ -2604,6 +2612,9 @@ get_subtext(RefPos, Text, SubText) :-
     arg(1, RefPos, From),
     arg(2, RefPos, To),
     get_subtext(Text, From, To, SubText).
+
+% get_subtext(Text1, Pos, From, To, Text) :-
+%     get_subtext(Text1, From-Pos, To-Pos, Text).
 
 get_subtext(Text1, From, To, Text) :-
     arithexpression(From),
