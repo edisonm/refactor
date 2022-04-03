@@ -626,7 +626,7 @@ process_sentence_file(Index, FixPoint, Max, SentPattern, Options, CleanupAttribu
                               Index, File, Level, M, Rec, FixPoint, Max, Pos,
                               gen_module_command(
                                   SentPattern, Options, Expand, SentPos, Expanded,
-                                  Linearize, Pos, Sent, VNL, Bindings, Data)))
+                                  Linearize, Sent, VNL, Bindings, Data)))
           ),
     refactor_context(tries, Tries),
     refactor_context(count, Count).
@@ -643,13 +643,9 @@ binding_varname(VNL, Var=Term) -->
     ).
 
 gen_module_command(SentPattern, Options, Expand, SentPos, Expanded, Linearize,
-                  _Pos, Sent, VNL, Bindings, Data, Level, M, In, Text, Command) :-
+                   Sent, VNL, Bindings, Data, Level, M, In, Text, Command) :-
     ref_fetch_term_info(SentPattern, RawSent, In, Options, Once),
     b_setval('$variable_names', VNL),
-    % stream_property(In, position(Pos2)),
-    % stream_position_data(char_count, Pos1, B1),
-    % stream_position_data(char_count, Pos2, B2),
-    % get_subtext(Text, B1, B2, SubText),
     set_refactor_context(text, Text),
     expand_if_required(Expand, M, RawSent, SentPos, In, Expanded),
     make_linear_if_required(RawSent, Linearize, Sent, Bindings),
@@ -671,7 +667,6 @@ ref_fetch_term_info(SentPattern, Sent, In, Options, once) :-
     nonvar(SentPattern),
     memberchk(SentPattern, [[], end_of_file]),
     !,
-    option(comments([]), Options),
     ref_term_info_file(SentPattern, Sent, In, Options).
 ref_fetch_term_info(SentPattern, Sent, In, Options, mult(CP)) :-
     repeat,
@@ -688,6 +683,7 @@ ref_term_info_file([], [], In, Options) :-
     ref_term_null_option(0, In, Options).
 
 ref_term_null_option(Size, In, Options) :-
+    option(comments([]), Options),
     option(subterm_positions(Size-Size), Options),
     stream_property(In, position(Pos)),
     option(term_position(Pos), Options),
@@ -796,7 +792,7 @@ rec_ft(none,       not).
 rec_ft(false,      not).
 
 % This is weird due to the operators
-apply_commands(Index, File, Level, M, Rec, FixPoint, Max, Pos, GenMCmd) :-
+apply_commands(Index, File, Level, M, Rec, FixPoint, Max, Pos, GenModuleCommand) :-
     ( pending_change(_, File, Text1)
     ->true
     ; exists_file(File)
@@ -808,7 +804,7 @@ apply_commands(Index, File, Level, M, Rec, FixPoint, Max, Pos, GenMCmd) :-
         with_source_file(
             File, In,
             apply_commands_stream(
-                FPTerm, GenMCmd, File, Level, M, nocs, Max, Pos, In, Text1, Text)),
+                FPTerm, GenModuleCommand, File, Level, M, nocs, Max, Pos, In, Text1, Text)),
         [file], [File]),
     ( Text1 \= Text
     ->nb_set_refactor_context(modified, true),
@@ -837,9 +833,9 @@ fix_exception(error(Error, stream(_,  Line, Row, Pos)), File,
               error(Error, file(File, Line, Row, Pos))) :- !.
 fix_exception(E, _, E).
 
-do_genmcmd(GenMCmd, File, Level, M, CS, Max, In, Text, Command) :-
+do_genmcmd(GenModuleCommand, File, Level, M, CS, Max, In, Text, Command) :-
     decreasing_recursion(CS, Command),
-    catch(call(GenMCmd, Level, M, In, Text, Command),
+    catch(call(GenModuleCommand, Level, M, In, Text, Command),
           E1,
           ( fix_exception(E1, File, E),
             print_message(error, E),
@@ -852,12 +848,12 @@ do_genmcmd(GenMCmd, File, Level, M, CS, Max, In, Text, Command) :-
     ; true
     ).
 
-apply_commands_stream(FPTerm, GenMCmd, File, Level, M, CS, Max, Pos, In, Text1, Text) :-
+apply_commands_stream(FPTerm, GenModuleCommand, File, Level, M, CS, Max, Pos, In, Text1, Text) :-
     IPosText = 0-[],
-    rec_command_info(FPTerm, GenMCmd, CI),
+    rec_command_info(FPTerm, GenModuleCommand, CI),
     ignore(
         forall(
-            do_genmcmd(GenMCmd, File, Level, M, CS, Max, In, Text1, Command),
+            do_genmcmd(GenModuleCommand, File, Level, M, CS, Max, In, Text1, Command),
             apply_commands_stream_each(
                 FPTerm, File, CI, M, Max, Pos, Command, Text1, IPosText))),
     IPosText = Pos1-Text2,
@@ -867,18 +863,17 @@ apply_commands_stream(FPTerm, GenMCmd, File, Level, M, CS, Max, Pos, In, Text1, 
 
 apply_commands_stream_each(FPTerm, File, CI, M, Max, Pos1, Command, Text, IPosText) :-
     apply_change(Text, M, Command, FromToPText1),
-    ( do_recursion(CI, Command, GenMCmd, CS),
+    ( do_recursion(CI, Command, GenModuleCommand, CS),
       FromToPText1 = t(From, To, PasteText1),
       get_out_pos(Text, Pos1, From, LPos),
-      with_output_to(atom(LeftText),
-                     line_pos(LPos)),
+      line_pos(LPos, atom(LeftText)),
       atomics_string([LeftText, PasteText1, "."], Text1),
       setup_call_cleanup(
           ( open_codes_stream(Text1, In),
             stream_property(In, position(Pos3)),
             set_refactor_context(text, Text1)
           ),
-          apply_commands_stream(FPTerm, GenMCmd, File, term, M,
+          apply_commands_stream(FPTerm, GenModuleCommand, File, term, M,
                                 CS, Max, Pos3, In, Text1, Text2),
           close(In)),
       Text1 \= Text2
@@ -2734,7 +2729,7 @@ nl_indent(and, Op, LinePos) :-
     writeln(Op),
     line_pos(LinePos).
 
-line_pos(LinePos) :-
+line_pos(LinePos, Output) :-
     ( setting(listing:tab_distance, N),
       N =\= 0
     ->Tabs is LinePos div N,
@@ -2742,7 +2737,10 @@ line_pos(LinePos) :-
     ; Tabs is 0,
       Spcs is LinePos
     ),
-    format("~`\tt~*|~` t~*|", [Tabs, Spcs]),
+    format(Output, "~`\tt~*|~` t~*|", [Tabs, Spcs]).
+
+line_pos(LinePos) :-
+    line_pos(LinePos, current_output),
     fail.
 line_pos(_) :-
     write('').
