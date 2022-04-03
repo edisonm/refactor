@@ -848,42 +848,46 @@ do_genmcmd(GenModuleCommand, File, Level, M, CS, Max, In, Text, Command) :-
     ; true
     ).
 
+:- thread_local subtext_db/2.
+
 apply_commands_stream(FPTerm, GenModuleCommand, File, Level, M, CS, Max, Pos, In, Text1, Text) :-
-    IPosText = 0-[],
+    retractall(subtext_db(_, _)),
+    apply_commands_stream(1, FPTerm, GenModuleCommand, File, Level, M, CS, Max, Pos, In, Text1, Text).
+
+apply_commands_stream(RecNo, FPTerm, GenModuleCommand, File, Level, M, CS, Max, Pos, In, Text1, Text) :-
+    IPosText = ipt(0 ),
     rec_command_info(FPTerm, GenModuleCommand, CI),
     ignore(
         forall(
             do_genmcmd(GenModuleCommand, File, Level, M, CS, Max, In, Text1, Command),
             apply_commands_stream_each(
-                FPTerm, File, CI, M, Max, Pos, Command, Text1, IPosText))),
-    IPosText = Pos1-Text2,
+                RecNo, FPTerm, File, CI, M, Max, Pos, Command, Text1, IPosText))),
+    IPosText = ipt(Pos1),
     sub_string(Text1, Pos1, _, 0, Text3),
-    reverse([Text3|Text2], TextR),
-    atomics_string(TextR, Text).
+    findall(SubText, retract(subtext_db(RecNo, SubText)), TextL, [Text3]),
+    atomics_to_string(TextL, Text).
 
-apply_commands_stream_each(FPTerm, File, CI, M, Max, Pos1, Command, Text, IPosText) :-
+apply_commands_stream_each(RecNo1, FPTerm, File, CI, M, Max, Pos1, Command, Text, IPosText) :-
     apply_change(Text, M, Command, FromToPText1),
     ( do_recursion(CI, Command, GenModuleCommand, CS),
       FromToPText1 = t(From, To, PasteText1),
       get_out_pos(Text, Pos1, From, LPos),
       line_pos(LPos, atom(LeftText)),
-      atomics_string([LeftText, PasteText1, "."], Text1),
+      atomics_to_string([LeftText, PasteText1, "."], Text1),
       setup_call_cleanup(
           ( open_codes_stream(Text1, In),
             stream_property(In, position(Pos3)),
-            set_refactor_context(text, Text1)
+            set_refactor_context(text, Text1),
+            succ(RecNo1, RecNo)
           ),
-          apply_commands_stream(FPTerm, GenModuleCommand, File, term, M,
-                                CS, Max, Pos3, In, Text1, Text2),
-          close(In)),
-      Text1 \= Text2
+          apply_commands_stream(RecNo, FPTerm, GenModuleCommand, File,
+                                term, M, CS, Max, Pos3, In, Text1, Text2),
+          close(In))
     ->atomics_string([LeftText, PasteText2, "."], Text2),
       FromToPText = t(From, To, PasteText2)
     ; FromToPText = FromToPText1
     ),
-    string_concat_to(Text, FromToPText, IPosText, Pos6-Text6),
-    nb_setarg(1, IPosText, Pos6),
-    nb_setarg(2, IPosText, Text6).
+    string_concat_to(RecNo1, Text, FromToPText, IPosText).
 
 get_out_pos(Text, Pos, From, LPos) :-
     stream_position_data(line_position, Pos, LPos1),
@@ -905,10 +909,13 @@ get_out_pos(RText, Pos-Text1, From, LPos) :-
     textpos_line(Text3, From, LPos).
 */
 
-string_concat_to(RText, t(From, To, PasteText), Pos-Text1, To-[PasteText, Text2|Text1]) :-
+string_concat_to(RecNo, Text, t(From, To, Text2), IPos) :-
+    IPos = ipt(Pos),
     Length is max(0, From - Pos),
-    sub_string(RText, Pos, Length, _, Text2).
-    % atomics_string([Text1, Text2, PasteText], Text).
+    sub_string(Text, Pos, Length, _, Text1),
+    nb_setarg(1, IPos, To),
+    assertz(subtext_db(RecNo, Text1)),
+    assertz(subtext_db(RecNo, Text2)).
 
 gen_new_variable_name(VNL, Prefix, Count, Name) :-
     atom_concat(Prefix, Count, Name),
@@ -2001,7 +2008,7 @@ trim_brackets(L, '$TEXT'(S), Opt) :-
 
 pos_indent(Pos, Indent) :- with_output_to(atom(Indent), line_pos(Pos)).
 
-collect_args(Indent, TermWidth, LineL, Pos1-[Sep, String|T], Pos-T) :-
+collect_args(Indent, TermWidth, LineL, Pos1-[Sep, String|Tail], Pos-Tail) :-
     ( LineL = [Line1],
       string_concat(Indent, String, Line1),
       string_length(String, Width),
@@ -2592,7 +2599,7 @@ replace_sep(S1, S2, From1, Comments, Text1, Text2) :-
     !,
     sub_string(Text1, 0, Before, _, L),
     sub_string(Text1, _, After,  0, R),
-    atomics_string([L, S2, R], Text2).
+    atomics_to_string([L, S2, R], Text2).
 
 print_subtext(RefPos, Text) :-
     get_subtext(RefPos, Text, SubText),
