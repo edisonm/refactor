@@ -12,7 +12,7 @@
 % At a3657376a7cae0e71d09b9a506cadd8965f5fed3:
 % time{cpu:0.0005743400000000065,inferences:1594,wall:3.5460288524627686}
 %
-% At 92249e36d33f8b26a0bcb2243bbf9e459c9dc67c
+% At 6ff66daa291bc9041ce72cb748f53fdf8e84d843:
 % time{cpu:2.3686754769999996,inferences:19252454,wall:2.368762254714966}
 
 test(refspeed1) :-
@@ -21,6 +21,6 @@ test(refspeed1) :-
     call_time(replace_term(p1(A, B, C), p2(A, B, C), [file(plbin(random1)), concurrent(false)]), Stats),
     writeln(user_error, Stats),
     Wall = Stats.wall,
-    assertion(Wall < 5).
+    assertion(Wall < 2.5).
 
 :- end_tests(refspeed).
