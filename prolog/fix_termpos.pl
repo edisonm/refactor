@@ -150,6 +150,12 @@ fix_subtermpos_rec(Pos, Boundary) :-
     fix_subtermpos_from_to(Boundary, From1, To1, SFrom, STo, From, To, [KPos, VPos]),
     nb_setarg(1, Pos, From),
     nb_setarg(2, Pos, To).
+fix_subtermpos_rec(Pos, Boundary) :-
+    Pos = dict_position(From1, To1, FFrom, FTo, PosL),
+    !,
+    fix_subtermpos_from_to(Boundary, From1, To1, FFrom, FTo, From, To, PosL),
+    nb_setarg(1, Pos, From),
+    nb_setarg(2, Pos, To).
 fix_subtermpos_rec(_-_, _).
 fix_subtermpos_rec(string_position(_, _), _).
 fix_subtermpos_rec(brace_term_position(From, _, Arg), Boundary) :-
