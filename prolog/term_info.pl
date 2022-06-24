@@ -84,22 +84,24 @@ get_term_info_file(Pattern, Term, File, Options) :-
     with_source_file(File, In, fetch_term_info(Pattern, Term, Options, In)).
 
 get_term_info_fd(In, PatternL, TermL, Options1) :-
-    is_list(PatternL), !,
+    is_list(PatternL),
+    !,
     foldl(\ (H-D)^O1^O^select_option(H, O1, O, D),
           [subterm_positions(TermPos)-TermPos,
            term_position(Pos)-Pos,
            comments(Comments)-Comments,
-           variable_names(VN)-VN
+           variable_names(VN)-VN,
+           module(M)-M
           ], Options1, OptionT),
     PatternL = [_|PatternT],
     length(PatternT, TN),
-    length(TSPVCLL, TN),
-    maplist(get_term_info_each(In, OptionT), TSPVCLL),
-    transpose(TSPVCLL, TSPVCLT),
-    maplist(append, TSPVCLT, TSPVCT, TSPVCH),
-    transverse_apply_2(get_term_info_each(In, OptionT), TSPVCH, TSPVCT,
-                       [TermL, TermPosL, [Pos|_], VNL, CommentsL],
-                       [_, TermPosE, _, _, _]),
+    length(TSPVCMLL, TN),
+    maplist(get_term_info_each(In, OptionT), TSPVCMLL),
+    transpose(TSPVCMLL, TSPVCMLT),
+    maplist(append, TSPVCMLT, TSPVCMT, TSPVCMH),
+    transverse_apply_2(get_term_info_each(In, OptionT), TSPVCMH, TSPVCMT,
+                       [TermL, TermPosL, [Pos|_], VNL, CommentsL, ModuleL],
+                       [_, TermPosE, _, _, _, _]),
     maplist(subsumes_term, PatternL, TermL),
     append(CommentsL, Comments),
     append(VNL, VN),
@@ -111,22 +113,24 @@ get_term_info_fd(In, PatternL, TermL, Options1) :-
                   ),
             FromL),
     min_list(FromL, From),
+    [M|_] = ModuleL, % Just take the first one
     TermPos = list_position(From, To, TermPosL, none).
-get_term_info_fd(In, Pattern, Term, Options) :-
-    should_set_line(SetLine, Options),
+get_term_info_fd(In, Pattern, Term, Options1) :-
+    should_set_line(SetLine, Options1),
+    select_option(module(M), Options1, Options, M),
     repeat,
-      '$set_source_module'(M, M),
-      read_term(In, Term, [module(M)|Options]),
+      '$current_source_module'(OM),
+      read_term(In, Term, [module(OM)|Options]),
       ( Term == end_of_file
       ->!,
         fail
       ; true
       ),
       set_line(SetLine),
-      ( member(ModDecl, [(:- module(CM, _)), (:- module(CM, _, _))]),
+      ( member(ModDecl, [(:- module(M, _)), (:- module(M, _, _))]),
         subsumes_term(ModDecl, Term),
         Term = ModDecl
-      ->'$set_source_module'(_, CM)
+      ->'$set_source_module'(_, M)
       ; true
       ),
       subsumes_term(Pattern, Term).
@@ -151,11 +155,17 @@ transverse_apply_2(Apply, ListH, ListT1, ListL, EL) :-
     maplist(\ E^[E|L]^L^true, EL1, ListT1, ListT),
     transverse_apply(Apply, ListH, ListT, ListL, EL1, EL).
 
-get_term_info_each(In, Options, [T, S, P, V, C]) :-
-    '$set_source_module'(M, M),
+get_term_info_each(In, Options, [T, S, P, V, C, M]) :-
+    '$current_source_module'(OM),
     read_term(In, T, [subterm_positions(S), term_position(P), variable_names(V),
-                      comments(C), module(M)|Options]),
-    T \== end_of_file.
+                      comments(C), module(OM)|Options]),
+    T \== end_of_file,
+    ( member(ModDecl, [(:- module(M, _)), (:- module(M, _, _))]),
+      subsumes_term(ModDecl, T),
+      T = ModDecl
+    ->'$set_source_module'(_, M)
+    ; M = OM
+    ).
 
 :- public read_terms/3.
 

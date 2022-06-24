@@ -535,8 +535,8 @@ apply_ec_term_level(Level, Patt, Into, Expander, Options1) :-
              File = AFile
            )),
     setup_call_cleanup(
-        ( '$current_source_module'(OldM),
-          freeze(M, '$set_source_module'(_, M))
+        ( '$current_source_module'(OldM)
+          % freeze(M, '$set_source_module'(_, M))
         ),
         process_sentences(
             MFileParam, FixPoint, Max, SentPattern, Options, CleanupAttributes, M, File, Expanded, Expand, Pos,
