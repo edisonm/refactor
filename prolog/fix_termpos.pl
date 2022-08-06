@@ -118,8 +118,18 @@ fix_termouterpos(TermPos) :-
     ( Comments = [Pos-_|_],
       stream_position_data(char_count, Pos, From1),
       From1 < From
-    ->OuterFrom = From1
-    ; OuterFrom = From
+    ->CommentFrom = From1
+    ; CommentFrom = From
+    ),
+    refactor_context(text, Text),
+    string_length(Text, L),
+    % Now move to the left until the previous last one newline
+    ( seek1_char_left(Text, ".", CommentFrom, DotFrom)
+    ->( seekn_char_right(1, Text, L, "\n", DotFrom, OuterFrom)
+      ->true
+      ; succ(DotFrom, OuterFrom)
+      )
+    ; OuterFrom = CommentFrom
     ),
     arg(2, TermPos, To),
     ( append(_, [Pos-Comment], Comments),
@@ -130,8 +140,6 @@ fix_termouterpos(TermPos) :-
     ->To3 = To2
     ; To3 = To
     ),
-    refactor_context(text, Text),
-    string_length(Text, L),
     once(seek_sub_string(Text, ".", 1, L, To3, OuterTo)),
     nb_setarg(1, TermPos, OuterFrom),
     nb_setarg(2, TermPos, OuterTo),
@@ -267,6 +275,14 @@ seek_sub_string(Text, SubText, SubTextN, F, T1, T) :-
       fail
     ).
 
+seek1_char_left(Text, Char, F1, F) :-
+    succ(F2, F1),
+    ( sub_string(Text, F2, _, _, Char)
+    ->F = F2
+    ; seek1_char_left(Text, Char, F2, F)
+    ).
+
+
 seek1_parenthesis_left(Text, F1, F) :-
     comment_bound(F2, F1),
     !,
@@ -343,10 +359,13 @@ include_comments_right(Text, From, To) :-
     ),
     arg(1, S, To).
 
-seekn_parenthesis_right(0, _, _, T, T) :- !.
-seekn_parenthesis_right(N, Text, L, T1, T) :-
+seekn_parenthesis_right(N, Text, L, T, T) :-
+    seekn_char_right(N, Text, L, ")", T, T).
+
+seekn_char_right(0, _, _, _, T, T) :- !.
+seekn_char_right(N, Text, L, Char, T1, T) :-
     S = s(0),
-    ( seek_sub_string(Text, ")", 1, L, T1, T2),
+    ( seek_sub_string(Text, Char, 1, L, T1, T2),
       arg(1, S, N1),
       succ(N1, N2),
       ( N2 = N

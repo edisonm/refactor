@@ -53,6 +53,8 @@
            call_to_predicate/3,
            reformat_sentence/2,
            reformat_sentence/3,
+           move_term/4,
+           move_term/7,
            remove_call/2,
            remove_call/3
           ]).
@@ -574,3 +576,34 @@ reformat_sentence(Term, Expander, Options) :-
 :- meta_predicate reformat_sentence(?, :).
 reformat_sentence(Term, Options) :-
     reformat_sentence(Term, true, Options).
+
+:- dynamic
+        subtext_db/2.
+
+:- public record_text/1.
+
+record_text(Term) :-
+    refactor_context(text, Text),
+    refactor_context(subpos, SubPos),
+    arg(1, SubPos, From),
+    arg(2, SubPos, To),
+    ref_replace:get_subtext(Text, From, To, SubText),
+    assertz(subtext_db(Term, SubText)).
+
+:- meta_predicate move_term(?,?,0,+,0,+,+).
+
+move_term(Term, SourceOpts, TargetOpts, CommonOpts) :-
+    move_term(Term, [], true, SourceOpts, true, TargetOpts, CommonOpts).
+
+move_term(Term, Into, SourceCond, SourceOpts, TargetCond, TargetOpts, CommonOpts) :-
+    merge_options(SourceOpts, CommonOpts, SOptions),
+    merge_options([fixpoint(true)|TargetOpts], CommonOpts, TOptions),
+    replace_sentence(Term,
+                     '$C'(ref_scenarios:record_text(Term), Into),
+                     SourceCond,
+                     SOptions),
+    replace_sentence(end_of_file, '$TEXT'(SubText),
+                     ( retract(subtext_db(Term, SubText)),
+                       TargetCond
+                     ),
+                     TOptions).
