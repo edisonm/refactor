@@ -12,7 +12,7 @@ diff -ruN ex22.pl -
  :- module(ex22, []).
  
 -:- dynamic a/1  .
- 
+- 
 */
 
 test(ex22) :-
