@@ -125,8 +125,9 @@ fix_termouterpos(TermPos) :-
     string_length(Text, L),
     % Now move to the left until the previous last one newline
     ( seek1_char_left(Text, ".", CommentFrom, DotFrom)
-    ->( seekn_char_right(1, Text, L, "\n", DotFrom, OuterFrom)
-      ->true
+    ->( seek_sub_string(Text, "\n", 1, L, DotFrom, NLFrom),
+        NLFrom < From
+      ->succ(NLFrom, OuterFrom)
       ; succ(DotFrom, OuterFrom)
       )
     ; OuterFrom = CommentFrom
@@ -140,7 +141,12 @@ fix_termouterpos(TermPos) :-
     ->To3 = To2
     ; To3 = To
     ),
-    once(seek_sub_string(Text, ".", 1, L, To3, OuterTo)),
+    once(seek_sub_string(Text, ".", 1, L, To3, DotTo)),
+    ( seek_sub_string(Text, "\n", 1, L, DotTo, NLTo)
+      % TBD: this is assuming that from . to nl we only have comments or spaces
+    ->succ(NLTo, OuterTo)
+    ; succ(DotTo, OuterTo)
+    ),
     nb_setarg(1, TermPos, OuterFrom),
     nb_setarg(2, TermPos, OuterTo),
     assertz(term_innerpos(OuterFrom, OuterTo, From, To)).

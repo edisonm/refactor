@@ -6,8 +6,8 @@
 
 test(move_terms) :-
     module_property(plunit_move_terms, file(F)),
-    absolute_file_name(library(ref_replacers), Ex1, [file_type(prolog), access(exist), relative_to(F)]),
-    absolute_file_name(library(ref_scenarios), Ex2, [file_type(prolog), access(exist), relative_to(F)]),
+    absolute_file_name(library(ref_replace), Ex1, [file_type(prolog), access(exist), relative_to(F)]),
+    absolute_file_name(library(ref_message), Ex2, [file_type(prolog), access(exist), relative_to(F)]),
     tmp_file_stream(text, File1, Stream1),
     close(Stream1),
     copy_file(Ex1, File1),
