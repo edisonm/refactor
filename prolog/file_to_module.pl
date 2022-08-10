@@ -154,7 +154,7 @@ add_module_decl(NewM, PIL1, File) :-
     ( N = 0
     ->pretty_decl((:- module(NewM, PIL1)), PDecl1),
       replace_sentence([],
-                       [PDecl1],
+                       PDecl1,
                        [max_changes(1), file(File)])
     ; true
     ).

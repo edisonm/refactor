@@ -8,8 +8,8 @@ diff -ruN operators.pl -
 +++ operators.pl (target)
 @@ -1 +1,2 @@
 -f([a- ~t, b]).
-+f([a- ~t,
-+   b]).
++f([ a- ~t,
++    b]).
 */
 
 test(operators) :-

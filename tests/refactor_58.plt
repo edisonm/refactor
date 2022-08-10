@@ -9,8 +9,8 @@ diff -ruN listb.pl -
 @@ -1,3 +1,4 @@
  f(A, B).
 -f(A, [B,C]).
-+f(A, [B,
-+      C]).
++f(A, [ B,
++       C]).
  f(A, [B|C]).
 */
 

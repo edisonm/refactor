@@ -209,7 +209,7 @@
 %     Like '$BODYB'(X, 0)
 %
 %   * '$CLAUSE'(X, Offset)
-%     Print X as if it where a clause, starting indentation at Offset position.
+%     Print X as if it where a clause, starting indentation at Offset position
 %
 %   * '$CLAUSE'(X)
 %     Like '$CLAUSE'(X, 0)
@@ -222,13 +222,14 @@
 %     Note that if you use append/3 directly, the format of L1 will be lost
 %
 %   * '$LISTC'(L)
-%     Print each element of L in a way similar to portray_clause
+%     Print each element of L in a way similar to portray_clause, but skip the
+%     dot and new line for the last element
 %
 %   * '$LISTC.NL'(L)
 %     Print each element of L in a way similar to portray_clause followed by a
 %     dot and a new line.  If Level is sent, the tool will add this
 %     automatically if the replacement is a list, and in the case of an empty
-%     list, the sentence will be removed.
+%     list, the sentence will be removed
 %
 %   * '$LIST,'(L)
 %     Print each element of L placing a comma between them
@@ -1010,14 +1011,14 @@ special_term(top, Term1, Into1, Into7, Into) :-
       ->List = [Into7]
       ; List = Into7
       ),
-      Into = '$LISTC'(List)
+      Into = '$LISTC.NL'(List)
     ; var(Into1)
     ->Into = Into7
     ; is_list(Into1),
       same_length(Into1, Term1)
     ->Into = Into7
     ; Into1 = [_|_]
-    ->Into = '$LISTC.NL'(Into7)
+    ->Into = '$LISTC'(Into7)
     ; Into1 = []
     ->Into = '$RM'
     ; Into1 = '$C'(C, [])
@@ -1410,10 +1411,6 @@ write_term_dot_nl(Term, OptL) :-
     write_term(Term, OptL),
     write('.\n').
 
-rportray_clause_dot_nl(Clause, OptL) :-
-    rportray_clause(Clause, OptL),
-    write('.\n').
-
 rportray_clause(Clause, OptL) :- rportray_clause(Clause, 0, OptL).
 
 % We can not use portray_clause/3 because it does not handle the hooks
@@ -1675,13 +1672,15 @@ rportray('$LIST,_'(L), Opt) :- !, maplist(term_write_comma_2(Opt), L).
 rportray('$LIST'(L, Sep), Opt) :- !, rportray_list(L, nb, write_term, Sep, Opt).
 rportray('$LISTC'(CL), Opt) :-
     !,
-    merge_options([priority(1200)], Opt, Opt1),
-    rportray_list(CL, nb, rportray_clause_dot_nl, '', Opt1).
+    merge_options([priority(1200), portray_clause(true)], Opt, Opt1),
+    option(text(Text), Opt),
+    term_write_sep_list_3(CL, rportray_clause, Text, '.\n', '.\n', Opt1).
 rportray('$LISTC.NL'(CL), Opt) :-
     !,
     merge_options([priority(1200), portray_clause(true)], Opt, Opt1),
     option(text(Text), Opt),
-    term_write_sep_list_3(CL, rportray_clause, Text, '.\n', '.\n', Opt1).
+    term_write_sep_list_3(CL, rportray_clause, Text, '.\n', '.\n', Opt1),
+    write('.\n').
 rportray('$LIST.NL'(L), Opt) :-
     !,
     merge_options([priority(1200)], Opt, Opt1),
@@ -1712,13 +1711,14 @@ rportray('$LISTNL'(L, Offs), Opt) :-
     !,
     rportray_list_nl(L, nb, Pos, Opt).
 rportray('$LISTB,NL'(L), Opt) :-
-    offset_pos('$OUTPOS'+1, Pos),
+    offset_pos('$OUTPOS'+2, Pos),
     !,
-    rportray_list_nl(L, wb, Pos, Opt).
+    rportray_list_nl(L, wb(2), Pos, Opt).
 rportray('$LISTB,NL'(L, Offs), Opt) :-
     offset_pos(Offs, Pos),
     !,
-    rportray_list_nl(L, wb, Pos, Opt).
+    offset_pos(Pos-'$OUTPOS', Delta),
+    rportray_list_nl(L, wb(Delta), Pos, Opt).
 rportray('$NL'(Term, Offs), Opt) :-
     offset_pos(Offs, Pos),
     !,
@@ -2089,14 +2089,20 @@ term_write_sep_list_2([E|T], WB, Writter, Text, SepElem, SepTail, Opt) :-
     !,
     term_priority([_|_], user, 1, Priority),
     merge_options([priority(Priority)], Opt, Opt1),
-    cond_bracket(WB, '['),
+    ( nonvar(T), T = [_|_]
+    ->cond_id_bracket(WB, '[')
+    ; cond_ni_bracket(WB, '[')
+    ),
     call(Writter, E, Opt1),
     term_write_sep_list_inner(T, Writter, Text, SepElem, SepTail, Opt1),
-    cond_bracket(WB, ']').
+    cond_ni_bracket(WB, ']').
 term_write_sep_list_2(E, _, Writter, _, _, _, Opt) :- call(Writter, E, Opt).
 
-cond_bracket(wb, Bracket) :- write(Bracket).
-cond_bracket(nb, _).
+cond_id_bracket(wb(Delta), Bracket) :- write(Bracket), forall(between(2,Delta,_),write(' ')).
+cond_id_bracket(nb, _).
+
+cond_ni_bracket(wb(_), Bracket) :- write(Bracket).
+cond_ni_bracket(nb, _).
 
 term_write_sep_list_inner(L, Writter, Text, SepElem, SepTail, Opt) :-
     nonvar(L),
@@ -2228,18 +2234,19 @@ print_expansion_1('$TEXTQ'(Into, Offs), _, TermPos, Options, _, From, To) :-
     arg(2, TermPos, To1),
     write_q(Into, Options),
     To is To1+Pos.
-print_expansion_1('$LISTC.NL'(IntoL), _, TermPos, Options1, Text, From, To) :-
+print_expansion_1('$LISTC'(IntoL), _, TermPos, Options1, Text, From, To) :-
     !,
     arg(1, TermPos, From),
     arg(2, TermPos, To),
     merge_options([priority(1200), portray_clause(true)], Options1, Options),
     term_write_sep_list_3(IntoL, rportray_clause, Text, '.\n', '.\n', Options).
-print_expansion_1('$LISTC'(IntoL), _, TermPos, Options1, _, From, To) :-
+print_expansion_1('$LISTC.NL'(IntoL), _, TermPos, Options1, Text, From, To) :-
     !,
     arg(1, TermPos, From),
     arg(2, TermPos, To),
-    merge_options([priority(1200)], Options1, Options),
-    rportray_list(IntoL, nb, rportray_clause_dot_nl, '', Options).
+    merge_options([priority(1200), portray_clause(true)], Options1, Options),
+    term_write_sep_list_3(IntoL, rportray_clause, Text, '.\n', '.\n', Options),
+    write('.\n').
 print_expansion_1(Into, Term, TermPos, Options, Text, From, To) :-
     get_innerpos(TermPos, ITermPos),
     print_expansion_2(Into, Term, ITermPos, Options, Text, From, To).
