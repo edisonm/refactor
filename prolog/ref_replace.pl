@@ -1803,8 +1803,7 @@ rportray((A, B), Opt) :-
 rportray([E|T1], Opt) :-
     !,
     ( E == '$RM'
-    ->rportray(T1, Opt),
-      writeln(user_error, [E|T1])
+    ->rportray(T1, Opt)
     ; rportray_head_tail(E, T1, Opt)
     ).
 % Better formatting:
