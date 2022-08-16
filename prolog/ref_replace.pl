@@ -681,6 +681,7 @@ ref_term_info_file(end_of_file, end_of_file, In, Options) :-
     seek(In, 0, eof, Size),
     ref_term_null_option(Size, In, Options).
 ref_term_info_file([], [], In, Options) :-
+    seek(In, 0, bof, 0),
     ref_term_null_option(0, In, Options).
 
 ref_term_null_option(Size, In, Options) :-
@@ -1038,6 +1039,7 @@ trim_hack(Term, Trim) :-
 
 do_trim_hack('$@'(Term, _), Term).
 do_trim_hack('@@'(Term, _), Term).
+do_trim_hack('$C'(_, Term), Term).
 do_trim_hack(\\(Term), Term).
 do_trim_hack('$NOOP'(_), '').
 
@@ -1800,63 +1802,11 @@ rportray((A, B), Opt) :-
     write_t(Atom, Opt1).
 rportray([E|T1], Opt) :-
     !,
-    offset_pos('$OUTPOS', Pos),
-    succ(Pos, Pos1),
-    H = [_|_],
-    append(H, T2, [E|T1]),
-    ( nonvar(T2),
-      T2 = '$sb'(OTermPos, ITermPos, _, _, Term),
-      is_list(Term),
-      compound(OTermPos),
-      !,
-      arg(1, OTermPos, TFrom),
-      arg(2, OTermPos, TTo),
-      arg(1, ITermPos, From),
-      arg(2, ITermPos, To),
-      write_term_string(Pos, Opt, T2, SB),
-      sub_string(SB, 1, _, 1, SC),
-      option(text(Text), Opt),
-      get_subtext(Text, TFrom, From, SL),
-      get_subtext(Text, To, TTo, SR),
-      format(atom(ST), "~s~s~s", [SL, SC, SR]),
-      ( Term == []
-      ->T = H,
-        EndText = ST
-      ; append(H, ['$TEXT'(ST)], T),
-        EndText = ""
-      )
-    ; T2 == [],
-      T = H,
-      EndText = ""
-    ; once(( var(T2)
-           ; T2 \= [_|_]
-           )),
-      T = H,
-      write_term_string(Pos1, Opt, T2, ST),
-      atom_concat('|', ST, EndText)
-    ),
-    !,
-    write_t('[', Opt),
-    term_priority([_|_], user, 1, Priority),
-    merge_options([priority(Priority)], Opt, Opt1),
-    T = [Elem|Tail],
-    write_pos_rawstr(Pos1, write_term(Elem, Opt1), String),
-    pos_indent(Pos1, Indent),
-    option(list_width(ListWidth), Opt),
-    foldl(concat_list_elem(ListWidth, Pos1, Opt1), Tail, String-LinesLL, Last-[Last]),
-    ( LinesLL = [S1]
-    ->CloseB = "]"
-    ; with_output_to(string(CloseB),
-                     ( nl,
-                       line_pos(Pos),
-                       write(']')
-                     )),
-      with_output_to(string(Sep), writeln(',')),
-      atomic_list_concat(LinesLL, Sep, S1)
-    ),
-    atom_concat(Indent, S, S1),
-    atomic_list_concat([S, EndText, CloseB], Atom),
-    write_t(Atom, Opt1).
+    ( E == '$RM'
+    ->rportray(T1, Opt),
+      writeln(user_error, [E|T1])
+    ; rportray_head_tail(E, T1, Opt)
+    ).
 % Better formatting:
 rportray((:- Decl), Opt) :-
     !,
@@ -1970,6 +1920,67 @@ rportray(Term, OptL) :-
       write_t(')',  Opt1)
     ),
     !.
+
+rportray_head_tail(E, T1, Opt) :-
+    offset_pos('$OUTPOS', Pos),
+    succ(Pos, Pos1),
+    H = [_|_],
+    append(H, T2, [E|T1]),
+    ( nonvar(T2),
+      T2 = '$sb'(OTermPos, ITermPos, _, _, Term),
+      is_list(Term),
+      compound(OTermPos),
+      !,
+      arg(1, OTermPos, TFrom),
+      arg(2, OTermPos, TTo),
+      arg(1, ITermPos, From),
+      arg(2, ITermPos, To),
+      write_term_string(Pos, Opt, T2, SB),
+      sub_string(SB, 1, _, 1, SC),
+      option(text(Text), Opt),
+      get_subtext(Text, TFrom, From, SL),
+      get_subtext(Text, To, TTo, SR),
+      format(atom(ST), "~s~s~s", [SL, SC, SR]),
+      ( ( Term == []
+        ; Term == '$RM'
+        )
+      ->T = H,
+        EndText = ST
+      ; append(H, ['$TEXT'(ST)], T),
+        EndText = ""
+      )
+    ; T2 == [],
+      T = H,
+      EndText = ""
+    ; once(( var(T2)
+           ; T2 \= [_|_]
+           )),
+      T = H,
+      write_term_string(Pos1, Opt, T2, ST),
+      atom_concat('|', ST, EndText)
+    ),
+    !,
+    write_t('[', Opt),
+    term_priority([_|_], user, 1, Priority),
+    merge_options([priority(Priority)], Opt, Opt1),
+    subtract(T, ['$RM'], [Elem|Tail]),
+    write_pos_rawstr(Pos1, write_term(Elem, Opt1), String),
+    pos_indent(Pos1, Indent),
+    option(list_width(ListWidth), Opt),
+    foldl(concat_list_elem(ListWidth, Pos1, Opt1), Tail, String-LinesLL, Last-[Last]),
+    ( LinesLL = [S1]
+    ->CloseB = "]"
+    ; with_output_to(string(CloseB),
+                     ( nl,
+                       line_pos(Pos),
+                       write(']')
+                     )),
+      with_output_to(string(Sep), writeln(',')),
+      atomic_list_concat(LinesLL, Sep, S1)
+    ),
+    atom_concat(Indent, S, S1),
+    atomic_list_concat([S, EndText, CloseB], Atom),
+    write_t(Atom, Opt1).
 
 concat_list_elem(ListWidth, Pos, Opt1, Elem, String1-LinesL1, String-LinesL) :-
     ( with_output_to(string(String),
@@ -2192,24 +2203,13 @@ print_expansion_1('$RM', _, TermPos, _, _, From, To) :-
     !,
     arg(1, TermPos, From),
     arg(2, TermPos, To).
-print_expansion_1('$C'(Goal, '$RM'), Term, TermPos, _, _, From, To) :-
+print_expansion_1('$C'(Goal, Into), Term, TermPos, Options, Text, From, To) :-
     \+ ( nonvar(Term),
          Term = '$C'(_, _)
        ),
     !,
     call(Goal),
-    arg(1, TermPos, From),
-    arg(2, TermPos, To).
-print_expansion_1('$sb'(_, RefPos, RepL, Priority, Into), Term, TermPos, Options, Text, From, To) :-
-    nonvar(RefPos),
-    \+ ( nonvar(Term),
-         Term = '$sb'(_, _, _, _, _),
-         Into \= '$sb'(_, _, _, _, _)
-       ),
-    !,
-    arg(1, TermPos, From),
-    arg(2, TermPos, To),
-    print_subtext_sb_2(Into, RefPos, RepL, Priority, Text, Options).
+    print_expansion_1(Into, Term, TermPos, Options, Text, From, To).
 print_expansion_1('$TEXT'(Into), _, TermPos, Options, _, From, To) :-
     !,
     arg(1, TermPos, From),
@@ -2255,6 +2255,16 @@ print_expansion_2(Into, Term, TermPos, Options, Text, From, To) :-
     var(Into),
     !,
     print_expansion_3(Into, Term, TermPos, Options, Text, From, To).
+print_expansion_2('$sb'(_, RefPos, RepL, Priority, Into), Term, TermPos, Options, Text, From, To) :-
+    nonvar(RefPos),
+    \+ ( nonvar(Term),
+         Term = '$sb'(_, _, _, _, _),
+         Into \= '$sb'(_, _, _, _, _)
+       ),
+    !,
+    arg(1, TermPos, From),
+    arg(2, TermPos, To),
+    print_subtext_sb_2(Into, RefPos, RepL, Priority, Text, Options).
 print_expansion_2('$NODOT'(Into), Term, TermPos, Options, Text, From, To) :-
     !,
     print_expansion_2(Into, Term, TermPos, Options, Text, From, _To),
@@ -2270,6 +2280,8 @@ print_expansion_2(Into, Term, Pos, Options, Text, From, To) :-
     !,
     print_subtext(From-From1, Text),
     ( Into == []
+    ->true
+    ; Into == '$RM'
     ->true
     ; ( is_list(Into)
       ->true
@@ -2604,10 +2616,22 @@ print_expansion_list(PosL, From, To, TPos, IntoL, TermL, Options1, Text, Cont) :
           term_priority([_|_], M, 1, Priority1),
           select_option(priority(Priority), Options1, Options, Priority),
           Options2=[priority(Priority1)|Options],
-          print_subtext(Text, From, From1),
-          print_expansion(Into, Term, Pos, Options2, Text),
-          print_expansion_list(PosT, To1, To, TPos, IT, TT, Options1, Text, cont)
-        ; IntoL = []
+          ( Into == '$RM',
+            Term \== '$RM'
+          ->( Cont = init
+            ->Cont2 = init_rm,
+              print_subtext(Text, From, From1)
+            ; Cont2 = Cont
+            )
+          ; ( Cont \= init_rm
+            ->print_subtext(Text, From, From1)
+            ; true
+            ),
+            print_expansion(Into, Term, Pos, Options2, Text),
+            Cont2 = cont
+          ),
+          print_expansion_list(PosT, To1, To, TPos, IT, TT, Options1, Text, Cont2)
+        ; memberchk(IntoL, [[], '$RM'])
         ->arg(1, Pos, From1),
           ( TPos = none
           ->last(PosL, LPos),

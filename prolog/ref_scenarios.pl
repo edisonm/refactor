@@ -54,7 +54,7 @@
            reformat_sentence/2,
            reformat_sentence/3,
            move_term/4,
-           move_term/7,
+           move_term/8,
            remove_call/2,
            remove_call/3
           ]).
@@ -578,32 +578,32 @@ reformat_sentence(Term, Options) :-
     reformat_sentence(Term, true, Options).
 
 :- dynamic
-        subtext_db/2.
+        subtext_db/1.
 
-:- public record_text/1.
+:- public record_text/0.
 
-record_text(Term) :-
+record_text :-
     refactor_context(text, Text),
     refactor_context(subpos, SubPos),
     arg(1, SubPos, From),
     arg(2, SubPos, To),
     ref_replace:get_subtext(Text, From, To, SubText),
-    assertz(subtext_db(Term, SubText)).
+    assertz(subtext_db(SubText)).
 
-:- meta_predicate move_term(?,?,0,+,0,+,+).
+:- meta_predicate move_term(?,?,+,0,+,0,+,+).
 
 move_term(Term, SourceOpts, TargetOpts, CommonOpts) :-
-    move_term(Term, [], true, SourceOpts, true, TargetOpts, CommonOpts).
+    move_term(Term, [], end_of_file, true, SourceOpts, true, TargetOpts, CommonOpts).
 
-move_term(Term, Into, SourceCond, SourceOpts, TargetCond, TargetOpts, CommonOpts) :-
+move_term(Term, Into, AddAt, SourceCond, SourceOpts, TargetCond, TargetOpts, CommonOpts) :-
     merge_options(SourceOpts, CommonOpts, SOptions),
     merge_options([fixpoint(true)|TargetOpts], CommonOpts, TOptions),
     replace_sentence(Term,
-                     '$C'(ref_scenarios:record_text(Term), Into),
+                     '$C'(ref_scenarios:record_text, Into),
                      SourceCond,
                      SOptions),
-    replace_sentence(end_of_file, '$TEXT'(SubText),
-                     ( retract(subtext_db(Term, SubText)),
+    replace_sentence(AddAt, '$TEXT'(SubText),
+                     ( retract(subtext_db(SubText)),
                        TargetCond
                      ),
                      TOptions).
