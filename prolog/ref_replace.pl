@@ -2596,7 +2596,10 @@ print_expansion_list(PosL, From, To, TPos, IntoL, TermL, Options1, Text, Cont) :
     ( ( IntoL = '$sb'(sub_list_position(_, To2, _, _, From2, PosL2, TPos2), _, RepL, Priority, Into),
         PosL = [Pos|_],
         arg(1, Pos, From1)
-      ->print_subtext(Text, From, From1)
+      ->( Cont \= init_rm
+        ->print_subtext(Text, From, From1)
+        ; true
+        )
       ; IntoL = '$sb'(list_position(From21, To2, PosL2, TPos2), _, RepL, Priority, Into),
         ( Cont = cont,
           PosL2 = [Pos2|_],
