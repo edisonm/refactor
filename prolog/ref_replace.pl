@@ -1746,60 +1746,12 @@ rportray(\+ Term, Opt) :-
     write_term(Term, Opt1).
 rportray((A, B), Opt) :-
     !,
-    sequence_list((A, B), L, []),
-    once(append(T, [E], L)),
-    offset_pos('$OUTPOS', Pos),
-    term_priority((_, _), user, 1, Priority),
-    option(priority(Pri), Opt),
-    ( Priority > Pri
-    ->Display = yes
-    ; Display = no
-    ),
-    merge_options([priority(Priority)], Opt, Opt1),
-    term_priority((_, _), user, 2, RPri),
-    merge_options([priority(RPri)], Opt, Opt2),
-    ( ( Display = yes
-      ->Format ="(~s~s)",
-        succ(Pos, Pos1)
-      ; Format = "~s~s",
-        Pos1 = Pos
-      ),
-      length(L, Length),
-      pos_indent(Pos1, Indent),
-      maplist([Pos1, Opt1, Indent] +\ E^Line^( write_term_lines(Pos1, Opt1, E, Lines),
-                                              Lines = [Line1],
-                                              string_concat(Indent, Line, Line1)
-                                            ), T, LineL1),
-      write_term_lines(Pos1, Opt2, E, LastLines1),
-      LastLines1 = [LastLine1],
-      atom_concat(Indent, LastLine, LastLine1),
-      append(LineL1, [LastLine], StringL),
-      maplist(string_length, StringL, WidthL),
-      sum_list(WidthL, WidthTotal),
-      Sep = ", ",
-      string_length(Sep, SepLength),
-      option(conj_width(ConjWidth), Opt),
-      Pos1 + WidthTotal + (Length - 1) * SepLength < ConjWidth
-    ->CloseB = ""
-    ; ( Display = yes
-      ->Format = "( ~s~s)",
-        Pos1 = Pos + 2,
-        with_output_to(string(CloseB),
-                       ( nl,
-                         line_pos(Pos)
-                       ))
-      ; Format = "~s~s",
-        CloseB = "",
-        Pos1 = Pos
-      ),
-      maplist(write_term_string(Pos1, Opt1), T, StringL1),
-      write_term_string(Pos1, Opt2, E, LastStr),
-      append(StringL1, [LastStr], StringL),
-      sep_nl(Pos1, ',', Sep)
-    ),
-    atomics_to_string(StringL, Sep, S),
-    format(atom(Atom), Format, [S, CloseB]),
-    write_t(Atom, Opt1).
+    ( A == '$RM'
+    ->rportray(B, Opt)
+    ; B == '$RM'
+    ->rportray(A, Opt)
+    ; rportray_conj(A, B, Opt)
+    ).
 rportray([E|T1], Opt) :-
     !,
     ( E == '$RM'
@@ -1919,6 +1871,62 @@ rportray(Term, OptL) :-
       write_t(')',  Opt1)
     ),
     !.
+
+rportray_conj(A, B, Opt) :-
+    sequence_list((A, B), L, []),
+    once(append(T, [E], L)),
+    offset_pos('$OUTPOS', Pos),
+    term_priority((_, _), user, 1, Priority),
+    option(priority(Pri), Opt),
+    ( Priority > Pri
+    ->Display = yes
+    ; Display = no
+    ),
+    merge_options([priority(Priority)], Opt, Opt1),
+    term_priority((_, _), user, 2, RPri),
+    merge_options([priority(RPri)], Opt, Opt2),
+    ( ( Display = yes
+      ->Format ="(~s~s)",
+        succ(Pos, Pos1)
+      ; Format = "~s~s",
+        Pos1 = Pos
+      ),
+      length(L, Length),
+      pos_indent(Pos1, Indent),
+      maplist([Pos1, Opt1, Indent] +\ E^Line^( write_term_lines(Pos1, Opt1, E, Lines),
+                                               Lines = [Line1],
+                                               string_concat(Indent, Line, Line1)
+                                             ), T, LineL1),
+      write_term_lines(Pos1, Opt2, E, LastLines1),
+      LastLines1 = [LastLine1],
+      atom_concat(Indent, LastLine, LastLine1),
+      append(LineL1, [LastLine], StringL),
+      maplist(string_length, StringL, WidthL),
+      sum_list(WidthL, WidthTotal),
+      Sep = ", ",
+      string_length(Sep, SepLength),
+      option(conj_width(ConjWidth), Opt),
+      Pos1 + WidthTotal + (Length - 1) * SepLength < ConjWidth
+    ->CloseB = ""
+    ; ( Display = yes
+      ->Format = "( ~s~s)",
+        Pos1 = Pos + 2,
+        with_output_to(string(CloseB),
+                       ( nl,
+                         line_pos(Pos)
+                       ))
+      ; Format = "~s~s",
+        CloseB = "",
+        Pos1 = Pos
+      ),
+      maplist(write_term_string(Pos1, Opt1), T, StringL1),
+      write_term_string(Pos1, Opt2, E, LastStr),
+      append(StringL1, [LastStr], StringL),
+      sep_nl(Pos1, ',', Sep)
+    ),
+    atomics_to_string(StringL, Sep, S),
+    format(atom(Atom), Format, [S, CloseB]),
+    write_t(Atom, Opt1).
 
 rportray_head_tail(E, T1, Opt) :-
     offset_pos('$OUTPOS', Pos),
@@ -2533,6 +2541,11 @@ normalize_pos(Pos, F-T) :-
 print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT), Into, Term, Options, Text) :-
     compound(Into),
     Into \= [_|_],
+    \+ ( Into = (CA, CB),
+         ( CA == '$RM'
+         ; CB == '$RM'
+         )
+       ),
     nonvar(Term),
     functor(Into, FT, A),
     functor(Term, FP, A),
