@@ -79,9 +79,9 @@ cond_move_pred((:- include(Alias)), _, _, (:- include(Alias))) :-
     % We asume you don't use include to add predicates... do you???
     !.
 cond_move_pred((:- Decl), MSource, PredList, Into) :-
-    Decl =.. [F, Sequence],
-    memberchk(F, [(meta_predicate), (multifile), (discontiguous), (dynamic),
-                  (thread_local), (public), (export)]),
+    Decl =.. [DeclF, Sequence],
+    memberchk(DeclF, [(meta_predicate), (multifile), (discontiguous),
+                      (dynamic), (thread_local), (public), (export)]),
     !,
     sequence_list(Sequence, List, []),
     findall(Elem,
