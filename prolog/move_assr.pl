@@ -36,15 +36,13 @@
 
 :- use_module(library(substitute)).
 :- use_module(library(assertions)).
-:- use_module(library(list_sequence)).
-:- use_module(library(sequence_list)).
-:- use_module(library(module_links)).
+:- use_module(library(move_pred)).
 
 move_pred:cond_move_pred_hook((:- Assertions1), CM, PredList, Into) :-
-    assertions:current_decomposed_assertion_1(Assertions1, _, CM, _, _, Body1, _, _, _, _, _, _),
+    current_decomposed_assertion_1(Assertions1, _, CM, _, _, Body1, _, _, _, _, _, _),
     !,
     findall(M:F/A,
-            ( assertions:decompose_assertion_head_body(Body1, _, CM, M:H, true, _, _, _, _, _, _, _, _),
+            ( decompose_assertion_head_body(Body1, _, CM, M:H, true, _, _, _, _, _, _, _, _),
               functor(H, F, A)
             ), AllPredList),
     ( subtract(AllPredList, PredList, [])
@@ -59,15 +57,15 @@ move_pred:move_predicates_hook(PredList, MSource, _, MTarget, Target, Options) :
     cleanup_assertions(MSource, MTarget, PredList, [file(Target)|Options]).
 
 cleanup_assertion(MSource, MTarget, PredList, Assertions1, Assertions) :-
-    ( assertions:current_decomposed_assertion_1(Assertions1, _, MSource, _, _, Body1, _, _, _, _, _, _)
+    ( current_decomposed_assertion_1(Assertions1, _, MSource, _, _, Body1, _, _, _, _, _, _)
     ->findall(M:F/A,
-              ( assertions:decompose_assertion_head_body(Body1, _, MSource, M:H, true, _, _, _, _, _, _, _, _),
+              ( decompose_assertion_head_body(Body1, _, MSource, M:H, true, _, _, _, _, _, _, _, _),
                 predicate_property(M:H, defined),
                 functor(H, F, A)
               ), AllPredList),
       AllPredList \= [],
       findall(M:F/A,
-              ( assertions:decompose_assertion_head_body(Body1, _, MTarget, M:H, true, _, _, _, _, _, _, _, _),
+              ( decompose_assertion_head_body(Body1, _, MTarget, M:H, true, _, _, _, _, _, _, _, _),
                 predicate_property(M:H, defined),
                 functor(H, F, A)
               ), IncludePredList, PredList),
@@ -89,18 +87,18 @@ assertions_exclude(AllPreds, PredList, M, Assertions1, Replace) :-
 
 assertions_include_exclude(AllPreds, PredList, CM, Body1, ReplaceInclude, ReplaceExclude, Replace) :-
     catch(
-        ( \+ assertions:decompose_assertion_head_body(Body1, _, CM, _, _, _, _, _, _, _, _, _, _)
+        ( \+ decompose_assertion_head_body(Body1, _, CM, _, _, _, _, _, _, _, _, _, _)
         ->fail
-        ; forall(( assertions:decompose_assertion_head_body(Body1, _, CM, M:H, _, _, _, _, _, _, _, _, _),
+        ; forall(( decompose_assertion_head_body(Body1, _, CM, M:H, _, _, _, _, _, _, _, _, _),
                    functor(H, F, A)
                  ),
                  memberchk(M:F/A, AllPreds)),
-          ( forall(( assertions:decompose_assertion_head_body(Body1, _, CM, M:H, _, _, _, _, _, _, _, _, _),
+          ( forall(( decompose_assertion_head_body(Body1, _, CM, M:H, _, _, _, _, _, _, _, _, _),
                      functor(H, F, A)
                    ),
                    \+ memberchk(M:F/A, PredList))
           ->Replace = ReplaceExclude
-          ; forall(( assertions:decompose_assertion_head_body(Body1, _, CM, M:H, _, _, _, _, _, _, _, _, _),
+          ; forall(( decompose_assertion_head_body(Body1, _, CM, M:H, _, _, _, _, _, _, _, _, _),
                      functor(H, F, A)
                    ),
                    memberchk(M:F/A, PredList))
