@@ -1744,6 +1744,9 @@ rportray(\+ Term, Opt) :-
     term_priority((_, _), user, 1, Priority),
     merge_options([priority(Priority)], Opt, Opt1),
     write_term(Term, Opt1).
+rportray('$RM', Opt) :-
+    !,
+    write_term(true, Opt).
 rportray((A, B), Opt) :-
     !,
     ( A == '$RM'
@@ -1873,8 +1876,9 @@ rportray(Term, OptL) :-
     !.
 
 rportray_conj(A, B, Opt) :-
-    sequence_list((A, B), L, []),
-    once(append(T, [E], L)),
+    sequence_list((A, B), AL, []),
+    exclude(==('$RM'), AL, L),
+    once(append(T, [Last], L)),
     offset_pos('$OUTPOS', Pos),
     term_priority((_, _), user, 1, Priority),
     option(priority(Pri), Opt),
@@ -1897,7 +1901,7 @@ rportray_conj(A, B, Opt) :-
                                                Lines = [Line1],
                                                string_concat(Indent, Line, Line1)
                                              ), T, LineL1),
-      write_term_lines(Pos1, Opt2, E, LastLines1),
+      write_term_lines(Pos1, Opt2, Last, LastLines1),
       LastLines1 = [LastLine1],
       atom_concat(Indent, LastLine, LastLine1),
       append(LineL1, [LastLine], StringL),
@@ -1920,7 +1924,7 @@ rportray_conj(A, B, Opt) :-
         Pos1 = Pos
       ),
       maplist(write_term_string(Pos1, Opt1), T, StringL1),
-      write_term_string(Pos1, Opt2, E, LastStr),
+      write_term_string(Pos1, Opt2, Last, LastStr),
       append(StringL1, [LastStr], StringL),
       sep_nl(Pos1, ',', Sep)
     ),
