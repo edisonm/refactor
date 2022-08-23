@@ -104,7 +104,7 @@ cond_move_pred((:- Decl), MSource, PredList, Into) :-
     ).
 cond_move_pred((:- use_module(Alias)), MSource, PredList, Into) :-
     !,
-    absolute_file_name(Alias, File, [file_errors(fail), file_type(prolog)]),
+    absolute_file_name(Alias, File, [file_errors(fail), access(exist), file_type(prolog)]),
     module_property(M, file(File)),
     once(( depends_of(H2, M2, _, M, MSource, 1),
            functor(H2, F2, A2),
@@ -118,7 +118,7 @@ cond_move_pred((:- use_module(Alias)), MSource, PredList, Into) :-
     ).
 cond_move_pred((:- use_module(Alias, ExL1)), MSource, PredList, Into) :-
     !,
-    absolute_file_name(Alias, File, [file_errors(fail), file_type(prolog)]),
+    absolute_file_name(Alias, File, [file_errors(fail), access(exist), file_type(prolog)]),
     module_property(M, file(File)),
     \+ \+ ( member(F/A, ExL1),
             functor(H, F, A),
@@ -147,7 +147,7 @@ add_exports_module(MSource, Target, PredList, Options) :-
     pretty_decl((:- module(MTarget, L)), Decl),
     replace_sentence((:- module(MTarget, L1)), Decl,
                      ( findall(F/A,
-                               ( member(F/A, PredList),
+                               ( member(MSource:F/A, PredList),
                                  functor(H, F, A),
                                  once(( depends_of(H2, M2, H, MSource, CM, 1),
                                         CM \= MTarget,
@@ -161,7 +161,7 @@ add_exports_module(MSource, Target, PredList, Options) :-
 
 cleanup_use_module(MSource, PredList, Options) :-
     replace_sentence((:- use_module(Alias, ExL1)), (:- use_module(Alias, ExL)),
-                     ( absolute_file_name(Alias, File, [file_type(prolog)]),
+                     ( absolute_file_name(Alias, File, [access(exist), file_type(prolog)]),
                        module_property(M, file(File)),
                        findall(F/A,
                                ( member(F/A, ExL1),
@@ -258,7 +258,7 @@ normalize_pred_id(M1, PI, M:F/A) :-
     ).
 
 move_predicates(PredList1, Source, Target, Options) :-
-    absolute_file_name(Source, FSource, [file_type(prolog)]),
+    absolute_file_name(Source, FSource, [file_type(prolog), access(exist)]),
     module_property(MSource, file(FSource)), % This should exist
     absolute_file_name(Target, FTarget, [file_type(prolog)]),
     maplist(normalize_pred_id(MSource), PredList1, PredList),
