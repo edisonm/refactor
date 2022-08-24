@@ -100,7 +100,8 @@ cond_move_pred((:- Decl), MSource, PredList, Into) :-
     ( Diff = []
     ->Into = []
     ; list_sequence(Diff, ISeq),
-      Into =.. [F, ISeq]
+      Decl2 =.. [DeclF, ISeq],
+      Into = (:- Decl2)
     ).
 cond_move_pred((:- use_module(Alias)), MSource, PredList, Into) :-
     !,
@@ -171,6 +172,37 @@ cleanup_use_module(MSource, PredList, Options) :-
                                         memberchk(M2:F2/A2, PredList)
                                       ))
                                ), ExL)
+                     ), Options).
+
+cleanup_declarations(MSource, MTarget, PredList, Options) :-
+    replace_sentence((:- Decl), Into,
+                     ( Decl =.. [DeclF, Sequence],
+                       memberchk(DeclF, [(meta_predicate), (multifile), (discontiguous),
+                                         (dynamic), (thread_local), (public), (export)]),
+                       sequence_list(Sequence, List, []),
+                       findall(Elem,
+                               ( member(Elem, List),
+                                 ( Elem = F/A
+                                 ->M1 = MSource,
+                                   M3 = MTarget
+                                 ; Elem = M:F/A
+                                 ->M1 = M,
+                                   M3 = M
+                                 ),
+                                 functor(H, F, A),
+                                 ( predicate_property(M3:H, defined)
+                                 ->true
+                                 ; predicate_property(M1:H, defined)
+                                 ->memberchk(M1:F/A, PredList)
+                                 )
+                               ), List2),
+                       List \= List2,
+                       ( List2 = []
+                       ->Into = []
+                       ; list_sequence(List2, Sequence2),
+                         Decl2 =.. [DeclF, Sequence2],
+                         Into = (:- Decl2)
+                       )
                      ), Options).
 
 :- dynamic
@@ -285,6 +317,7 @@ move_predicates(PredList1, Source, Target, Options) :-
               [file(Source)], true, [file(Target)], Options),
     forall(move_predicates_hook(PredList, MSource, Source, MTarget, Target, Options), true),
     cleanup_use_module(MSource, PredList, [file(Target)|Options]),
+    cleanup_declarations(MSource, MTarget, PredList, [file(Target)|Options]),
     add_exports_module(MSource, Target, PredList, Options),
     add_new_use_module(MSource, MTarget, Source, Target, PredList, Options),
     add_target_use_mod(MSource, Source, Target, PredList, Options).
