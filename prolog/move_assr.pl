@@ -56,11 +56,12 @@ move_pred:cond_move_pred_hook((:- Assertions1), CM, PredList, Into) :-
 move_pred:move_predicates_hook(PredList, MSource, _, MTarget, Target, Options) :-
     cleanup_assertions(MSource, MTarget, PredList, [file(Target)|Options]).
 
-cleanup_assertion(MSource, MTarget, PredList, Assertions1, Assertions) :-
+cleanup_assertion(MSource, MTarget, PredList, Assertions1, AssertionsDecl) :-
     ( current_decomposed_assertion_1(Assertions1, _, MSource, _, _, Body1, _, _, _, _, _, _)
     ->findall(M:F/A,
               ( decompose_assertion_head_body(Body1, _, MSource, M:H, true, _, _, _, _, _, _, _, _),
                 predicate_property(M:H, defined),
+                predicate_property(M:H, implementation_module(MSource)),
                 functor(H, F, A)
               ), AllPredList),
       AllPredList \= [],
@@ -69,14 +70,18 @@ cleanup_assertion(MSource, MTarget, PredList, Assertions1, Assertions) :-
                 predicate_property(M:H, defined),
                 functor(H, F, A)
               ), IncludePredList, PredList),
-      substitute(assertions_include(AllPredList, IncludePredList, MSource), Body1, Body),
-      substitute_value(Body1, Body, Assertions1, Assertions),
-      Assertions \= Assertions1
+      ( intersection(AllPredList, IncludePredList, [])
+      ->AssertionsDecl = []
+      ; substitute(assertions_include(AllPredList, IncludePredList, MSource), Body1, Body),
+        substitute_value(Body1, Body, Assertions1, Assertions),
+        Assertions \= Assertions1,
+        AssertionsDecl = (:- Assertions)
+      )
     ).
 
 cleanup_assertions(MSource, MTarget, PredList, Options) :-
-    replace_sentence((:- Assertions1), (:- Assertions),
-                     cleanup_assertion(MSource, MTarget, PredList, Assertions1, Assertions),
+    replace_sentence((:- Assertions1), AssertionsDecl,
+                     cleanup_assertion(MSource, MTarget, PredList, Assertions1, AssertionsDecl),
                      Options).
 
 assertions_include(AllPreds, PredList, M, Assertions1, Replace) :-
