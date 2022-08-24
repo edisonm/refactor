@@ -254,7 +254,7 @@ add_target_use_mod(MSource, Source, Target, PredList, Options1) :-
     ->Options = [file(Source), max_changes(1), changes(C)|Options1],
       once(( ( replace_sentence([(:- use_module(Alias)), Next],
                                 [(:- use_module(Alias)), (:- use_module(Target)), Next],
-                                Next \= (:- use_module(_)),
+                                \+ memberchk(Next, [(:- use_module(_)),(:- use_module(_, _))]),
                                 Options)
              ; member(Term, [(:- include(_)), (:- module(_, _))]),
                replace_sentence(Term, [Term, (:- use_module(Target))], Options)
