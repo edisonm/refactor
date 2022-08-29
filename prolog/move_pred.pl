@@ -33,7 +33,8 @@
 */
 
 :- module(move_pred,
-          [ move_predicates/4
+          [ move_predicates/4,
+            update_move_predicates_db/3
           ]).
 
 :- use_module(library(assertions)).
@@ -46,8 +47,23 @@
         cond_move_pred_hook/4,
         move_predicates_hook/6.
 
+:- dynamic
+        target_file_module/2.
+
 depends_of(AH, AM, H, M, CM, N) :-
     depends_of_db(AH, AM, H, M, CM, N).
+
+module_from_file(File, M) :-
+    ( module_property(M, file(File))
+    ->true
+    ; target_file_module(File, M)
+    ).
+
+defined_predicate(M:H) :-
+    once(( depends_of_db(H, M, _, _, _, 1)
+         ; depends_of_db(_, _, H, M, _, 1)
+         % ; predicate_property(M:H, defined)
+         )).
 
 cond_move_pred(Term, _, _, _) :-
     var(Term),
@@ -106,7 +122,7 @@ cond_move_pred((:- Decl), MSource, PredList, Into) :-
 cond_move_pred((:- use_module(Alias)), MSource, PredList, Into) :-
     !,
     absolute_file_name(Alias, File, [file_errors(fail), access(exist), file_type(prolog)]),
-    module_property(M, file(File)),
+    module_from_file(File, M),
     once(( depends_of(H2, M2, _, M, MSource, 1),
            functor(H2, F2, A2),
            memberchk(M2:F2/A2, PredList)
@@ -120,7 +136,7 @@ cond_move_pred((:- use_module(Alias)), MSource, PredList, Into) :-
 cond_move_pred((:- use_module(Alias, ExL1)), MSource, PredList, Into) :-
     !,
     absolute_file_name(Alias, File, [file_errors(fail), access(exist), file_type(prolog)]),
-    module_property(M, file(File)),
+    module_from_file(File, M),
     \+ \+ ( member(F/A, ExL1),
             functor(H, F, A),
             once(( depends_of(H2, M2, H, M, MSource, _),
@@ -163,7 +179,7 @@ add_exports_module(MSource, Target, PredList, Options) :-
 cleanup_use_module(MSource, PredList, Options) :-
     replace_sentence((:- use_module(Alias, ExL1)), (:- use_module(Alias, ExL)),
                      ( absolute_file_name(Alias, File, [access(exist), file_type(prolog)]),
-                       module_property(M, file(File)),
+                       module_from_file(File, M),
                        findall(F/A,
                                ( member(F/A, ExL1),
                                  functor(H, F, A),
@@ -190,9 +206,9 @@ cleanup_declarations(MSource, MTarget, PredList, Options) :-
                                    M3 = M
                                  ),
                                  functor(H, F, A),
-                                 ( predicate_property(M3:H, defined)
+                                 ( defined_predicate(M3:H)
                                  ->true
-                                 ; predicate_property(M1:H, defined)
+                                 ; defined_predicate(M1:H)
                                  ->memberchk(M1:F/A, PredList)
                                  )
                                ), List2),
@@ -289,21 +305,52 @@ normalize_pred_id(M1, PI, M:F/A) :-
       M = M1
     ).
 
-move_predicates(PredList1, Source, Target, Options) :-
+update_db(PredList, MSource, MTarget, FTarget) :-
+    assertz(target_file_module(FTarget, MTarget)),
+    forall(( member(M:F/A, PredList),
+             functor(H, F, A)
+           ),
+           ( forall(retract(depends_of_db(H, M, TH, TM, MSource, N)),
+                    ( ( M = MSource
+                      ->AM = MTarget
+                      ; AM = M
+                      ),
+                      assertz(depends_of_db(H, AM, TH, TM, MSource, N))
+                    )),
+             forall(retract(depends_of_db(AH, AM, H, M, MSource, N)),
+                    ( ( M = MSource
+                      ->TM = MTarget
+                      ; TM = M
+                      ),
+                      assertz(depends_of_db(AH, AM, H, TM, MTarget, N))
+                    ))
+           )).
+
+update_move_predicates_db(PredList1, Source, Target) :-
+    process_args(PredList1, Source, Target, PredList, MSource, MTarget, FTarget),
+    update_db(PredList, MSource, MTarget, FTarget).
+
+process_args(PredList1, Source, Target, PredList, MSource, MTarget, FTarget) :-
     absolute_file_name(Source, FSource, [file_type(prolog), access(exist)]),
-    module_property(MSource, file(FSource)), % This should exist
+    module_from_file(FSource, MSource), % This should exist
     absolute_file_name(Target, FTarget, [file_type(prolog)]),
     maplist(normalize_pred_id(MSource), PredList1, PredList),
-    ( module_property(MTarget, file(FTarget))
+    ( module_from_file(FTarget, MTarget)
     ->true
     ; file_name_extension(BaseDir, _, FTarget),
       directory_file_path(_, MTarget, BaseDir)
-    ),
+    ).
+
+move_predicates(PredList1, Source, Target, Options) :-
+    process_args(PredList1, Source, Target, PredList, MSource, MTarget, FTarget),
     ( exists_file(FTarget)
     ->true
     ; tell(FTarget),
-      portray_clause((:- module(MTarget, []))),
       told
+    ),
+    ( size_file(FTarget, 0 )
+    ->replace_sentence([], (:- module(MTarget, [])), [file(Target)|Options])
+    ; true
     ),
     replace_sentence((:- module(M, L1)), (:- module(M, L)),
                      ( maplist(mark_exclude(MSource, PredList), L1, L),
@@ -320,4 +367,8 @@ move_predicates(PredList1, Source, Target, Options) :-
     cleanup_declarations(MSource, MTarget, PredList, [file(Target)|Options]),
     add_exports_module(MSource, Target, PredList, Options),
     add_new_use_module(MSource, MTarget, Source, Target, PredList, Options),
-    add_target_use_mod(MSource, Source, Target, PredList, Options).
+    add_target_use_mod(MSource, Source, Target, PredList, Options),
+    ( option(update_db(true), Options)
+    ->update_db(PredList, MSource, MTarget, FTarget)
+    ; true
+    ).
