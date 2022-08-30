@@ -261,42 +261,30 @@ add_new_use_module(MSource, MTarget, Source, Target, PredList, Options) :-
                      ), [file(File), module(CM), modules([MTarget|CML])|Options]),
     retractall(declared_db(_, _, _)).
 
-add_target_use_mod(MSource, Source, Target, PredList, Options1) :-
-    ( depends_of(H2, M2, H, MSource, MSource, 1),
+extern_dependency(target, H2, M2, H, M) :- depends_of_db(H2, M2, H, M, M, 1).
+extern_dependency(source, H2, M,  H, M) :- depends_of_db(H,  M, H2, M, M, 1). % for source, M = M2
+
+add_use_mod(Type, M, Alias, PredList, Options) :-
+    ( member(M:F/A, PredList),
       functor(H, F, A),
-      memberchk(MSource:F/A, PredList),
+      extern_dependency(Type, H2, M2, H, M),
       functor(H2, F2, A2),
       \+ memberchk(M2:F2/A2, PredList)
-    ->Options = [file(Source), max_changes(1), changes(C)|Options1],
-      once(( ( replace_sentence([(:- use_module(Alias)), Next],
-                                [(:- use_module(Alias)), (:- use_module(Target)), Next],
-                                \+ memberchk(Next, [(:- use_module(_)),(:- use_module(_, _))]),
-                                Options)
-             ; member(Term, [(:- include(_)), (:- module(_, _))]),
-               replace_sentence(Term, [Term, (:- use_module(Target))], Options)
-             ),
-             C \= 0
-           ))
+    ->add_use_mod(Alias, Options)
     ; true
     ).
 
-/*
-    forall(member(CM, CML),
-           cleanup_duplicated_use_module(CM, Target, Options)).
-
-cleanup_duplicated_use_module(CM, Target, Options) :-
-    replace_sentence((:- use_module(Target)), [],
-                     ( refactor_context(tries, Tries),
-                       Tries > 1
-                     ), [module(CM)|Options]).
-*/
-
-mark_exclude(M, PredList, PI1, PI) :-
-    ( PI1 = F/A,
-      memberchk(M:F/A, PredList)
-    ->PI = '$RM'
-    ; PI = PI1
-    ).
+add_use_mod(Alias, Options1) :-
+    Options = [max_changes(1), changes(C)|Options1],
+    once(( ( replace_sentence([(:- use_module(Prev)), Next],
+                              [(:- use_module(Prev)), (:- use_module(Alias)), Next],
+                              \+ memberchk(Next, [(:- use_module(_)),(:- use_module(_, _))]),
+                              Options)
+           ; member(Term, [(:- include(_)), (:- module(_, _))]),
+             replace_sentence(Term, [Term, (:- use_module(Alias))], Options)
+           ),
+           C \= 0
+         )).
 
 normalize_pred_id(M1, PI, M:F/A) :-
     ( PI = M:F/A
@@ -352,9 +340,20 @@ move_predicates(PredList1, Source, Target, Options) :-
     ->replace_sentence([], (:- module(MTarget, [])), [file(Target)|Options])
     ; true
     ),
-    replace_sentence((:- module(M, L1)), (:- module(M, L)),
-                     ( maplist(mark_exclude(MSource, PredList), L1, L),
-                       L \= L1
+    pretty_decl((:- module(M, L)), Decl),
+    replace_sentence((:- module(M, L1)), Decl,
+                     ( MSource = TM,
+                       findall(TF/TA,
+                               ( member(TF/TA, L1),
+                                 \+ memberchk(TM:TF/TA, PredList)
+                               ; member(TM:AF/AA, PredList),
+                                 once(( functor(AH, AF, AA),
+                                        depends_of_db(AH, TM, TH, TM, TM, 1),
+                                        functor(TH, TF, TA),
+                                        \+ memberchk(TM:TF/TA, PredList)
+                                      ))
+                               ), U),
+                       sort(U, L)
                      ),
                      [file(Source)|Options]),
     move_term(Term,
@@ -367,7 +366,8 @@ move_predicates(PredList1, Source, Target, Options) :-
     cleanup_declarations(MSource, MTarget, PredList, [file(Target)|Options]),
     add_exports_module(MSource, Target, PredList, Options),
     add_new_use_module(MSource, MTarget, Source, Target, PredList, Options),
-    add_target_use_mod(MSource, Source, Target, PredList, Options),
+    add_use_mod(target, MSource, Target, PredList, [file(Source)|Options]),
+    add_use_mod(source, MSource, Source, PredList, [file(Target)|Options]),
     ( option(update_db(true), Options)
     ->update_db(PredList, MSource, MTarget, FTarget)
     ; true
