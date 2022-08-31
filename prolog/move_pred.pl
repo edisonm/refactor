@@ -77,17 +77,19 @@ cond_move_pred(Term, M, PredList, []) :-
               [ G --> _
               ]),
     !,
-    functor(G, F, D),
+    strip_module(M:G, CM, P),
+    functor(P, F, D),
     A is D + 2,
-    memberchk(M:F/A, PredList).
+    memberchk(CM:F/A, PredList).
 cond_move_pred(Term, M, PredList, []) :-
     memberchk(Term,
               [ (H :- _)
               ]),
     !,
-    nonvar(H),
-    functor(H, F, A),
-    memberchk(M:F/A, PredList).
+    strip_module(M:H, CM, P),
+    nonvar(P),
+    functor(P, F, A),
+    memberchk(CM:F/A, PredList).
 cond_move_pred((:- module(_, _)), _, _, _) :-
     !,
     fail.
@@ -232,7 +234,7 @@ cleanup_declarations(MSource, MTarget, PredList, Options) :-
                      Options).
 
 :- dynamic
-    declared_db/2.
+    declared_db/3.
 
 add_new_use_module(MSource, MTarget, Source, Target, PredList, Options) :-
     findall(CM,
@@ -254,20 +256,20 @@ add_new_use_module(MSource, MTarget, Source, Target, PredList, Options) :-
                           CM \= MSource,
                           functor(H, F, A),
                           \+ memberchk(MSource:F/A, PredList)
-                        ), [module(CM), modules([CM|CML])|Options]),
+                        ), [module(CM), modules([MSource|CML])|Options]),
     del_dup_use_module([modules([MSource|CML])|Options]),
     del_dup_use_module([files([Target])|Options]).
 
 del_dup_use_module(Options) :-
     replace_sentence((:- Decl), [],
                      ( memberchk(Decl, [include(_), use_module(_), use_module(_, _)]),
-                       ( declared_db(File, Decl)
+                       ( declared_db(CM, File, Decl)
                        ->true
-                       ; assertz(declared_db(File, Decl)),
+                       ; assertz(declared_db(CM, File, Decl)),
                          fail
                        )
-                     ), [file(File)|Options]),
-    retractall(declared_db(_, _)).
+                     ), [file(File), module(CM)|Options]),
+    retractall(declared_db(_, _, _)).
 
 extern_dependency(target, H2, M2, H, M) :- depends_of_db(H2, M2, H, M, M, 1).
 extern_dependency(source, H2, M,  H, M) :- depends_of_db(H,  M, H2, M, M, 1). % for source, M = M2
