@@ -190,44 +190,55 @@ cleanup_use_module(MSource, PredList, Options) :-
                                ), ExL)
                      ), Options).
 
+cleanup_declaration(MSource, MTarget, PredList, Decl, Into) :-
+    Decl =.. [DeclF, Sequence],
+    memberchk(DeclF, [(meta_predicate), (multifile), (discontiguous),
+                      (dynamic), (thread_local), (public), (export)]),
+    sequence_list(Sequence, List, []),
+    findall(Elem,
+            ( member(Elem, List),
+              ( Elem = M:P
+              ->M1 = M,
+                M3 = M,
+                ( P = F/A
+                ->true
+                ; functor(P, F, A)
+                )
+              ; M1 = MSource,
+                M3 = MTarget,
+                ( Elem = F/A
+                ->true
+                ; functor(Elem, F, A)
+                )
+              ),
+              functor(H, F, A),
+              ( defined_predicate(M3:H)
+              ->true
+              ; defined_predicate(M1:H)
+              ->memberchk(M1:F/A, PredList)
+              )
+            ), List2),
+    List \= List2,
+    ( List2 = []
+    ->Into = []
+    ; list_sequence(List2, Sequence2),
+      Decl2 =.. [DeclF, Sequence2],
+      Into = (:- Decl2)
+    ).
+
 cleanup_declarations(MSource, MTarget, PredList, Options) :-
     replace_sentence((:- Decl), Into,
-                     ( Decl =.. [DeclF, Sequence],
-                       memberchk(DeclF, [(meta_predicate), (multifile), (discontiguous),
-                                         (dynamic), (thread_local), (public), (export)]),
-                       sequence_list(Sequence, List, []),
-                       findall(Elem,
-                               ( member(Elem, List),
-                                 ( Elem = F/A
-                                 ->M1 = MSource,
-                                   M3 = MTarget
-                                 ; Elem = M:F/A
-                                 ->M1 = M,
-                                   M3 = M
-                                 ),
-                                 functor(H, F, A),
-                                 ( defined_predicate(M3:H)
-                                 ->true
-                                 ; defined_predicate(M1:H)
-                                 ->memberchk(M1:F/A, PredList)
-                                 )
-                               ), List2),
-                       List \= List2,
-                       ( List2 = []
-                       ->Into = []
-                       ; list_sequence(List2, Sequence2),
-                         Decl2 =.. [DeclF, Sequence2],
-                         Into = (:- Decl2)
-                       )
-                     ), Options).
+                     cleanup_declaration(MSource, MTarget, PredList, Decl, Into),
+                     Options).
 
 :- dynamic
-    declared_db/3.
+    declared_db/2.
 
 add_new_use_module(MSource, MTarget, Source, Target, PredList, Options) :-
     findall(CM,
             ( depends_of_db(_, _, H, MSource, CM, 1),
               CM \= MSource,
+              CM \= MTarget,
               functor(H, F, A),
               memberchk(MSource:F/A, PredList),
               \+ ( depends_of_db(_, _, H, MSource, CM, 1),
@@ -237,29 +248,26 @@ add_new_use_module(MSource, MTarget, Source, Target, PredList, Options) :-
                  )
             ), CMU),
     sort(CMU, CML),
-    replace_sentence((:- use_module(Source)), Into,
-                     ( phrase(( ( { depends_of_db(_, _, H, MSource, CM, 1),
-                                      functor(H, F, A),
-                                      \+ memberchk(MSource:F/A, PredList)
-                                    }
-                                  ->[(:- use_module(Source))]
-                                  ; []
-                                  ),
-                                  ( {CM \= MTarget}
-                                  ->[(:- use_module(Target))]
-                                  ; []
-                                  )
-                                ), Into)
-                     ), [module(CM), modules(CML)|Options]),
+    forall(member(CM, CML), add_use_mod(Target, [module(CM), below(Source)|Options])),
+    replace_sentence((:- use_module(Source)), [],
+                     \+ ( depends_of_db(_, _, H, MSource, CM, 1),
+                          CM \= MSource,
+                          functor(H, F, A),
+                          \+ memberchk(MSource:F/A, PredList)
+                        ), [module(CM), modules([CM|CML])|Options]),
+    del_dup_use_module([modules([MSource|CML])|Options]),
+    del_dup_use_module([files([Target])|Options]).
+
+del_dup_use_module(Options) :-
     replace_sentence((:- Decl), [],
                      ( memberchk(Decl, [include(_), use_module(_), use_module(_, _)]),
-                       ( declared_db(CM, File, Decl)
+                       ( declared_db(File, Decl)
                        ->true
-                       ; assertz(declared_db(CM, File, Decl)),
+                       ; assertz(declared_db(File, Decl)),
                          fail
                        )
-                     ), [file(File), module(CM), modules([MTarget|CML])|Options]),
-    retractall(declared_db(_, _, _)).
+                     ), [file(File)|Options]),
+    retractall(declared_db(_, _)).
 
 extern_dependency(target, H2, M2, H, M) :- depends_of_db(H2, M2, H, M, M, 1).
 extern_dependency(source, H2, M,  H, M) :- depends_of_db(H,  M, H2, M, M, 1). % for source, M = M2
@@ -276,10 +284,14 @@ add_use_mod(Type, M, Alias, PredList, Options) :-
 
 add_use_mod(Alias, Options1) :-
     Options = [max_changes(1), changes(C)|Options1],
-    once(( ( replace_sentence([(:- use_module(Prev)), Next],
-                              [(:- use_module(Prev)), (:- use_module(Alias)), Next],
-                              \+ memberchk(Next, [(:- use_module(_)),(:- use_module(_, _))]),
-                              Options)
+    once(( ( ( option(below(Prev), Options),
+               member(Decl, [(:- use_module(Prev)), (:- use_module(Prev, _))]),
+               replace_sentence(Decl, [Decl, (:- use_module(Alias))], Options)
+             ; replace_sentence([(:- use_module(Prev)), Next],
+                                [(:- use_module(Prev)), (:- use_module(Alias)), Next],
+                                \+ memberchk(Next, [(:- use_module(_)),(:- use_module(_, _))]),
+                                Options)
+             )
            ; member(Term, [(:- include(_)), (:- module(_, _))]),
              replace_sentence(Term, [Term, (:- use_module(Alias))], Options)
            ),
@@ -365,9 +377,9 @@ move_predicates(PredList1, Source, Target, Options) :-
     cleanup_use_module(MSource, PredList, [file(Target)|Options]),
     cleanup_declarations(MSource, MTarget, PredList, [file(Target)|Options]),
     add_exports_module(MSource, Target, PredList, Options),
-    add_new_use_module(MSource, MTarget, Source, Target, PredList, Options),
     add_use_mod(target, MSource, Target, PredList, [file(Source)|Options]),
     add_use_mod(source, MSource, Source, PredList, [file(Target)|Options]),
+    add_new_use_module(MSource, MTarget, Source, Target, PredList, Options),
     ( option(update_db(true), Options)
     ->update_db(PredList, MSource, MTarget, FTarget)
     ; true
