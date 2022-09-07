@@ -65,14 +65,14 @@ defined_predicate(M:H) :-
          % ; predicate_property(M:H, defined)
          )).
 
-cond_move_pred(Term, _, _, _) :-
+cond_move_pred(Term, _, _, _, _) :-
     var(Term),
     !,
     fail.
-cond_move_pred(Term, MSource, PredList, Into) :-
+cond_move_pred(Term, MSource, _FTarget, PredList, Into) :-
     cond_move_pred_hook(Term, MSource, PredList, Into),
     !.
-cond_move_pred(Term, M, PredList, []) :-
+cond_move_pred(Term, M, _, PredList, []) :-
     memberchk(Term,
               [ G --> _
               ]),
@@ -81,7 +81,7 @@ cond_move_pred(Term, M, PredList, []) :-
     functor(P, F, D),
     A is D + 2,
     memberchk(CM:F/A, PredList).
-cond_move_pred(Term, M, PredList, []) :-
+cond_move_pred(Term, M, _, PredList, []) :-
     memberchk(Term,
               [ (H :- _)
               ]),
@@ -90,13 +90,13 @@ cond_move_pred(Term, M, PredList, []) :-
     nonvar(P),
     functor(P, F, A),
     memberchk(CM:F/A, PredList).
-cond_move_pred((:- module(_, _)), _, _, _) :-
+cond_move_pred((:- module(_, _)), _, _, _, _) :-
     !,
     fail.
-cond_move_pred((:- include(Alias)), _, _, (:- include(Alias))) :-
+cond_move_pred((:- include(Alias)), _, _, _, (:- include(Alias))) :-
     % We asume you don't use include to add predicates... do you???
     !.
-cond_move_pred((:- Decl), MSource, PredList, Into) :-
+cond_move_pred((:- Decl), MSource, _, PredList, Into) :-
     Decl =.. [DeclF, Sequence],
     memberchk(DeclF, [(meta_predicate), (multifile), (discontiguous),
                       (dynamic), (thread_local), (public), (export)]),
@@ -121,9 +121,10 @@ cond_move_pred((:- Decl), MSource, PredList, Into) :-
       Decl2 =.. [DeclF, ISeq],
       Into = (:- Decl2)
     ).
-cond_move_pred((:- use_module(Alias)), MSource, PredList, Into) :-
+cond_move_pred((:- use_module(Alias)), MSource, FTarget, PredList, Into) :-
     !,
     absolute_file_name(Alias, File, [file_errors(fail), access(exist), file_type(prolog)]),
+    File \= FTarget,
     module_from_file(File, M),
     once(( depends_of(H2, M2, _, M, MSource, 1),
            functor(H2, F2, A2),
@@ -135,9 +136,10 @@ cond_move_pred((:- use_module(Alias)), MSource, PredList, Into) :-
     ->Into = (:- use_module(Alias))
     ; Into = []
     ).
-cond_move_pred((:- use_module(Alias, ExL1)), MSource, PredList, Into) :-
+cond_move_pred((:- use_module(Alias, ExL1)), MSource, FTarget, PredList, Into) :-
     !,
     absolute_file_name(Alias, File, [file_errors(fail), access(exist), file_type(prolog)]),
+    File \= FTarget,
     module_from_file(File, M),
     \+ \+ ( member(F/A, ExL1),
             functor(H, F, A),
@@ -158,7 +160,7 @@ cond_move_pred((:- use_module(Alias, ExL1)), MSource, PredList, Into) :-
     ->Into = []
     ; Into = (:- use_module(Alias, ExL))
     ).
-cond_move_pred(H, M, PredList, []) :-  % This must be the last clause
+cond_move_pred(H, M, _, PredList, []) :-  % This must be the last clause
     functor(H, F, A),
     memberchk(M:F/A, PredList).
 
@@ -312,19 +314,19 @@ update_db(PredList, MSource, MTarget, FTarget) :-
     forall(( member(M:F/A, PredList),
              functor(H, F, A)
            ),
-           ( forall(retract(depends_of_db(H, M, TH, TM, MSource, N)),
-                    ( ( M = MSource
-                      ->AM = MTarget
-                      ; AM = M
-                      ),
-                      assertz(depends_of_db(H, AM, TH, TM, MSource, N))
-                    )),
-             forall(retract(depends_of_db(AH, AM, H, M, MSource, N)),
+           ( forall(retract(depends_of_db(AH, AM, H, M, CM, N)),
                     ( ( M = MSource
                       ->TM = MTarget
                       ; TM = M
                       ),
-                      assertz(depends_of_db(AH, AM, H, TM, MTarget, N))
+                      assertz(depends_of_db(AH, AM, H, TM, CM, N))
+                    )),
+             forall(retract(depends_of_db(H, M, TH, TM, MSource, N)),
+                    ( ( M = MSource
+                      ->AM = MTarget
+                      ; AM = M
+                      ),
+                      assertz(depends_of_db(H, AM, TH, TM, MTarget, N))
                     ))
            )).
 
@@ -373,7 +375,7 @@ move_predicates(PredList1, Source, Target, Options) :-
     move_term(Term,
               Into,
               end_of_file,
-              cond_move_pred(Term, MSource, PredList, Into),
+              cond_move_pred(Term, MSource, FTarget, PredList, Into),
               [file(Source)], true, [file(Target)], Options),
     forall(move_predicates_hook(PredList, MSource, Source, MTarget, Target, Options), true),
     cleanup_use_module(MSource, PredList, [file(Target)|Options]),
