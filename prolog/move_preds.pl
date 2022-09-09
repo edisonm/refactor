@@ -32,9 +32,11 @@
     POSSIBILITY OF SUCH DAMAGE.
 */
 
-:- module(move_pred,
-          [ move_predicates/4,
-            update_move_predicates_db/3
+:- module(move_preds,
+          [ move_preds/4,
+            update_move_preds/4,
+            source_module/2,
+            target_file_module/4
           ]).
 
 :- use_module(library(assertions)).
@@ -45,7 +47,7 @@
 
 :- multifile
         cond_move_pred_hook/4,
-        move_predicates_hook/6.
+        move_preds_hook/6.
 
 :- dynamic
         target_file_module/2.
@@ -330,23 +332,33 @@ update_db(PredList, MSource, MTarget, FTarget) :-
                     ))
            )).
 
-update_move_predicates_db(PredList1, Source, Target) :-
-    process_args(PredList1, Source, Target, PredList, MSource, MTarget, FTarget),
+update_move_preds(PredList1, Source, Target, Options) :-
+    process_args(PredList1, Source, Target, PredList, MSource, MTarget, FTarget, Options),
     update_db(PredList, MSource, MTarget, FTarget).
 
-process_args(PredList1, Source, Target, PredList, MSource, MTarget, FTarget) :-
-    absolute_file_name(Source, FSource, [file_type(prolog), access(exist)]),
-    module_from_file(FSource, MSource), % This should exist
+target_file_module(Target, Options, FTarget, MTarget) :-
     absolute_file_name(Target, FTarget, [file_type(prolog)]),
-    maplist(normalize_pred_id(MSource), PredList1, PredList),
-    ( module_from_file(FTarget, MTarget)
+    option(target_module(MTarget), Options, MTarget),
+    ( nonvar(MTarget)
+    ->true
+    ; module_from_file(FTarget, MTarget)
     ->true
     ; file_name_extension(BaseDir, _, FTarget),
       directory_file_path(_, MTarget, BaseDir)
     ).
 
-move_predicates(PredList1, Source, Target, Options) :-
-    process_args(PredList1, Source, Target, PredList, MSource, MTarget, FTarget),
+source_module(Source, MSource) :-
+    % FSource should exist
+    absolute_file_name(Source, FSource, [file_type(prolog), access(exist)]),
+    module_from_file(FSource, MSource).
+
+process_args(PredList1, Source, Target, PredList, MSource, MTarget, FTarget, Options) :-
+    source_module(Source, MSource),
+    maplist(normalize_pred_id(MSource), PredList1, PredList),
+    target_file_module(Target, Options, FTarget, MTarget).
+
+move_preds(PredList1, Source, Target, Options) :-
+    process_args(PredList1, Source, Target, PredList, MSource, MTarget, FTarget, Options),
     ( exists_file(FTarget)
     ->true
     ; tell(FTarget),
@@ -377,7 +389,7 @@ move_predicates(PredList1, Source, Target, Options) :-
               end_of_file,
               cond_move_pred(Term, MSource, FTarget, PredList, Into),
               [file(Source)], true, [file(Target)], Options),
-    forall(move_predicates_hook(PredList, MSource, Source, MTarget, Target, Options), true),
+    forall(move_preds_hook(PredList, MSource, Source, MTarget, Target, Options), true),
     cleanup_use_module(MSource, PredList, [file(Target)|Options]),
     cleanup_declarations(MSource, MTarget, PredList, [file(Target)|Options]),
     add_exports_module(MSource, Target, PredList, Options),

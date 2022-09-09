@@ -36,9 +36,9 @@
 
 :- use_module(library(substitute)).
 :- use_module(library(assertions)).
-:- use_module(library(move_pred)).
+:- use_module(library(move_preds)).
 
-move_pred:cond_move_pred_hook((:- Assertions1), CM, PredList, Into) :-
+move_preds:cond_move_pred_hook((:- Assertions1), CM, PredList, Into) :-
     current_decomposed_assertion_1(Assertions1, _, CM, _, _, Body1, _, _, _, _, _, _),
     !,
     findall(M:F/A,
@@ -53,7 +53,7 @@ move_pred:cond_move_pred_hook((:- Assertions1), CM, PredList, Into) :-
       Into = (:- Assertions)
     ).
 
-move_pred:move_predicates_hook(PredList, MSource, _, MTarget, Target, Options) :-
+move_preds:move_preds_hook(PredList, MSource, _, MTarget, Target, Options) :-
     cleanup_assertions(MSource, MTarget, PredList, [file(Target)|Options]).
 
 cleanup_assertion(MSource, MTarget, PredList, Assertions1, AssertionsDecl) :-
