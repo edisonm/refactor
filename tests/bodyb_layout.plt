@@ -1,12 +1,12 @@
-:- begin_tests(refactor_52).
+:- begin_tests(bodyb_layout).
 
 :- include(refactor_common).
 :- user:use_module(library(solution_sequences)).
 
-/* $meta1$
-diff -ruN meta1.pl -
---- meta1.pl (source)
-+++ meta1.pl (target)
+/* $bodyb_layout$
+diff -ruN bodyb_layout.pl -
+--- bodyb_layout.pl (source)
++++ bodyb_layout.pl (target)
 @@ -2,14 +2,15 @@
  
  p(L, L2, L3) :-
@@ -35,14 +35,14 @@ diff -ruN meta1.pl -
      writeln(user_output, RL).
 */
 
-test(meta1) :-
-    execute_test(meta1,
+test(bodyb_layout) :-
+    execute_test(bodyb_layout,
                  replace(body_rec,
                          findall(E, G, L),
                          findall(E, order_by(asc(E),
                                              $@('$BODYB'(G2))), L),
                          ( duplicate_term(G, G2),
                            G2=G
-                         )), [file(meta1)]).
+                         )), [file(bodyb_layout)]).
 
-:- end_tests(refactor_52).
+:- end_tests(bodyb_layout).

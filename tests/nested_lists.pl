@@ -1,3 +1,3 @@
-:- module(ex7, [aaa/3]).
+:- module(nested_lists, [aaa/3]).
 
 aaa([[d, _]], [/**/ d /* d */], []).

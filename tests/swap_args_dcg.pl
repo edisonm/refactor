@@ -1,4 +1,4 @@
-:- module(ex6, [q/3]).
+:- module(swap_args_dcg, [q/3]).
 
 q(A, B, L) :-
     p(A, B, L, []).
