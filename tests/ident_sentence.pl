@@ -1,3 +1,3 @@
-:- module(ex16, [ex16/1]).
+:- module(ident_sentence, [ident_sentence/1]).
 
-ex16(_A-'a').
+ident_sentence(_A-'a').

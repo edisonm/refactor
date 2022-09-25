@@ -21,6 +21,6 @@ test(refspeed1) :-
     call_time(replace_term(p1(A, B, C), p2(A, B, C), [file(plbin(random1)), concurrent(false)]), Stats),
     writeln(user_error, Stats),
     Wall = Stats.wall,
-    assertion(Wall < 2.5).
+    assertion(Wall < 2.7).
 
 :- end_tests(refspeed).
