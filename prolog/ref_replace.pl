@@ -550,7 +550,7 @@ apply_ec_term_level(Level, Patt, Into, Expander, Options1) :-
 param_module_file_sorted(MFileParam, M, File) :-
     order_by([desc(Size)],
              ( param_module_file(MFileParam, M, File),
-               ignore(size_file(File, Size))
+               ignore(catch(size_file(File, Size), _, Size = 0 ))
              )).
 
 process_sentences(
