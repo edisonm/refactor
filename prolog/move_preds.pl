@@ -371,15 +371,21 @@ move_preds(PredList1, Source, Target, Options) :-
     pretty_decl((:- module(M, L)), Decl),
     replace_sentence((:- module(M, L1)), Decl,
                      ( MSource = TM,
-                       findall(TF/TA,
-                               ( member(TF/TA, L1),
+                       findall(TPI,
+                               ( ( member(TPI, L1),
+                                   ( TPI = TF/TA
+                                   ; TPI = TF//TA1,
+                                     TA is TA1 + 2
+                                   )
+                                 ),
                                  \+ memberchk(TM:TF/TA, PredList)
                                ; member(TM:AF/AA, PredList),
                                  once(( functor(AH, AF, AA),
                                         depends_of_db(AH, TM, TH, TM, TM, 1),
                                         functor(TH, TF, TA),
                                         \+ memberchk(TM:TF/TA, PredList)
-                                      ))
+                                      )),
+                                 TPI = TF/TA
                                ), U),
                        sort(U, L)
                      ),

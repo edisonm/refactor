@@ -2803,6 +2803,7 @@ ctrl((_ ->  _)).
 ctrl((_ *-> _)).
 
 skip_format(_/_).
+skip_format(_//_).
 skip_format('$VAR'(_)).
 skip_format(_:_).
 
