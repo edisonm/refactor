@@ -6,10 +6,11 @@
 diff -ruN to_listb.pl -
 --- to_listb.pl (source)
 +++ to_listb.pl (target)
-@@ -1 +1,2 @@
+@@ -1 +1,3 @@
 -f([a- ~t, b]).
 +f([ a- ~t,
-+    b]).
++    b
++  ]).
 */
 
 test(to_listb) :-

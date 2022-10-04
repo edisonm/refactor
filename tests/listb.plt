@@ -6,11 +6,12 @@
 diff -ruN listb.pl -
 --- listb.pl (source)
 +++ listb.pl (target)
-@@ -1,3 +1,4 @@
+@@ -1,3 +1,5 @@
  f(A, B).
 -f(A, [B,C]).
 +f(A, [ B,
-+       C]).
++       C
++     ]).
  f(A, [B|C]).
 */
 

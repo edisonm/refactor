@@ -1715,12 +1715,12 @@ rportray('$LISTNL'(L, Offs), Opt) :-
 rportray('$LISTB,NL'(L), Opt) :-
     offset_pos('$OUTPOS'+2, Pos),
     !,
-    rportray_list_nl(L, wb(2), Pos, Opt).
+    rportray_list_nl(L, wb(2, Pos), Pos, Opt).
 rportray('$LISTB,NL'(L, Offs), Opt) :-
     offset_pos(Offs, Pos),
     !,
     offset_pos(Pos-'$OUTPOS', Delta),
-    rportray_list_nl(L, wb(Delta), Pos, Opt).
+    rportray_list_nl(L, wb(Delta, Pos), Pos, Opt).
 rportray('$NL'(Term, Offs), Opt) :-
     offset_pos(Offs, Pos),
     !,
@@ -2112,19 +2112,30 @@ term_write_sep_list_2([E|T], WB, Writter, Text, SepElem, SepTail, Opt) :-
     term_priority([_|_], user, 1, Priority),
     merge_options([priority(Priority)], Opt, Opt1),
     ( nonvar(T), T = [_|_]
-    ->cond_id_bracket(WB, '[')
-    ; cond_ni_bracket(WB, '[')
+    ->cond_ident_bracket(WB, '[')
+    ; cond_nonid_bracket(WB, '[')
     ),
     call(Writter, E, Opt1),
     term_write_sep_list_inner(T, Writter, Text, SepElem, SepTail, Opt1),
-    cond_ni_bracket(WB, ']').
+    ( nonvar(T), T = [_|_]
+    ->cond_idend_bracket(WB, ']')
+    ; cond_nonid_bracket(WB, ']')
+    ).
 term_write_sep_list_2(E, _, Writter, _, _, _, Opt) :- call(Writter, E, Opt).
 
-cond_id_bracket(wb(Delta), Bracket) :- write(Bracket), forall(between(2,Delta,_),write(' ')).
-cond_id_bracket(nb, _).
+cond_ident_bracket(wb(Delta, _), Bracket) :-
+    write(Bracket),
+    forall(between(2,Delta,_), write(' ')).
+cond_ident_bracket(nb, _).
 
-cond_ni_bracket(wb(_), Bracket) :- write(Bracket).
-cond_ni_bracket(nb, _).
+cond_idend_bracket(wb(Delta, Pos), Bracket) :-
+    sep_nl(Pos-Delta, '', SepNl),
+    write(SepNl),
+    write(Bracket).
+cond_idend_bracket(nb, _).
+
+cond_nonid_bracket(wb(_, _), Bracket) :- write(Bracket).
+cond_nonid_bracket(nb, _).
 
 term_write_sep_list_inner(L, Writter, Text, SepElem, SepTail, Opt) :-
     nonvar(L),
