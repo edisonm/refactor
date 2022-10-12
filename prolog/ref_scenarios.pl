@@ -283,7 +283,7 @@ rename_predicate(M:Name1/Arity, Name, Options1) :-
     H1 =.. [Name1|Args],
     H  =.. [Name|Args],
     select_option(module(CM), Options1, Options2, CM),
-    Options = [module(CM)|Options2],
+    merge_options(Options2, [module(CM)], Options),
     replace_goal(H1, H,
                  ( predicate_property(CM:H1, imported_from(M))
                  ; M = CM
