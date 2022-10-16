@@ -178,7 +178,12 @@ fix_subtermpos_rec(brace_term_position(From, _, Arg), Boundary) :-
     fix_termpos_from_left(Boundary, Text, Arg, From1, _).
 fix_subtermpos_rec(parentheses_term_position(From, _, Arg), Boundary) :-
     refactor_context(text, Text),
-    succ(From, From1),
+    % BUG: we can not assume that the next character is '(', since a comment
+    % could come next, which is included in the From-To interval, for instance
+    % (/**/(Term)), but surprisinlgy this problem doesn't happen with braces {}
+    % (see test seekn_parenthesis_right.plt)
+    include_comments_right(Text, From, FixedFrom),
+    succ(FixedFrom, From1),
     fix_termpos_from_left(Boundary, Text, Arg, From1, _).
 % Note: don't assume that a list is between brackets [], because this is also
 % used to process list of clauses:
@@ -365,8 +370,8 @@ include_comments_right(Text, From, To) :-
     ),
     arg(1, S, To).
 
-seekn_parenthesis_right(N, Text, L, T, T) :-
-    seekn_char_right(N, Text, L, ")", T, T).
+seekn_parenthesis_right(N, Text, L, T1, T) :-
+    seekn_char_right(N, Text, L, ")", T1, T).
 
 seekn_char_right(0, _, _, _, T, T) :- !.
 seekn_char_right(N, Text, L, Char, T1, T) :-
