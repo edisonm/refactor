@@ -74,7 +74,7 @@ implementation_decl(thread_local).
 implementation_decl(clause(_)).
 
 files_to_move(M, File, [File|FileL]) :-
-    findall(MF, module_file(MF, File), MU),
+    file_modules(File, MU),
     sort(MU, ML),
     member(M, ML),
     findall(IFile, file_includes(File, IFile), FileL).
