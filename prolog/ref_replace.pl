@@ -106,7 +106,7 @@
     with_counters(0, +),
     with_styles(0, +).
 
-%!  replace(+Level, +Pattern, -Into, :Expander, :Options) is det
+%!  replace(+Level, +Pattern, +Into, :Expander, :Options) is det
 %
 %   Given a Level of operation, in all terms of the source code that subsumes
 %   Pattern, replace each Pattern with Into, provided that Expander succeeds.
