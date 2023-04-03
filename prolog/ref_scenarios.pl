@@ -318,6 +318,7 @@ unfold_body_arg(IM, CM, Spec, Arg1, Arg) :-
 unfold_body_arg(_, _, _, Arg, Arg).
 
 :- use_module(library(mapargs)).
+:- init_expansors.
 
 unfold_body(M:Body1, Body, _, CM) :- !, unfold_body(Body1, Body, M, CM).
 unfold_body(Body1, Body, IM, CM) :-

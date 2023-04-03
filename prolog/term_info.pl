@@ -45,6 +45,7 @@
 :- use_module(library(clambda)).
 :- use_module(library(module_files)).
 :- use_module(library(transpose)).
+:- init_expansors.
 
 :- meta_predicate
     with_source_file(+, -, 0),

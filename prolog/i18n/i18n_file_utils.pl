@@ -57,6 +57,7 @@
 :- use_module(library(clambda)).
 :- use_module(library(i18n/i18n_parser)).
 :- use_module(library(i18n/i18n_support)).
+:- init_expansors.
 
 current_po_file(M, Lang, PoFile) :-
     current_pot_file(M, PotFile),

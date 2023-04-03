@@ -84,6 +84,10 @@
 :- use_module(library(subpos_utils)).
 :- use_module(library(transpose)).
 :- use_module(library(option_utils)).
+:- use_module(library(countsols)).
+:- use_module(library(conc_forall)).
+
+:- init_expansors.
 
 :- thread_local
     command_db/1.
@@ -543,9 +547,6 @@ apply_ec_term_level(Level, Patt, Into, Expander, Options1) :-
             MFileParam, FixPoint, Max, SentPattern, Options, CleanupAttributes, M, File, Expanded, Expand, Pos,
             ga(Patt, Into, Expander), Linearize, MaxTries, Prefix, Level, data(Patt, Into, Expander, SentPos)),
         '$set_source_module'(_, OldM)).
-
-:- use_module(library(countsols)).
-:- use_module(library(conc_forall)).
 
 param_module_file_sorted(MFileParam, M, File) :-
     order_by([desc(Size)],

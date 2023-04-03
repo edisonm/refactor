@@ -55,6 +55,7 @@
 :- use_module(library(pretty_decl)).
 :- use_module(library(ref_replace)).
 :- use_module(library(infer_meta)).
+:- init_expansors.
 
 %!  module_to_import_db(F, A, M, CM, File)
 %
@@ -98,7 +99,7 @@ file_to_module(Alias, Options1) :-
     select_option(module(M),         Options1, Options2, M),
     select_option(exclude(ExcludeL), Options2, Options3, []),
     select_option(addcl(AddL),       Options3, Options4, []),
-    select_option(near2(Nr2L),       Options4, Options5, []), 
+    select_option(near2(Nr2L),       Options4, Options5, []),
     select_option(delcl(DelL),       Options5, _, []),
     absolute_file_name(Alias, File, [file_type(prolog), access(read)]),
     files_to_move(M, File, FileL),
