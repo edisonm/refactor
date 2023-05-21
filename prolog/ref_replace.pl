@@ -372,8 +372,8 @@
 %     Unifies AFile with the file being reinstantiated.  If AFile is instantiated
 %     on call of the predicate, limits the refactoring to such file.
 %
-%   * if(Loaded)
-%     if Loaded is true (default), refactor non loaded files too.
+%   * loaded(loaded)
+%     if Loaded is false (default), refactor non loaded files too.
 %
 %   * subterm_boundary(+Boundary)
 %     Processed by fix_termpos/2 to stablish the boundaries of the subterms.
@@ -517,14 +517,14 @@ apply_ec_term_level(Level, Patt, Into, Expander, Options1) :-
            vars_prefix(Prefix)-'V',
            file(AFile)-AFile,
             % By default refactor even non loaded files
-           if(Loaded)-true
+           loaded(Loaded)-false
           ],
           Options1, Options2),
     ( option(clause(CRef), Options2)
     ->MFileParam = clause(CRef),
       clause_property(CRef, line_count(Line)),
       merge_options([line(Line)], Options2, Options3)
-    ; option_module_files([if(Loaded), file(AFile)|Options2], MFileD),
+    ; option_module_files([loaded(Loaded), file(AFile)|Options2], MFileD),
       MFileParam = mfiled(MFileD),
       Options3 = Options2
     ),
