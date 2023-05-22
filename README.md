@@ -18,41 +18,41 @@ in your SWI-Prolog shell:
 Usage
 =====
 
-Although this  library lacks  documentation, due  its alfa  status and
-still changing, there  are some tests in  tests/refactor.plt where you
-can see useful examples about its usage.  Some examples follows:
+Although this library lacks documentation, due its alfa status and still
+changing, there are some tests in tests/ where you can see useful examples about
+its usage.  Some examples follows:
 
 
 ```prolog
+?- [library(refactor)].
+true.
+
 ?- cd(tests).
 true.
 
-?- ['refactor.plt'].
-% refactor.plt compiled 0.04 sec, 526 clauses
-true.
-
-?- run_tests.
-% All 43 tests passed
-true.
-?- rreset.
-true.
-
-?- replace_term(a(B),aa(B),[module(conjex)]), rshow.
-% Reading tests/conjex.pl
-% 3 changes in tests/conjex.pl
+?- replace_term(a(B), aa(B), [file(repl_conj)]).
+% 3 changes of 3 attempts
 % Saved changes in index 1
---- conjex.pl (source)
-+++ conjex.pl (target)
+true.
+```
+
+To review the changes, use rshow:
+
+```prolog
+?- rshow.
+diff -ruN repl_conj.pl -
+--- repl_conj.pl (source)
++++ repl_conj.pl (target)
 @@ -1,15 +1,15 @@
- :- module(conjex, [conjex/0]).
+ :- module(repl_conj, [repl_conj/0]).
  
- conjex :-
+ repl_conj :-
 -    a(C),
 +    aa(C),
      b(b),
      c(C),
      d(d).
- conjex :-
+ repl_conj :-
 -    a(a),
 +    aa(a),
      b(b).
@@ -65,6 +65,20 @@ true.
 true.
 
 ```
+
+To undo the changes, use rreset, and to accept them use rcommit.  Continuous
+calls to refactor predicates can be stacked so you could implement complex
+scenarios via small ones.  Some refactoring scenarios that results of the
+composition of multiple changes are implemented in the library ref_scenarios.pl.
+
+Other complex scenarios are implemented in its own modules, as follows:
+
+- deref_reexport.pl helps to replace reexport declarations by use_module declarations
+
+- file_to_module.pl convert included files to modules
+
+- move_preds.pl helps to move predicates from one file to another
+
 
 Papers
 ======
