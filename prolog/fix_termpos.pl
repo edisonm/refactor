@@ -196,7 +196,7 @@ fix_subtermpos_rec(list_position(From, To, Elms, Tail), Boundary) :-
       succ(ToL, FromT),
       fix_termpos_from_left(Boundary, Text, Tail, FromT, _)
     ).
-fix_subtermpos_rec(map_position(_, _, _, TypeTo, KVPos), Boundary) :-
+fix_subtermpos_rec(dict_position(_, _, _, TypeTo, KVPos), Boundary) :-
     refactor_context(text, Text),
     succ(TypeTo, TypeTo1),
     foldl(fix_termpos_from_left_comm(Boundary, Text), KVPos, TypeTo1, _).
