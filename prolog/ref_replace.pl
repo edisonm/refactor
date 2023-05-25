@@ -1344,11 +1344,11 @@ substitute_term_into(Pos, M, Term, Data, Cmd) :-
                  sub_list_position(_, _, _, _, _, _, _)]),
     neck,
     substitute_term_list(Pos, M, Term, Data, Cmd).
-substitute_term_into(map_position(_, _, _, _, PosL), M, Term, Data, Cmd) :-
+substitute_term_into(dict_position(_, _, _, _, PosL), M, Term, Data, Cmd) :-
     member(Pos, PosL),
     substitute_term_pair(M, Term, Pos, Data, Cmd).
 
-substitute_term_pair(M, Term, key_value_position(_, _, Key, PosK, PosV), Data, Cmd) :-
+substitute_term_pair(M, Term, key_value_position(_, _, _, _, Key, PosK, PosV), Data, Cmd) :-
     ( substitute_term_rec(M, Key, PosK, 999, Data, Cmd)
     ; substitute_term_rec(M, Term.Key, PosV, 999, Data, Cmd)
     ).
