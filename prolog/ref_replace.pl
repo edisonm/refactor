@@ -342,7 +342,7 @@
 %     want to replayce f(A, B), by f(B, A), but if one of the matching terms is
 %     f(X, X), the change will not be performed, even if the two arguments have
 %     different layouts.  To avoid this we should use the option
-%     linearize([term]).  Default is [].
+%     linearize([vars]).  Default is [].
 %
 %   * sentence(-SentPattern)
 %     Unifies SentPattern with the sentence being processed.  This is useful in
