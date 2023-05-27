@@ -185,8 +185,8 @@ fix_subtermpos_rec(parentheses_term_position(From, _, Arg), Boundary) :-
     include_comments_right(Text, From, FixedFrom),
     succ(FixedFrom, From1),
     fix_termpos_from_left(Boundary, Text, Arg, From1, _).
-% Note: don't assume that a list is between brackets [], because this is also
-% used to process list of clauses:
+% Note: don't assume that a list is between brackets [], because this clause is
+% also used to process list of clauses:
 fix_subtermpos_rec(list_position(From, To, Elms, Tail), Boundary) :-
     refactor_context(text, Text),
     foldl(fix_termpos_from_left_comm(Boundary, Text), Elms, From, To1),
