@@ -5,6 +5,7 @@ Refactoring Tools for SWI-Prolog
 
 Installation
 ============
+
 To install the refactoring tools, just follow the next sequence of commands
 in your SWI-Prolog shell:
 
@@ -18,7 +19,7 @@ in your SWI-Prolog shell:
 Usage
 =====
 
-Although this library lacks documentation, due its alfa status and still
+Although the documentation is still not complete, due its alfa status and still
 changing, there are some tests in tests/ where you can see useful examples about
 its usage.  Some examples follows:
 
@@ -83,7 +84,11 @@ Other complex scenarios are implemented in its own modules, as follows:
 Papers
 ======
 
+Please, before to read it, be aware that this paper is provided here for
+historical reasons, since the implementation and interface have changed quite a
+lot.
+
 Edison Mera, Jan Wielemaker: Porting and refactoring Prolog programs:
 the PROSYN case study. TPLP 13(4-5-Online-Supplement) (2013)
-http://journals.cambridge.org/downloadsup.php?file=/tlp2013003.pdf
 
+http://www.swi-prolog.org/download/publications/prosyn.pdf
