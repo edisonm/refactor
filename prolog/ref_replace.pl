@@ -919,7 +919,18 @@ string_concat_to(RecNo, Text, t(From, To, Text2), IPos) :-
     sub_string(Text, Pos, Length, _, Text1),
     nb_setarg(1, IPos, To),
     assertz(subtext_db(RecNo, Text1)),
+    ignore(space_succ_operators(RecNo, Text1, Text2)),
     assertz(subtext_db(RecNo, Text2)).
+
+%!  space_succ_operators(+RecNo, +Text1, +Text2) is semidet
+%
+%   Adds an extra space to avoid meling of successive operators
+space_succ_operators(RecNo, Text1, Text2) :-
+    sub_string(Text1, _, 1, 0, Char1),
+    sub_string(Text2, 0, 1, _, Char2),
+    char_type(Char1, prolog_symbol),
+    char_type(Char2, prolog_symbol),
+    assertz(subtext_db(RecNo, " ")).
 
 gen_new_variable_name(VNL, Prefix, Count, Name) :-
     atom_concat(Prefix, Count, Name),
