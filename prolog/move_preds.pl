@@ -44,6 +44,7 @@
 :- use_module(library(module_links)).
 :- use_module(library(sequence_list)).
 :- use_module(library(pretty_decl)).
+:- init_expansors.
 
 :- multifile
         cond_move_pred_hook/4,

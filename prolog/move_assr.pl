@@ -37,6 +37,7 @@
 :- use_module(library(substitute)).
 :- use_module(library(assertions)).
 :- use_module(library(move_preds)).
+:- init_expansors.
 
 move_preds:cond_move_pred_hook((:- Assertions1), CM, PredList, Into) :-
     current_decomposed_assertion_1(Assertions1, _, CM, _, _, Body1, _, _, _, _, _, _),
