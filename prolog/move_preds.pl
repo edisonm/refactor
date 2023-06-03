@@ -39,12 +39,11 @@
             target_file_module/4
           ]).
 
-:- use_module(library(assertions)).
 :- use_module(library(list_sequence)).
 :- use_module(library(module_links)).
 :- use_module(library(sequence_list)).
 :- use_module(library(pretty_decl)).
-:- init_expansors.
+:- use_module(library(refactor)).
 
 :- multifile
         cond_move_pred_hook/4,
