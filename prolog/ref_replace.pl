@@ -381,15 +381,19 @@
 %   Options processed by read_term/2:
 %
 %   * variable_names(-VNL)
+%     Variable names
 %
 %   * comments(-Comments)
+%     Comments
 %
 %   * syntax_errors(SE)
 %     Default error
 %
 %   * subterm_positions(-SentPos)
+%     Subterm positions
 %
 %   * term_position(-Pos)
+%     Term position
 %
 %   Other options are processed by the predicate option_module_files/2 and allows
 %   to select the files or modules that are going to be modified.

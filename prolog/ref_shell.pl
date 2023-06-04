@@ -33,12 +33,13 @@
 */
 
 :- module(ref_shell,
-          [ref_commit/0,
-           rshow/0,
-           rdiff/0,
-           rdiff/1,
-           rdiff/2,
-           rsave/1
+          [ rcommit/0,
+            rdiff/0,
+            rdiff/1,
+            rdiff/2,
+            rreset/0,
+            rsave/1,
+            rshow/0
           ]).
 
 :- use_module(library(lists)).
@@ -46,6 +47,13 @@
 :- use_module(library(trim_utils)).
 :- use_module(library(file_changes)).
 :- use_module(library(ref_changes)).
+:- use_module(library(ref_command)).
+
+/** <module> Pending changes management
+
+  This library provides tools to manage the stack of pending changes of the
+  refactoring tool, as well as to apply those changes to the files.
+*/
 
 ref_commit :-
     once(pending_change(Index)),
@@ -107,3 +115,11 @@ apply_diff(Action, Index1, File) :-
     ->delete_file(File1)
     ; true
     ).
+
+rcommit :-
+    ref_commit,
+    reset_commands.
+
+rreset :-
+    reset_changes,
+    reset_commands.

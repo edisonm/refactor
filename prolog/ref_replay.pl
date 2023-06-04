@@ -33,30 +33,34 @@
 */
 
 :- module(ref_replay,
-          [rcommit/0,
-           rlist/0,
-           rlist/1,
-           rrewind/0,
-           rrewind/1,
-           rreset/0,
-           rundo/0,
-           rdelete/1,
-           rstats/0,
-           rnostats/0,
-           apply_command_q/1
+          [ apply_command_q/1,
+            rdelete/1,
+            rlist/0,
+            rlist/1,
+            rnostats/0,
+            rrewind/0,
+            rrewind/1,
+            rstats/0,
+            rundo/0
           ]).
 
 :- use_module(library(lists)).
 :- use_module(library(listing)).
-:- use_module(library(ref_shell)).
 :- use_module(library(ref_changes),
-              [reset_changes/0,
-               pending_change/1,
-               undo_changes/1]).
+              [ pending_change/1,
+                undo_changes/1]).
 :- use_module(library(ref_msgtype)).
 :- use_module(library(ref_command)).
 
+/** <module> Pending changes management of individual changes
+
+  This library provides tools to manage individual elements of the stack of
+  pending changes of the refactoring tool.  The pending changes are indexed by a
+  sequential number, so that you can use such index in such predicates.
+*/
+
 :- meta_predicate apply_command_q(0).
+
 apply_command_q(Call) :-
     apply_command(Call),
     once(pending_change(Index)),
@@ -69,10 +73,6 @@ rstats :-
 
 rnostats :-
     retractall(rstats_db).
-
-rcommit :-
-    ref_commit,
-    reset_commands.
 
 rlist :-
     \+ ( rlist(_),
@@ -110,7 +110,3 @@ rundo(Index) :-
 rdrop(Index, Command) :-
     undo_changes(Index),
     undo_command(Index, Command).
-
-rreset :-
-    reset_changes,
-    reset_commands.
