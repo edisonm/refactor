@@ -19,11 +19,12 @@ in your SWI-Prolog shell:
 How it works
 ============
 
-There are two groups of predicates, one to rewrite the source code, and other to
-manage such changes.  The basic predicate that performs the transformation is
-replace/5, implemented in library(ref_replace).  The predicates to manage such
-transformations are implemented in library(ref_shell), which provides methods to
-keep track of the modifications and to make the change to the files permanent.
+There are two groups of predicates, one to rewrite the source code, and other
+one to manage such changes.  The basic predicate that performs the
+transformation is replace/5, implemented in library(ref_replace).  The
+predicates to manage such transformations are implemented in library(ref_shell),
+which provides methods to keep track of the modifications and to make the
+changes to the files permanent.
 
 Example of Usage
 ================
@@ -180,7 +181,7 @@ true.
 
 ```
 
-Some refactoring scenarios that results from the composition of multiple changes
+Some refactoring scenarios that result from the composition of multiple changes
 are implemented in the library ref_scenarios.pl.
 
 Other complex scenarios are implemented in its own modules, as follows:
@@ -191,9 +192,10 @@ Other complex scenarios are implemented in its own modules, as follows:
 
 - move_preds.pl helps to move predicates from one file to another
 
-  TBD: document the next steps to make move_preds.pl work:
-
 ```prolog
+
+% TBD: Document the next steps to make move_preds.pl work, but note that this
+% example runs under plsteroids, not rtchecks:
 
 ?- [loadall].
 ?- [library(calls_to)].
