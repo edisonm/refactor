@@ -167,7 +167,7 @@ true.
 
 ```
 
-Be aware that iff before to rcommit we modify some files by hand, those changes
+Be aware that if before to rcommit we modify some files by hand, those changes
 will be overwritten, therefore the refactorings needs to be applied again.  That
 can be performed easily with the command rrewind:
 
