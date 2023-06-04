@@ -44,6 +44,7 @@
 :- use_module(library(infer_alias)).
 :- use_module(library(pretty_decl)).
 :- use_module(library(file_to_module)).
+:- use_module(library(refactor)).
 
 deref_reexport(Alias, Options) :-
     deref_reexport(Alias, _, Options).

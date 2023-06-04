@@ -34,6 +34,7 @@
 
 :- module(i18n_refactor, []).
 
+:- use_module(library(ref_replay)).
 :- use_module(library(i18n/i18n_trans), []).
 :- use_module(library(ref_expand), [term_expansion/2]).
 

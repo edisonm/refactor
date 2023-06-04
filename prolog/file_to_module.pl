@@ -53,8 +53,8 @@
 :- use_module(library(location_utils)).
 :- use_module(library(module_files)).
 :- use_module(library(pretty_decl)).
-:- use_module(library(ref_replace)).
 :- use_module(library(infer_meta)).
+:- use_module(library(refactor)).
 :- init_expansors.
 
 %!  module_to_import_db(F, A, M, CM, File)

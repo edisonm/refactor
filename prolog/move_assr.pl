@@ -37,6 +37,7 @@
 :- use_module(library(substitute)).
 :- use_module(library(assertions)).
 :- use_module(library(move_preds)).
+:- use_module(library(refactor)).
 :- init_expansors.
 
 move_preds:cond_move_pred_hook((:- Assertions1), CM, PredList, Into) :-

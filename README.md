@@ -157,7 +157,7 @@ true.
 
 ```
 
-As soon as the refactorings become more complex, or touch more files, it results
+As soon as the refactorings become more complex or touch more files, it results
 difficult to use only rshow.  In such cases it's more convenient to save the
 differencies in a diff file:
 
@@ -191,6 +191,22 @@ Other complex scenarios are implemented in its own modules, as follows:
 
 - move_preds.pl helps to move predicates from one file to another
 
+  TBD: document the next steps to make move_preds.pl work:
+
+```prolog
+
+?- [loadall].
+?- [library(calls_to)].
+?- collect_calls_to([dir('.')], _).
+?- [library(module_links)].
+?- [library(move_preds)].
+?- update_depends_of.
+
+% rreset,
+% move_preds([put_mark/1], stchecks/prolog/check_unused, xtools/prolog/mark_preds, []),
+% rsave('ps.diff').
+
+```
 
 Papers
 ======
