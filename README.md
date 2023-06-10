@@ -24,7 +24,8 @@ one to manage such changes.  The basic predicate that performs the
 transformation is replace/5, implemented in library(ref_replace).  The
 predicates to manage such transformations are implemented in library(ref_shell),
 which provides methods to keep track of the modifications and to make the
-changes to the files permanent.
+changes to the files permanent.  To make things easy, you can download all the
+required libraries by loading library(refactor).
 
 Example of Usage
 ================
@@ -55,10 +56,12 @@ of the chages, like the directory (dir option), list of directories (dirs
 option) and list of files (files option) to mention a few.
 
 The last information message shows in the first line the number of changes
-performed out of the number of attempts, those numbers will not match if the
-expansion was rejected by the expander, for instance, suppose that we want to
-perform such change en all places except in those where the clause doesn't have
-body:
+performed out of the number of attempts, and in the second one, the index the
+changes belong to, which is used in some predicates like rdiff/1 and will be
+explained later.  The number of changes will not match with the number of
+attempts if the expansion was rejected by the expander, for instance, suppose
+that we want to perform such change en all places except in those where the
+clause doesn't have body:
 
 ```prolog
 ?- replace_term(a(B), aa(B), (Sentence = (_ :- _)), [file(repl_conj), sentence(Sentence)]).
@@ -168,15 +171,128 @@ true.
 
 ```
 
-Be aware that if before to rcommit we modify some files by hand, those changes
-will be overwritten, therefore the refactorings needs to be applied again.  That
-can be performed easily with the command rrewind:
+Be aware that if before to call rcommit we modify some files by hand, those
+changes will be overwritten, therefore the refactoring needs to be applied
+again.  That can be performed easily with the command rrewind:
 
 ```prolog
 ?- rrewind.
 % 3 changes of 3 attempts
 % 3 changes of 3 attempts
 % 2 changes of 2 attempts
+true.
+
+```
+
+You can check each one of the changes with rdiff(Index), where Index is a number
+to refer to the given change.  If Index is uninstantiated, rdiff/1 will show all
+the changes via backtracking. For instance:
+
+```prolog
+?- rdiff(X).
+diff -ruN repl_conj.pl -
+--- repl_conj.pl (source)
++++ repl_conj.pl (target)
+@@ -3,7 +3,7 @@
+ repl_conj :-
+     aa(C),
+     bb(b),
+-    c(C),
++    cc(C),
+     d(d).
+ repl_conj :-
+     aa(a),
+@@ -11,5 +11,5 @@
+ 
+ aa(_).
+ bb(_).
+-c(_).
++cc(_).
+ d(_).
+X = 3 ;
+diff -ruN repl_conj.pl -
+--- repl_conj.pl (source)
++++ repl_conj.pl (target)
+@@ -2,14 +2,14 @@
+ 
+ repl_conj :-
+     aa(C),
+-    b(b),
+-    c(C),
++    bb(b),
++    cc(C),
+     d(d).
+ repl_conj :-
+     aa(a),
+-    b(b).
++    bb(b).
+ 
+ aa(_).
+-b(_).
+-c(_).
++bb(_).
++cc(_).
+ d(_).
+X = 2 ;
+diff -ruN repl_conj.pl -
+--- repl_conj.pl (source)
++++ repl_conj.pl (target)
+@@ -1,15 +1,15 @@
+ :- module(repl_conj, [repl_conj/0]).
+ 
+ repl_conj :-
+-    a(C),
+-    b(b),
+-    c(C),
++    aa(C),
++    bb(b),
++    cc(C),
+     d(d).
+ repl_conj :-
+-    a(a),
+-    b(b).
++    aa(a),
++    bb(b).
+ 
+-a(_).
+-b(_).
+-c(_).
++aa(_).
++bb(_).
++cc(_).
+ d(_).
+X = 1.
+
+```
+
+Or for a specific index:
+
+```prolog
+
+?- rdiff(2).
+diff -ruN repl_conj.pl -
+--- repl_conj.pl (source)
++++ repl_conj.pl (target)
+@@ -2,14 +2,14 @@
+ 
+ repl_conj :-
+     aa(C),
+-    b(b),
+-    c(C),
++    bb(b),
++    cc(C),
+     d(d).
+ repl_conj :-
+     aa(a),
+-    b(b).
++    bb(b).
+ 
+ aa(_).
+-b(_).
+-c(_).
++bb(_).
++cc(_).
+ d(_).
 true.
 
 ```
