@@ -60,7 +60,7 @@ performed out of the number of attempts, and in the second one, the index the
 changes belong to, which is used in some predicates like rdiff/1 and will be
 explained later.  The number of changes will not match with the number of
 attempts if the expansion was rejected by the expander, for instance, suppose
-that we want to perform such change en all places except in those where the
+that we want to perform such change in all places except in those where the
 clause doesn't have body:
 
 ```prolog
