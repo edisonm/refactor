@@ -371,7 +371,7 @@ set_new_name(VNBody, VN, V) :-
     ( member(Name1=V1, VNBody),
       V1 == V
     ->( ( Name = Name1
-        ; between(2, infinite, Count),
+        ; between(2, inf, Count),
           atomic_concat(Name1, Count, Name)
         ),
         \+ member(Name=_, VN)
