@@ -39,6 +39,7 @@
 
 :- use_module(library(codesio)).
 :- use_module(library(ref_context)).
+:- use_module(library(seek_text)).
 
 %!  refactor_message(+Type, +Message) is det.
 %
@@ -79,6 +80,13 @@ textpos_line(Text, CharPos, Line, LinePos) :-
         )).
 
 textpos_line(Text, CharPos, LinePos) :-
+    ( seek1_char_left(Text, '\n', CharPos, From)
+    ->LinePos is CharPos - (From + 1)
+    ; LinePos is CharPos
+    ).
+
+/* This was too slow --EMM
+textpos_line(Text, CharPos, LinePos) :-
     setup_call_cleanup(
         ( open_codes_stream(Text, In),
           open_null_stream(Out)
@@ -90,3 +98,4 @@ textpos_line(Text, CharPos, LinePos) :-
         ( close(Out),
           close(In)
         )).
+*/

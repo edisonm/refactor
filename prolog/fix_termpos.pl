@@ -32,18 +32,20 @@
     POSSIBILITY OF SUCH DAMAGE.
 */
 
-:- module(fix_termpos, [fix_termpos/1,
-                        fix_termpos/2,
-                        fix_subtermpos/1,
-                        fix_subtermpos/2,
-                        term_innerpos/4
-                       ]).
+:- module(fix_termpos,
+          [ fix_subtermpos/1,
+            fix_subtermpos/2,
+            fix_termpos/1,
+            fix_termpos/2,
+            term_innerpos/4
+          ]).
 
 :- use_module(library(apply)).
 :- use_module(library(lists)).
 :- use_module(library(option)).
 :- use_module(library(ref_context)).
 :- use_module(library(ref_message)).
+:- use_module(library(seek_text)).
 
 %!  term_innerpos(OFrom, OTo, InnerFrom, InnerTo)
 %
@@ -164,12 +166,19 @@ fix_subtermpos_rec(Pos, Boundary) :-
     fix_subtermpos_from_to(Boundary, From1, To1, SFrom, STo, From, To, [KPos, VPos]),
     nb_setarg(1, Pos, From),
     nb_setarg(2, Pos, To).
+/*
 fix_subtermpos_rec(Pos, Boundary) :-
+    fail,
     Pos = dict_position(From1, To1, FFrom, FTo, PosL),
     !,
     fix_subtermpos_from_to(Boundary, From1, To1, FFrom, FTo, From, To, PosL),
     nb_setarg(1, Pos, From),
     nb_setarg(2, Pos, To).
+*/
+fix_subtermpos_rec(dict_position(_, _, _, TypeTo, KVPos), Boundary) :-
+    refactor_context(text, Text),
+    succ(TypeTo, TypeTo1),
+    foldl(fix_termpos_from_left_comm(Boundary, Text), KVPos, TypeTo1, _).
 fix_subtermpos_rec(_-_, _).
 fix_subtermpos_rec(string_position(_, _), _).
 fix_subtermpos_rec(brace_term_position(From, _, Arg), Boundary) :-
@@ -196,31 +205,6 @@ fix_subtermpos_rec(list_position(From, To, Elms, Tail), Boundary) :-
       succ(ToL, FromT),
       fix_termpos_from_left(Boundary, Text, Tail, FromT, _)
     ).
-fix_subtermpos_rec(dict_position(_, _, _, TypeTo, KVPos), Boundary) :-
-    refactor_context(text, Text),
-    succ(TypeTo, TypeTo1),
-    foldl(fix_termpos_from_left_comm(Boundary, Text), KVPos, TypeTo1, _).
-
-comment_bound(CommentL, From, To) :-
-    member(Pos-Text, CommentL),
-    stream_position_data(char_count, Pos, From),
-    string_length(Text, Length),
-    nl_mark_end(Text, Delta),
-    To is Length + Delta + From.
-
-nl_mark_end(_, 0 ).
-
-/*
-nl_mark_end(Text, Delta) :-
-    ( string_code(1, Text, 0'%)
-    ->Delta = 1
-    ; Delta = 0
-    ).
-*/
-
-comment_bound(From, To) :-
-    refactor_context(comments, CommentL),
-    comment_bound(CommentL, From, To).
 
 rcomment_bound(From, To) :-
     refactor_context(comments, CommentL),
@@ -248,49 +232,6 @@ count_sub_string(Text, From1, To1, SubText, SubTextN, From, To, N) :-
     ; From = To1,
       To = From1,
       N = 0
-    ).
-
-comment_bound(From1, To1, From, To) :-
-    comment_bound(FromC, ToC),
-    ( FromC < To1
-    ->true
-    ; FromC = To1
-    ->!
-    ; !,
-      fail
-    ),
-    ( ToC < To1
-    ->To = ToC
-    ; !,
-      To = To1
-    ),
-    ( From1 =< FromC
-    ->From = FromC
-    ; From1 =< ToC
-    ->From = From1
-    ).
-
-seek_sub_string(Text, SubText, SubTextN, F, T1, T) :-
-    S = s(T1),
-    ( comment_bound(T1, F, FC, TC)
-    ; FC = F,
-      TC = F
-    ),
-    arg(1, S, T2),
-    ( D1 is FC - T2,
-      D1 > 0,
-      sub_string(Text, T2, D1, _, Frame),
-      sub_string(Frame, D, SubTextN, _, SubText),
-      T is T2 + D
-    ; nb_setarg(1, S, TC),
-      fail
-    ).
-
-seek1_char_left(Text, Char, F1, F) :-
-    succ(F2, F1),
-    ( sub_string(Text, F2, _, _, Char)
-    ->F = F2
-    ; seek1_char_left(Text, Char, F2, F)
     ).
 
 
@@ -372,20 +313,6 @@ include_comments_right(Text, From, To) :-
 
 seekn_parenthesis_right(N, Text, L, T1, T) :-
     seekn_char_right(N, Text, L, ")", T1, T).
-
-seekn_char_right(0, _, _, _, T, T) :- !.
-seekn_char_right(N, Text, L, Char, T1, T) :-
-    S = s(0),
-    ( seek_sub_string(Text, Char, 1, L, T1, T2),
-      arg(1, S, N1),
-      succ(N1, N2),
-      ( N2 = N
-      ->!,
-        succ(T2, T)
-      ; nb_setarg(1, S, N2),
-        fail
-      )
-    ).
 
 fix_boundaries_from_right(Boundary, Text, Pos, To1, From2, To3, From, To) :-
     arg(2, Pos, To2),

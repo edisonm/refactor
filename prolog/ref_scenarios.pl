@@ -465,7 +465,7 @@ do_remove_call(Call, Term, P, X) :-
 
 :- meta_predicate replace_conjunction(?, ?, 0, :).
 replace_conjunction(Conj, Repl, Expander, MO:Options1) :-
-    replace_last_literal_(Conj, Conj2, CLit, CBody),
+    replace_last_literal(Conj, Conj2, CLit, CBody),
     replace_last_literal(Repl, Repl1, RLit, RBody),
     add_body_hook_if_needed(Conj, Repl1, Repl2),
     copy_term(t(Conj2, CLit, CBody, Repl2, RLit, RBody), Term),
@@ -508,13 +508,8 @@ replace_conjunction(Conj, Replacement, Options) :-
 
 replace_last_literal(Conj, Body, Conj, Body) :- var(Conj), !.
 replace_last_literal((A, Conj), (A, Conj2), Lit, Body) :- !,
-    replace_last_literal_(Conj, Conj2, Lit, Body).
+    replace_last_literal(Conj, Conj2, Lit, Body).
 replace_last_literal(Conj, Body, Conj, Body).
-
-replace_last_literal_(Conj, Body, Conj, Body) :- var(Conj), !.
-replace_last_literal_((A,Conj), (A,Conj2), Lit, Body) :- !,
-    replace_last_literal_(Conj, Conj2, Lit, Body).
-replace_last_literal_(Conj, Body, Conj, Body).
 
 bind_lit_body(Term, Conj2, CLit, CBody, RLit, RBody) :-
     ( subsumes_term(Conj2-CLit, Conj2-CBody)

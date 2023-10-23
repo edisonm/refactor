@@ -25,7 +25,7 @@ diff -ruN append_list.pl -
 -    append([ /*1*/A,
 -             /*2*/A], /*3*/ T, C).
 +    C = [ /*1*/A,
-+             /*2*/A|/*3*/ T].
++          /*2*/A|/*3*/ T].
  append_list(A1-A2, T, C) :-
 -    append([ [ _, [ A1 ] ] ], [ [ _, [ A2 ] ], [ _, [ T ] ] ],
 -           C).
@@ -58,7 +58,7 @@ diff -ruN append_list.pl -
 -    append([ /*1*/A,
 -             /*2*/A], /*3*/ T, C).
 +    C = [ /*1*/A,
-+             /*2*/A|T].
++          /*2*/A|T].
  append_list(A1-A2, T, C) :-
 -    append([ [ _, [ A1 ] ] ], [ [ _, [ A2 ] ], [ _, [ T ] ] ],
 -           C).

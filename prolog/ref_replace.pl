@@ -75,6 +75,7 @@
 :- use_module(library(ref_context)).
 :- use_module(library(ref_msgtype)).
 :- use_module(library(ref_message)).
+:- use_module(library(seek_text)).
 :- use_module(library(term_info)).
 :- use_module(library(sequence_list)).
 :- use_module(library(clambda)).
@@ -102,8 +103,9 @@
 
 :- meta_predicate
     apply_commands(?, +, +, ?, +, +, +, +, 5),
-    fixpoint_file(+, +, 0),
-    replace(+,?,?,0,:),
+    fixpoint_file(+, +, 0 ),
+    reindent(+, +, 0 ),
+    replace(+, ?, ?, 0, :),
     rportray_list(+, +, 2, +, +),
     with_context(?, ?, ?, ?, -, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?),
     with_cond_braces_2(4, ?, ?, ?, ?, ?, ?),
@@ -1080,7 +1082,7 @@ gen_new_variable_names(Sent, Term, Into, VNL, NewVNL) :-
 check_bindings(Sent, Sent2, Options) :-
     ( Sent=@=Sent2
     ->true
-    ; option(show_left_bindings(Show), Options, true),
+    ; option(show_left_bindings(Show), Options, false),
       ( Show = true
       ->refactor_message(warning, format("Bindings occurs: ~w \\=@= ~w.", [Sent2, Sent]))
       ; true
@@ -1135,13 +1137,14 @@ substitute_term_norec(Sub, M, Term, TermPos1, Priority,
 
 val_subs(V, S) -->
     ( {var(S)}
-    ->[V=S]
-    ; []
+    ->{V=S}
+    ; [V=S]
     ).
 
 with_context(Sub, M, Term1, TermPos1, TTermPos1, Priority, Sent1, SentPos1, Pattern1, Into1, Into, VNL, NewVNL, Expander1, Options) :-
     % Suffix numbers in variables should refer to:
     % 1: Term changes during Expander1 execution
+    % 2: Substitutions instead of unifications in Into2 due to Term changes in (1)
     % 3: The raw Term, as read from the file
     % 4: Pattern changes during Expander1 execution
     % 5: Original pattern
@@ -1153,17 +1156,18 @@ with_context(Sub, M, Term1, TermPos1, TTermPos1, Priority, Sent1, SentPos1, Patt
     term_variables(Sent1-Term1-Into1, Vars1),
     copy_term(Sent1-Term1-Into1-Vars1, Sent3-Term3-Into3-Vars3),
     call_expander(Expander1, TermPos1, Term4, Into4),
+    Term2 = Term3,
     foldl(val_subs, Vars3, Vars1, ValSubs, []),
-    substitute_values(ValSubs, Sent3-Term3, Sent2-Term2),
-    check_bindings(Sent2, Sent3, Options),
+    substitute_values(ValSubs, Into3, Into2),
+    check_bindings(Sent1, Sent3, Options),
     gen_new_variable_names(Sent1, Term1, Into1, VNL, NewVNL),
     trim_fake_pos(TermPos1, TTermPos1, N),
     substitute_value(TermPos1, TTermPos1, SentPos1, TSentPos1),
-    trim_fake_args_ll(N, [[   _, Term2, Into1],
+    trim_fake_args_ll(N, [[   _, Term2, Into2],
                           [orig, Term5, Into5],
                           [pexp, Term4, Into4],
-                          [rawt, Term3, Into3],
-                          [texp, Term2, Into1]],
+                          %[rawt, Term3, Into3], % Not needed since it is implicit in (2)
+                          [texp, Term2, Into2]],
                       [[_, TTerm1, TInto1]|SpecTermIntoLL]),
     /* Note: fix_subtermpos/5 is a very expensive predicate, due to that we
        delay its execution until its result be really needed, and we only
@@ -1482,16 +1486,16 @@ deref_substitution('$sb'(_, _, _, _, Term), Sub) :-
     deref_substitution(Term, Sub).
 deref_substitution(Term, Term).
 
-write_pos_lines(Pos, Writter, Lines) :-
-    write_pos_rawstr(Pos, Writter, String),
+write_pos_lines(Pos, Writer, Lines) :-
+    write_pos_rawstr(Pos, Writer, String),
     atomics_to_string(Lines, '\n', String).
 
-write_pos_rawstr(Pos, Writter, String) :-
+write_pos_rawstr(Pos, Writer, String) :-
     with_output_to(string(String1),
                    ( nl, % start with a new line, since the position is not reseted
                      stream_property(current_output, position(Pos1)),
                      line_pos(Pos),
-                     call(Writter),
+                     call(Writer),
                      stream_property(current_output, position(Pos2)),
                      stream_position_data(char_count, Pos1, B1),
                      stream_position_data(char_count, Pos2, B2)
@@ -1499,8 +1503,8 @@ write_pos_rawstr(Pos, Writter, String) :-
     L is B2-B1,
     sub_string(String1, B1, L, _, String).
 
-write_pos_string(Pos, Writter, String) :-
-    write_pos_rawstr(Pos, Writter, RawStr),
+write_pos_string(Pos, Writer, String) :-
+    write_pos_rawstr(Pos, Writer, RawStr),
     pos_indent(Pos, Indent),
     atom_concat(Indent, String, RawStr).
 
@@ -1517,7 +1521,40 @@ print_subtext_sb_1(Text, Options, '$sb'(SubPos, Term), From, To) :-
     arg(2, SubPos, To).
 
 print_subtext_sb_2(Term, TermPos, RepL, Priority, Text, Options) :-
-    with_cond_braces_2(print_subtext_2, Term, TermPos, RepL, Priority, Text, Options).
+    reindent(TermPos, Text,
+             with_cond_braces_2(print_subtext_2, Term, TermPos, RepL, Priority, Text, Options)).
+
+reindent(TermPos, Text, Goal) :-
+    with_output_to(string(RawText), Goal),
+    ( \+ sub_string(RawText, _, _, _, '\n') % No need to reindent
+    ->SubText = RawText
+    ; arg(1, TermPos, From),
+      ( seek1_char_left(Text, "\n", From, Distance1)
+      ->CropLength1 is From - (Distance1 + 1)
+      ; CropLength1 is From
+      ),
+      offset_pos('$OUTPOS', PrefLength1),
+      atomic_list_concat(L1, '\n', RawText),
+      L1 = [E|T1], % First line is OK
+      Delta is abs(PrefLength1 - CropLength1),
+      pos_indent(Delta, ReIndent),
+      ( CropLength1 < PrefLength1
+      ->% Increment indentation
+        A2 = E1,
+        A3 = E2
+      ; % Decrement indentation
+        A2 = E2,
+        A3 = E1
+      ),
+      findall(E2,
+              ( member(E1, T1),
+                once(( atom_concat(ReIndent, A2, A3)
+                     ; E2 = E1
+                     ))
+              ), L2),
+      atomic_list_concat([E|L2], '\n', SubText)
+    ),
+    print_text(SubText).
 
 with_cond_braces_2(Call, Term, TermPos, RepL, GPriority, Text, Options) :-
     option(module(M), Options),
@@ -1684,8 +1721,8 @@ rportray('$APP'(L1, L2), Opt) :-
       write_term(N, Opt)
     ).
 rportray('$,'(A, B), Opt) :- !, write_term(A, Opt), write_term(B, Opt).
-rportray('$LIST'(L), Opt) :- !, rportray_list(L, nb, write_term, '', Opt).
-rportray('$LIST,'(L), Opt) :- !, rportray_list(L, bn, write_term, ',', Opt).
+rportray('$LIST'( L), Opt) :- !, rportray_list(L, nb, write_term, '',  Opt).
+rportray('$LIST,'(L), Opt) :- !, rportray_list(L, nb, write_term, ',', Opt).
 rportray('$LIST,_'(L), Opt) :- !, maplist(term_write_comma_2(Opt), L).
 rportray('$LIST'(L, Sep), Opt) :- !, rportray_list(L, nb, write_term, Sep, Opt).
 rportray('$LISTC'(CL), Opt) :-
@@ -2065,11 +2102,15 @@ collect_args(Indent, TermWidth, LineL, Pos1-[Sep, String|Tail], Pos-Tail) :-
       Pos is Pos1 + 2 + Width,
       Pos < TermWidth
     ->Sep = ", "
-    ; atom_concat(",\n", Indent, Sep),
+    ; atom_concat(',\n', Indent, Sep),
       last(LineL, Last),
       string_length(Last, Pos),
-      atomics_to_string(LineL, '\n', String1),
-      string_concat(Indent, String, String1)
+      once(( ( atomic_list_concat([Indent, '\n', Indent], IndentNl)
+             ; IndentNl = Indent
+             ),
+             atomics_to_string(LineL, '\n', String1),
+             string_concat(IndentNl, String, String1)
+           ))
     ).
 
 pos_value(Pos, Value) :-
@@ -2117,13 +2158,13 @@ rportray_list_nl(Pre, L, WB, Pos, Opt) :-
     sep_nl(Pos, Pre, Sep),
     rportray_list(L, WB, write_term, Sep, Opt).
 
-rportray_list(L, WB, Writter, SepElem, Opt) :-
+rportray_list(L, WB, Writer, SepElem, Opt) :-
     option(text(Text), Opt),
     deref_substitution(L, D),
-    term_write_sep_list_2(D, WB, Writter, Text, SepElem, '|', Opt).
+    term_write_sep_list_2(D, WB, Writer, Text, SepElem, '|', Opt).
 
 term_write_sep_list_2([], nb, _, _, _, _, _) :- !.
-term_write_sep_list_2([E|T], WB, Writter, Text, SepElem, SepTail, Opt) :-
+term_write_sep_list_2([E|T], WB, Writer, Text, SepElem, SepTail, Opt) :-
     !,
     term_priority([_|_], user, 1, Priority),
     merge_options([priority(Priority)], Opt, Opt1),
@@ -2131,13 +2172,13 @@ term_write_sep_list_2([E|T], WB, Writter, Text, SepElem, SepTail, Opt) :-
     ->cond_ident_bracket(WB, '[')
     ; cond_nonid_bracket(WB, '[')
     ),
-    call(Writter, E, Opt1),
-    term_write_sep_list_inner(T, Writter, Text, SepElem, SepTail, Opt1),
+    call(Writer, E, Opt1),
+    term_write_sep_list_inner(T, Writer, Text, SepElem, SepTail, Opt1),
     ( nonvar(T), T = [_|_]
     ->cond_idend_bracket(WB, ']')
     ; cond_nonid_bracket(WB, ']')
     ).
-term_write_sep_list_2(E, _, Writter, _, _, _, Opt) :- call(Writter, E, Opt).
+term_write_sep_list_2(E, _, Writer, _, _, _, Opt) :- call(Writer, E, Opt).
 
 cond_ident_bracket(wb(Delta, _), Bracket) :-
     write(Bracket),
@@ -2153,24 +2194,38 @@ cond_idend_bracket(nb, _).
 cond_nonid_bracket(wb(_, _), Bracket) :- write(Bracket).
 cond_nonid_bracket(nb, _).
 
-term_write_sep_list_inner(L, Writter, Text, SepElem, SepTail, Opt) :-
+term_write_sep_list_inner(L, Writer, Text, SepElem, SepTail, Opt) :-
     nonvar(L),
     L = [E|T],
     !,
     write(SepElem),
-    call(Writter, E, Opt),
-    term_write_sep_list_inner(T, Writter, Text, SepElem, SepTail, Opt).
-term_write_sep_list_inner(T, Writter, Text, SepElem, SepTail, Opt) :-
-    get_pred(T, F),
-    write_tail(T, F, Writter, Text, SepElem, SepTail, Opt).
-
-term_write_sep_list_3([E|T], Writter, Text, SepElem, SepTail, Opt) :-
+    call(Writer, E, Opt),
+    term_write_sep_list_inner(T, Writer, Text, SepElem, SepTail, Opt).
+term_write_sep_list_inner(P, Writer, Text, SepElem, _, Opt) :-
+    nonvar(P),
+    deref_substitution(P, L),
+    L = [_|_],
     !,
-    call(Writter, E, Opt),
+    P = '$sb'(SubPos1, ISubPos, RepL, Priority, Term),
+    SubPos1 =.. [SPF, From1, To1|SPT],
+    string_length(Text, N),
+    seekn_char_right(1, Text, N, "[", From1, From),
+    seek1_char_left(Text, "]", To1, To),
+    SubPos =.. [SPF, From, To|SPT],
+    P2 = '$sb'(SubPos, ISubPos, RepL, Priority, Term),
+    write(SepElem),
+    call(Writer, P2, Opt).
+term_write_sep_list_inner(T, Writer, Text, SepElem, SepTail, Opt) :-
+    get_pred(T, F),
+    write_tail(T, F, Writer, Text, SepElem, SepTail, Opt).
+
+term_write_sep_list_3([E|T], Writer, Text, SepElem, SepTail, Opt) :-
+    !,
+    call(Writer, E, Opt),
     get_pred(E, D),
-    term_write_sep_list_inner_3(T, D, Writter, Text, SepElem, SepTail, Opt).
-term_write_sep_list_3(E, Writter, _, _, _, Opt) :-
-    call(Writter, E, Opt).
+    term_write_sep_list_inner_3(T, D, Writer, Text, SepElem, SepTail, Opt).
+term_write_sep_list_3(E, Writer, _, _, _, Opt) :-
+    call(Writer, E, Opt).
 
 get_pred(T, F/A) :-
     deref_substitution(T, C),
@@ -2183,17 +2238,17 @@ clause_head(H --> _, H).
 clause_head(H,       H).
 
 
-term_write_sep_list_inner_3(L, D, Writter, Text, SepElem, SepTail, Opt) :-
+term_write_sep_list_inner_3(L, D, Writer, Text, SepElem, SepTail, Opt) :-
     nonvar(L),
     L = [E|T],
     !,
     write(SepElem),
     get_pred(E, F),
     ignore((D \= F, nl)),
-    call(Writter, E, Opt),
-    term_write_sep_list_inner_3(T, F, Writter, Text, SepElem, SepTail, Opt).
-term_write_sep_list_inner_3(T, D, Writter, Text, SepElem, SepTail, Opt) :-
-    write_tail(T, D, Writter, Text, SepElem, SepTail, Opt).
+    call(Writer, E, Opt),
+    term_write_sep_list_inner_3(T, F, Writer, Text, SepElem, SepTail, Opt).
+term_write_sep_list_inner_3(T, D, Writer, Text, SepElem, SepTail, Opt) :-
+    write_tail(T, D, Writer, Text, SepElem, SepTail, Opt).
 
 term_write_comma_2(Opt, Term) :- write_term(Term, Opt), write(', ').
 
@@ -2201,27 +2256,27 @@ sep_nl(LinePos, Sep, SepNl) :-
     with_output_to(atom(In), line_pos(LinePos)),
     atomic_list_concat([Sep, '\n', In], SepNl).
 
-write_tail(T, _, Writter, _, _, SepTail, Opt) :-
+write_tail(T, _, Writer, _, _, SepTail, Opt) :-
     var(T),
     !,
     write(SepTail),
-    call(Writter, T, Opt).
+    call(Writer, T, Opt).
 write_tail([], _, _, _, _, _, _) :- !.
-write_tail('$LIST,NL'(L), _, Writter, Text, _, _, Opt) :-
+write_tail('$LIST,NL'(L), _, Writer, Text, _, _, Opt) :-
     !,
     offset_pos('$OUTPOS', Pos),
     sep_nl(Pos, ',', Sep),
-    term_write_sep_list_inner(L, Writter, Text, Sep, '|', Opt).
-write_tail('$LIST,NL'(L, Offs), _, Writter, Text, _, _, Opt) :-
+    term_write_sep_list_inner(L, Writer, Text, Sep, '|', Opt).
+write_tail('$LIST,NL'(L, Offs), _, Writer, Text, _, _, Opt) :-
     offset_pos(Offs, Pos),
     !,
     sep_nl(Pos, ',', Sep),
-    term_write_sep_list_inner(L, Writter, Text, Sep, '|', Opt).
-write_tail(T, D, Writter, _, _, SepTail, Opt) :-
+    term_write_sep_list_inner(L, Writer, Text, Sep, '|', Opt).
+write_tail(T, D, Writer, _, _, SepTail, Opt) :-
     get_pred(T, F),
     write(SepTail),
     ignore((D \= F, nl)), % this only makes sense on list of clauses
-    call(Writter, T, Opt).
+    call(Writer, T, Opt).
 
 print_expansion_rm_dot(TermPos, Text, From, To) :-
     arg(1, TermPos, From),
@@ -2499,6 +2554,10 @@ print_expansion_arg(M, MInto, Options1, Text, From-To,
     ->Freeze1 = true,
       print_subtext(RefPos, Text),
       freeze(Freeze, print_subtext(Text, From, To))
+    ; N = 1,
+      Into == '$RM',
+      Term \== '$RM'
+    ->Freeze1 = true
     ; term_priority(MInto, M, N, Priority),
       merge_options([priority(Priority)], Options1, Options),
       print_expansion_elem(Options, Text, From-To, RefPos, Into, Term, Freeze1, Freeze)
