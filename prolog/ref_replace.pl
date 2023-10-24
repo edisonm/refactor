@@ -2168,16 +2168,39 @@ term_write_sep_list_2([E|T], WB, Writer, Text, SepElem, SepTail, Opt) :-
     !,
     term_priority([_|_], user, 1, Priority),
     merge_options([priority(Priority)], Opt, Opt1),
-    ( nonvar(T), T = [_|_]
-    ->cond_ident_bracket(WB, '[')
-    ; cond_nonid_bracket(WB, '[')
+    with_output_to(
+        string(RawText1),
+        ( write(SepElem),
+          call(Writer, E, Opt1),
+          term_write_sep_list_inner(T, Writer, Text, SepElem, SepTail, Opt1)
+        )),
+    atom_concat(SepElem, RawText2, RawText1),
+    string_length(RawText1, Length),
+    ( seek1_char_left(RawText2, '\n', Length, RTTo),
+      sub_string(RawText2, RTTo, _, 0, ToTrim),
+      string_chars(ToTrim, Chars),
+      forall(member(Char, Chars), char_type(Char, space))
+    ->sub_string(RawText2, 0, RTTo, _, RawText)
+    ; RawText = RawText2
     ),
+    ( sub_string(RawText, _, _, _, '\n')
+    ->cond_ident_bracket(WB, '['),
+      print_text(RawText),
+      cond_idend_bracket(WB, ']')
+    ; cond_nonid_bracket(WB, '['),
+      print_text(RawText),
+      cond_nonid_bracket(WB, ']')
+    ).
+/*
+term_write_sep_list_2([E|T], WB, Writer, Text, SepElem, SepTail, Opt) :-
+    !,
+    term_priority([_|_], user, 1, Priority),
+    merge_options([priority(Priority)], Opt, Opt1),
+    cond_ident_bracket(WB, '['),
     call(Writer, E, Opt1),
     term_write_sep_list_inner(T, Writer, Text, SepElem, SepTail, Opt1),
-    ( nonvar(T), T = [_|_]
-    ->cond_idend_bracket(WB, ']')
-    ; cond_nonid_bracket(WB, ']')
-    ).
+    cond_idend_bracket(WB, ']').
+*/
 term_write_sep_list_2(E, _, Writer, _, _, _, Opt) :- call(Writer, E, Opt).
 
 cond_ident_bracket(wb(Delta, _), Bracket) :-
@@ -2209,7 +2232,12 @@ term_write_sep_list_inner(P, Writer, Text, SepElem, _, Opt) :-
     P = '$sb'(SubPos1, ISubPos, RepL, Priority, Term),
     SubPos1 =.. [SPF, From1, To1|SPT],
     string_length(Text, N),
-    seekn_char_right(1, Text, N, "[", From1, From),
+    seekn_char_right(1, Text, N, "[", From1, From2),
+    % Remove space, since default indentation of list elements is 2:
+    ( sub_string(Text, From2, 1, _, " ")
+    ->succ(From2, From)
+    ; From = From2
+    ),
     seek1_char_left(Text, "]", To1, To),
     SubPos =.. [SPF, From, To|SPT],
     P2 = '$sb'(SubPos, ISubPos, RepL, Priority, Term),
