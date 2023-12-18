@@ -266,6 +266,12 @@
 %   * '$TEXTQ'(T)
 %     like '$TEXTQ'(T, 0)
 %
+%   * '$PRETXT'(Txt, T)
+%     Write Txt before T
+%
+%   * '$POSTXT'(T, Txt)
+%     Write Txt after T
+%
 %   * '$POS'(Name, Term)
 %     Preserves the current write position in Name, for further usage in hacks
 %     that have Offset as argument
@@ -1649,6 +1655,14 @@ rportray('$TEXTQ'(T, Offs), Opt) :-
     !,
     line_pos(Pos),
     write_q(T, Opt).
+rportray('$PRETXT'(TXT, Term), Opt) :-
+    !,
+    write(TXT),
+    write_term(Term, Opt).
+rportray('$POSTXT'(Term, TXT), Opt) :-
+    !,
+    write_term(Term, Opt),
+    write(TXT).
 rportray(H :- B, Opt) :-
     option(portray_clause(true), Opt),
     !,
@@ -2626,6 +2640,8 @@ escape_term('$TEXT'(_)).
 escape_term('$TEXT'(_, _)).
 escape_term('$TEXTQ'(_)).
 escape_term('$TEXTQ'(_, _)).
+escape_term('$PRETXT'(_, _)).
+escape_term('$POSTXT'(_, _)).
 escape_term('$CLAUSE'(_)).
 escape_term('$CLAUSE'(_, _)).
 escape_term('$BODY'(_, _)).
