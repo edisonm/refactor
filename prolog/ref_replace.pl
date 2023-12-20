@@ -984,17 +984,36 @@ gen_new_variable_names([Var|VarL], [Name1|NameL], Prefix, Count1,
     ),
     gen_new_variable_names(VarL, NameL, Prefix, Count, Sent, Pattern, Into, VNL2, VNL).
 
+level_1_term(V) :- var(V), !, fail.
+level_1_term('$RM').
+level_1_term('$C'(_, Into)) :- level_1_term(Into).
+level_1_term('$TEXT'(_)).
+level_1_term('$TEXT'(_, _)).
+level_1_term('$TEXTQ'(_)).
+level_1_term('$TEXTQ'(_, _)).
+level_1_term('$LISTC'(_)).
+level_1_term('$LISTC.NL'(_)).
+
 apply_change(Text, M, subst(TermPos, Options, Term, Into, _),
              t(From, To, PasteText)) :-
+    ( level_1_term(Into)
+    ->ITermPos = TermPos
+    ; get_innerpos(TermPos, ITermPos)
+    ),
+    arg(1, ITermPos, From),
+    arg(2, ITermPos, To1),
     call_cleanup(
         with_output_to(
             string(OutputText),
-            ( stream_property(current_output, position(Pos1)),
+            ( %textpos_line(Text, From, LinePos),
+              %line_pos(LinePos, current_output),
+              stream_property(current_output, position(Pos1)),
               with_termpos(
-                  print_expansion_1(Into, Term, TermPos,
-                                    [module(M),
-                                     text(Text)|Options],
-                                    Text, From, To),
+                  print_expansion_1(Into, Term, ITermPos,
+                                    [ module(M),
+                                      text(Text)
+                                      |Options
+                                    ], Text, From, To1, To),
                   TermPos),
               stream_property(current_output, position(Pos2))
             )),
@@ -1854,6 +1873,11 @@ rportray(Operator, Opt) :-
     OpPriority < Priority,
     !,
     write_q(Operator, Opt).
+rportray(String, Options) :-
+    string(String),
+    String \= "",
+    !,
+    rportray_string(String, Options).
 % Better formatting:
 rportray(Term, OptL) :-
     callable(Term),
@@ -2320,98 +2344,77 @@ write_tail(T, D, Writer, _, _, SepTail, Opt) :-
     ignore((D \= F, nl)), % this only makes sense on list of clauses
     call(Writer, T, Opt).
 
-print_expansion_rm_dot(TermPos, Text, From, To) :-
-    arg(1, TermPos, From),
-    arg(2, TermPos, Before),
+print_expansion_rm_dot(Text, Before, To) :-
     sub_string(Text, Before, _, 0, Right),
     once(sub_string(Right, Next, _, _, ".")),
     To is Before+Next+2.
 
 % Hacks that can only work at 1st level:
 
-print_expansion_1(Into, Term, TermPos, Options, Text, From, To) :-
+print_expansion_1(Into, Term, TermPos, Options, Text, From, To, To) :-
     var(Into),
     !,
-    get_innerpos(TermPos, ITermPos),
-    print_expansion_3(Into, Term, ITermPos, Options, Text, From, To).
-print_expansion_1('$RM', _, TermPos, _, _, From, To) :-
-    !,
-    arg(1, TermPos, From),
-    arg(2, TermPos, To).
-print_expansion_1('$C'(Goal, Into), Term, TermPos, Options, Text, From, To) :-
+    print_expansion_3(Into, Term, TermPos, Options, Text, From).
+print_expansion_1('$RM', _, _, _, _, _, To, To) :- !.
+print_expansion_1('$C'(Goal, Into), Term, TermPos, Options, Text, From, To, To) :-
     \+ ( nonvar(Term),
          Term = '$C'(_, _)
        ),
     !,
     call(Goal),
-    print_expansion_1(Into, Term, TermPos, Options, Text, From, To).
-print_expansion_1('$TEXT'(Into), _, TermPos, Options, _, From, To) :-
+    print_expansion_1(Into, Term, TermPos, Options, Text, From, To, To).
+print_expansion_1('$TEXT'(Into), _, _, Options, _, _, To, To) :-
     !,
-    arg(1, TermPos, From),
-    arg(2, TermPos, To),
     write_t(Into, Options).
-print_expansion_1('$TEXT'(Into, Offs), _, TermPos, Options, _, From, To) :-
+print_expansion_1('$TEXT'(Into, Offs), _, _, Options, _, _, To1, To) :-
     offset_pos(Offs, Pos),
     !,
-    arg(1, TermPos, From),
-    arg(2, TermPos, To1),
     write_t(Into, Options),
     To is To1+Pos.
-print_expansion_1('$TEXTQ'(Into), _, TermPos, Options, _, From, To) :-
+print_expansion_1('$TEXTQ'(Into), _, _, Options, _, _, To, To) :-
     !,
-    arg(1, TermPos, From),
-    arg(2, TermPos, To),
     write_q(Into, Options).
-print_expansion_1('$TEXTQ'(Into, Offs), _, TermPos, Options, _, From, To) :-
+print_expansion_1('$TEXTQ'(Into, Offs), _, _, Options, _, _, To1, To) :-
     offset_pos(Offs, Pos),
     !,
-    arg(1, TermPos, From),
-    arg(2, TermPos, To1),
     write_q(Into, Options),
     To is To1+Pos.
-print_expansion_1('$LISTC'(IntoL), _, TermPos, Options1, Text, From, To) :-
+print_expansion_1('$LISTC'(IntoL), _, _, Options1, Text, _, To, To) :-
     !,
-    arg(1, TermPos, From),
-    arg(2, TermPos, To),
     merge_options([priority(1200), portray_clause(true)], Options1, Options),
     term_write_sep_list_3(IntoL, rportray_clause, Text, '.\n', '.\n', Options).
-print_expansion_1('$LISTC.NL'(IntoL), _, TermPos, Options1, Text, From, To) :-
+print_expansion_1('$LISTC.NL'(IntoL), _, _, Options1, Text, _, To, To) :-
     !,
-    arg(1, TermPos, From),
-    arg(2, TermPos, To),
     merge_options([priority(1200), portray_clause(true)], Options1, Options),
     term_write_sep_list_3(IntoL, rportray_clause, Text, '.\n', '.\n', Options),
     write('.\n').
-print_expansion_1(Into, Term, TermPos, Options, Text, From, To) :-
-    get_innerpos(TermPos, ITermPos),
-    print_expansion_2(Into, Term, ITermPos, Options, Text, From, To).
+print_expansion_1(Into, Term, TermPos, Options, Text, From, To1, To) :-
+    print_expansion_2(Into, Term, TermPos, Options, Text, From, To1, To).
 
-print_expansion_2(Into, Term, TermPos, Options, Text, From, To) :-
+print_expansion_2(Into, Term, TermPos, Options, Text, From, To, To) :-
     var(Into),
     !,
-    print_expansion_3(Into, Term, TermPos, Options, Text, From, To).
-print_expansion_2('$sb'(_, RefPos, RepL, Priority, Into), Term, TermPos, Options, Text, From, To) :-
+    print_expansion_3(Into, Term, TermPos, Options, Text, From).
+print_expansion_2('$sb'(_, RefPos, RepL, Priority, Into), Term, _, Options, Text, _, To, To) :-
     nonvar(RefPos),
     \+ ( nonvar(Term),
          Term = '$sb'(_, _, _, _, _),
          Into \= '$sb'(_, _, _, _, _)
        ),
     !,
-    arg(1, TermPos, From),
-    arg(2, TermPos, To),
     print_subtext_sb_2(Into, RefPos, RepL, Priority, Text, Options).
-print_expansion_2('$NODOT'(Into), Term, TermPos, Options, Text, From, To) :-
+print_expansion_2('$NODOT'(Into), Term, TermPos, Options, Text, From, To1, To) :-
     !,
-    print_expansion_2(Into, Term, TermPos, Options, Text, From, _To),
-    print_expansion_rm_dot(TermPos, Text, _From, To).
-print_expansion_2('$LIST.NL'(IntoL), Term, TermPos, Options1, Text, From, To) :-
+    print_expansion_2(Into, Term, TermPos, Options, Text, From, To1, _),
+    print_expansion_rm_dot(Text, To1, To).
+print_expansion_2('$LIST.NL'(IntoL), Term, TermPos, Options1, Text, From, To1, To) :-
     !,
     merge_options([priority(1200)], Options1, Options),
-    print_expansion_rm_dot(TermPos, Text, From, To),
+    print_expansion_rm_dot(Text, To1, To),
     with_from(term_write_stop_nl_list(IntoL, Term, TermPos, Options, Text), From).
-print_expansion_2(Into, Term, Pos, Options, Text, From, To) :-
+print_expansion_2(Into, Term, Pos, Options, Text, From, To, To) :-
     % Hey, this is the place, don't overthink about it (test 60)
-    Pos = sub_list_position(From, To, _, From1, STo, PosL, Tail),
+    Pos = sub_list_position(_, _, _, From1, STo, PosL, Tail),
     !,
     print_subtext(From-From1, Text),
     ( Into == []
@@ -2427,7 +2430,7 @@ print_expansion_2(Into, Term, Pos, Options, Text, From, To) :-
         ; write('|') % just in case, but may be never reached
         )
       ),
-      print_expansion_3(Into, Term, list_position(From1, To, PosL, Tail), Options, Text, _, _)
+      print_expansion_3(Into, Term, list_position(From1, To, PosL, Tail), Options, Text, From1)
     ),
     ( is_list(Into),
       Into \== []
@@ -2436,8 +2439,8 @@ print_expansion_2(Into, Term, Pos, Options, Text, From, To) :-
       arg(2, Pos2, To2),
       print_subtext(To2-To, Text)
     ).
-print_expansion_2(Into, Term, TermPos, Options, Text, From, To) :-
-    print_expansion_3(Into, Term, TermPos, Options, Text, From, To).
+print_expansion_2(Into, Term, TermPos, Options, Text, From, To, To) :-
+    print_expansion_3(Into, Term, TermPos, Options, Text, From).
 
 term_write_stop_nl_list([Into|IntoL], Term, TermPos, Options, Text) :-
     term_write_stop_nl__(Into, Term, TermPos, Options, Text),
@@ -2456,9 +2459,7 @@ term_write_stop_nl__(Into, Term, TermPos, Options, Text) :-
     write('.'),
     nl.
 
-print_expansion_3(Into, Term, TermPos, Options, Text, From, To) :-
-    arg(1, TermPos, From),
-    arg(2, TermPos, To),
+print_expansion_3(Into, Term, TermPos, Options, Text, From) :-
     with_from(print_expansion(Into, Term, TermPos, Options, Text), From).
 
 % if the term have been in parentheses, in a place where that was
@@ -2991,3 +2992,20 @@ write_qt(Quoted, Term, Options1) :-
     merge_options([quoted(Quoted), priority(1200)], Options1, Options2),
     select_option(portray_goal(PG), Options2, Options, PG),
     write_term(Term, Options).
+
+rportray_string(String, Options1) :-
+    merge_options([quoted(true), character_escapes(true)], Options1, Options2),
+    select_option(portray_goal(PG), Options2, Options, PG),
+    atomics_to_string(Atoms, '\n', String),
+    maplist(fix_string(Options), Atoms, List),
+    atomics_to_string(List, '\n', String2),
+    write('"'),
+    write(String2),
+    write('"').
+
+fix_string(Options, Atom, Elem) :-
+    with_output_to(string(String),
+                   ( string_to_atom(Raw, Atom),
+                     write_term(Raw, Options)
+                   )),
+    atomics_string(['\"', Elem, '\"'], String).
