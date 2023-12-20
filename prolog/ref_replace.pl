@@ -1005,16 +1005,16 @@ apply_change(Text, M, subst(TermPos, Options, Term, Into, _),
     call_cleanup(
         with_output_to(
             string(OutputText),
-            ( %textpos_line(Text, From, LinePos),
-              %line_pos(LinePos, current_output),
-              stream_property(current_output, position(Pos1)),
-              with_termpos(
-                  print_expansion_1(Into, Term, ITermPos,
-                                    [ module(M),
-                                      text(Text)
-                                      |Options
-                                    ], Text, From, To1, To),
-                  TermPos),
+            ( stream_property(current_output, position(Pos1)),
+              with_from(
+                  with_termpos(
+                      print_expansion_1(Into, Term, ITermPos,
+                                        [ module(M),
+                                          text(Text)
+                                          |Options
+                                        ], Text, From, To1, To),
+                      TermPos),
+                  From),
               stream_property(current_output, position(Pos2))
             )),
         retractall(rportray_pos(_, _))),
