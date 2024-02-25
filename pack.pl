@@ -1,5 +1,5 @@
 name(refactor).
-version('0.0.3').
+version('1.0.0').
 title('Refactoring Tools for SWI-Prolog').
 keywords([refactor]).
 author('Edison Mera', 'http://www.edisonm.com/').
