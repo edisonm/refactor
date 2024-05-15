@@ -40,6 +40,7 @@
             seek_sub_string/6
           ]).
 
+:- use_module(library(lists)).
 :- use_module(library(ref_context)).
 
 comment_bound(CommentL, From, To) :-

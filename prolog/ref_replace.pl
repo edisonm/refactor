@@ -3003,7 +3003,7 @@ rportray_string(String, Options1) :-
 
 fix_string(Options, Atom, Elem) :-
     with_output_to(string(String),
-                   ( string_to_atom(Raw, Atom),
+                   ( atom_string(Atom, Raw),
                      write_term(Raw, Options)
                    )),
     atomics_string(['\"', Elem, '\"'], String).
