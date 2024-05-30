@@ -1864,6 +1864,24 @@ rportray((:- Decl), Opt) :-
     ; NDecl = Decl
     ),
     write_term(NDecl, Opt1).
+rportray(OperTerm, Opt) :-
+    \+ retract(rportray_skip),
+    !,
+    nonvar(OperTerm),
+    OperTerm =.. [Op, _],
+    option(module(M), Opt),
+    current_op(_, fx, M:Op),
+    assertz(rportray_skip),
+    with_output_to(string(Text),
+                   write_term(OperTerm, Opt)),
+    ( atom_concat(Op, Right, Text),
+      sub_string(Right, 0, 1, _, Char),
+      char_type(Char, prolog_symbol)
+    ->write_t(Op, Opt),
+      write(' '),
+      write_t(Right, Opt)
+    ; write_t(Text, Opt)
+    ).
 rportray(Operator, Opt) :-
     % Fix to avoid useless operator parenthesis
     atom(Operator),
