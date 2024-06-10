@@ -13,7 +13,7 @@ diff -ruN term_with_op.pl -
  
  term_with_op(A) :-
 -    A = /****/ key_components/4+ (/*1*/ ( hidden ), ( kbmask([+, +, -, -]) ) /*2*/).
-+    A = /****/ key_components/4+ (/*1*/ ( help ), (/*1*/ ( hidden ), ( kbmask([+, +, -, -]) ) /*2*/) /*2*/).
++    A = /****/ key_components/4+ (help, (/*1*/ ( hidden ), ( kbmask([+, +, -, -]) ) /*2*/) /*2*/).
 */
 
 test(term_with_op) :-

@@ -110,7 +110,10 @@
     with_context(?, ?, ?, ?, -, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?),
     with_cond_braces_2(4, ?, ?, ?, ?, ?, ?),
     with_counters(0, +),
-    with_styles(0, +).
+    with_styles(0, +),
+    with_output_to_string(-, 0 ),
+    with_output_to_string(-, 0, 0 ),
+    with_output_to_string(-, -, -, 0, 0 ).
 
 %!  replace(+Level, +Pattern, +Into, :Expander, :Options) is det
 %
@@ -1003,24 +1006,19 @@ apply_change(Text, M, subst(TermPos, Options, Term, Into, _),
     arg(1, ITermPos, From),
     arg(2, ITermPos, To1),
     call_cleanup(
-        with_output_to(
-            string(OutputText),
-            ( stream_property(current_output, position(Pos1)),
-              with_from(
-                  with_termpos(
-                      print_expansion_1(Into, Term, ITermPos,
-                                        [ module(M),
-                                          text(Text)
-                                          |Options
-                                        ], Text, To1, To),
-                      TermPos),
-                  From),
-              stream_property(current_output, position(Pos2))
-            )),
-        retractall(rportray_pos(_, _))),
-    stream_position_data(char_count, Pos1, B1),
-    stream_position_data(char_count, Pos2, B2),
-    get_subtext(OutputText, B1, B2, PasteText).
+        with_output_to_string(
+            PasteText,
+            with_from(
+                with_termpos(
+                    print_expansion_1(Into, Term, ITermPos,
+                                      [ module(M),
+                                        text(Text)
+                                        |Options
+                                      ], Text, To1, To),
+                    TermPos),
+                From)
+        ),
+        retractall(rportray_pos(_, _))).
 
 wr_options([portray_goal(ref_replace:rportray),
             spacing(next_argument),
@@ -1516,17 +1514,12 @@ write_pos_lines(Pos, Writer, Lines) :-
     atomics_to_string(Lines, '\n', String).
 
 write_pos_rawstr(Pos, Writer, String) :-
-    with_output_to(string(String1),
-                   ( nl, % start with a new line, since the position is not reseted
-                     stream_property(current_output, position(Pos1)),
-                     line_pos(Pos),
-                     call(Writer),
-                     stream_property(current_output, position(Pos2)),
-                     stream_position_data(char_count, Pos1, B1),
-                     stream_position_data(char_count, Pos2, B2)
-                   )),
-    L is B2-B1,
-    sub_string(String1, B1, L, _, String).
+    with_output_to_string(
+        String,
+        nl, % start with a new line, since the position is not reseted
+        ( line_pos(Pos),
+          call(Writer)
+        )).
 
 write_pos_string(Pos, Writer, String) :-
     write_pos_rawstr(Pos, Writer, RawStr),
@@ -1550,7 +1543,7 @@ print_subtext_sb_2(Term, TermPos, RepL, Priority, Text, Options) :-
              with_cond_braces_2(print_subtext_2, Term, TermPos, RepL, Priority, Text, Options)).
 
 reindent(TermPos, Text, Goal) :-
-    with_output_to(string(RawText), Goal),
+    with_output_to_string(RawText, Goal),
     ( \+ sub_string(RawText, _, _, _, '\n') % No need to reindent
     ->SubText = RawText
     ; arg(1, TermPos, From),
@@ -1612,9 +1605,20 @@ rportray('$sb'(TermPos), _) :-
 rportray('$sb'(SubPos, _, RepL, Priority, Term), Options) :-
     \+ retract(rportray_skip),
     !,
-    ignore(( option(text(Text), Options),
-             print_subtext_sb_2(Term, SubPos, RepL, Priority, Text, Options)
-           )).
+    % Kludge to get the spaces needed to print Term:
+    select_option(portray_goal(PG), Options, Options2, PG),
+    stream_property(current_output, position(S1)),
+    write_term(Term, Options2),
+    stream_property(current_output, position(S2)),
+    write_length(Term, Length, Options2),
+    stream_position_data(char_count, S1, B1),
+    stream_position_data(char_count, S2, B2),
+    Offset is B2-B1-Length,
+    set_stream_position(current_output, S1),
+    % to use seek, Offset must be positive, otherwise it will not work properly
+    seek(current_output, Offset, current, _),
+    option(text(Text), Options),
+    ignore(print_subtext_sb_2(Term, SubPos, RepL, Priority, Text, Options)).
 rportray('$@'(Term), Options) :-
     write_term(Term, Options).
 rportray('$$'(Term), Options1) :-
@@ -1866,22 +1870,23 @@ rportray((:- Decl), Opt) :-
     write_term(NDecl, Opt1).
 rportray(OperTerm, Opt) :-
     \+ retract(rportray_skip),
-    !,
     nonvar(OperTerm),
-    OperTerm =.. [Op, _],
-    option(module(M), Opt),
-    current_op(_, fx, M:Op),
-    assertz(rportray_skip),
-    with_output_to(string(Text),
-                   write_term(OperTerm, Opt)),
-    ( atom_concat(Op, Right, Text),
-      sub_string(Right, 0, 1, _, Char),
-      char_type(Char, prolog_symbol)
+    ( OperTerm =.. [Op, _],
+      option(module(M), Opt),
+      current_op(_, fx, M:Op),
+      sub_string(Op, _, 1, 0, Char1),
+      char_type(Char1, prolog_symbol),
+      assertz(rportray_skip),
+      string_term(OperTerm, Opt, Text),
+      atom_concat(Op, Right, Text),
+      sub_string(Right, 0, 1, _, Char2),
+      char_type(Char2, prolog_symbol)
     ->write_t(Op, Opt),
       write(' '),
       write_t(Right, Opt)
-    ; write_t(Text, Opt)
-    ).
+    ; fail
+    ),
+    !.
 rportray(Operator, Opt) :-
     % Fix to avoid useless operator parenthesis
     atom(Operator),
@@ -2024,10 +2029,11 @@ rportray_conj(A, B, Opt) :-
     ; ( Display = yes
       ->Format = "( ~s~s)",
         Pos1 = Pos + 2,
-        with_output_to(string(CloseB),
-                       ( nl,
-                         line_pos(Pos)
-                       ))
+        with_output_to_string(
+            CloseB,
+            ( nl,
+              line_pos(Pos)
+            ))
       ; Format = "~s~s",
         CloseB = "",
         Pos1 = Pos
@@ -2090,11 +2096,12 @@ rportray_head_tail(E, T1, Opt) :-
     foldl(concat_list_elem(ListWidth, Pos1, Opt1), Tail, String-LinesLL, Last-[Last]),
     ( LinesLL = [S1]
     ->CloseB = "]"
-    ; with_output_to(string(CloseB),
-                     ( nl,
-                       line_pos(Pos),
-                       write(']')
-                     )),
+    ; with_output_to_string(
+          CloseB,
+          ( nl,
+            line_pos(Pos),
+            write(']')
+          )),
       with_output_to(string(Sep), writeln(',')),
       atomic_list_concat(LinesLL, Sep, S1)
     ),
@@ -2103,17 +2110,17 @@ rportray_head_tail(E, T1, Opt) :-
     write_t(Atom, Opt1).
 
 concat_list_elem(ListWidth, Pos, Opt1, Elem, String1-LinesL1, String-LinesL) :-
-    ( with_output_to(string(String),
-                     ( stream_property(current_output, position(Pos1)),
-                       write(String1),
-                       write(', '),
-                       write_term(Elem, Opt1),
-                       stream_property(current_output, position(Pos2)),
-                       stream_position_data(char_count, Pos2, B2),
-                       stream_position_data(line_count, Pos1, L1),
-                       stream_position_data(line_count, Pos2, L2)
-                     )),
-      L1 = L2, B2 =< ListWidth
+    ( with_output_to_string(
+          String, Pos1, Pos2, true,
+          ( write(String1),
+            write(', '),
+            write_term(Elem, Opt1)
+          )),
+      stream_position_data(line_count, Pos1, L1),
+      stream_position_data(line_count, Pos2, L2),
+      stream_position_data(char_count, Pos2, B2),
+      L1 = L2,
+      B2 =< ListWidth
     ->LinesL1 = LinesL
     ; write_pos_rawstr(Pos, write_term(Elem, Opt1), String),
       LinesL1 = [String1|LinesL]
@@ -2146,7 +2153,7 @@ trim_brackets('$sb'(OTermPos, ITermPos, RepL1, Priority, Term),
           |RepL1], RepL).
 trim_brackets(L, '$TEXT'(S), Opt) :-
     L = [_|_],
-    with_output_to(string(S1), write_term(L, Opt)),
+    string_term(L, Opt, S1),
     sub_string(S1, 1, _, 1, S).
 
 pos_indent(Pos, Indent) :- with_output_to(atom(Indent), line_pos(Pos)).
@@ -2224,8 +2231,8 @@ term_write_sep_list_2([E|T], WB, Writer, Text, SepElem, SepTail, Opt) :-
     !,
     term_priority([_|_], user, 1, Priority),
     merge_options([priority(Priority)], Opt, Opt1),
-    with_output_to(
-        string(RawText1),
+    with_output_to_string(
+        RawText1,
         ( write(SepElem),
           call(Writer, E, Opt1),
           term_write_sep_list_inner(T, Writer, Text, SepElem, SepTail, Opt1)
@@ -2530,7 +2537,7 @@ with_cond_braces(Call, Into, Term, TermPos, GPriority, Options, Text) :-
 
 % TODO: stream position would be biased --EMM
 with_str_hook(Command, StrHook) :-
-    with_output_to(string(S1), call(Command)),
+    with_output_to_string(S1, Command),
     ( call(StrHook, S1, S)
     ->true
     ; S = S1
@@ -2700,6 +2707,10 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT), Into, Term, Opti
     nonvar(Term),
     functor(Into, FT, A),
     functor(Term, FP, A),
+    % It is akward to follow the layout of Term if it is part of Into:
+    \+ ( sub_term(Sub, Into),
+         Sub =@= Term
+       ),
     option(module(M), Options),
     ( option(priority(Priority), Options),
       current_op(PrP, TypeOpP, M:FP),
@@ -3020,8 +3031,23 @@ rportray_string(String, Options1) :-
     write('"').
 
 fix_string(Options, Atom, Elem) :-
-    with_output_to(string(String),
-                   ( atom_string(Atom, Raw),
-                     write_term(Raw, Options)
-                   )),
+    atom_string(Atom, Raw),
+    string_term(Raw, Options, String),
     atomics_string(['\"', Elem, '\"'], String).
+
+with_output_to_string(Text, Goal) :- with_output_to_string(Text, _, _, true, Goal).
+with_output_to_string(Text, Prev, Goal) :- with_output_to_string(Text, _, _, Prev, Goal).
+
+with_output_to_string(Text, S1, S2, Prev, Goal) :-
+    with_output_to(string(OutputText),
+                   ( call(Prev),
+                     stream_property(current_output, position(S1)),
+                     call(Goal),
+                     stream_property(current_output, position(S2))
+                   )),
+    stream_position_data(char_count, S1, B1),
+    stream_position_data(char_count, S2, B2),
+    get_subtext(OutputText, B1, B2, Text).
+
+string_term(Term, Options, String) :-
+    with_output_to_string(String, write_term(Term, Options)).
