@@ -756,13 +756,19 @@ substitute_term_body(Rec, M, (_ :- Body), term_position(_, _, _, _, [_, BodyPos]
                      Cmd) :-
     term_priority((_ :- Body), M, 2, Priority),
     substitute_term(Rec, sub, M, Body, BodyPos, Priority, Data, Cmd).
+substitute_term_body(Rec, M, (_ --> Body), term_position(_, _, _, _, [_, BodyPos]), Data,
+                     Cmd) :-
+    term_priority((_ --> Body), M, 2, Priority),
+    substitute_term(Rec, sub, M, Body, BodyPos, Priority, Data, Cmd).
 
 substitute_term_head(Rec, M, Clause, parentheses_term_position(_, _, TermPos), Priority,
                      Data, Cmd) :-
     !,
     substitute_term_head(Rec, M, Clause, TermPos, Priority, Data, Cmd).
 substitute_term_head(Rec, M, Clause, TermPos, Priority, Data, Cmd) :-
-    ( Clause = (MHead :- _)
+    ( ( Clause = (MHead :- _)
+      ; Clause = (MHead --> _)
+      )
     ->( nonvar(MHead),
         MHead = IM:Head
       ->term_priority(IM:Head, M, 2, HPriority),
