@@ -1939,7 +1939,7 @@ rportray(Term, OptL) :-
       term_priority_gnd(Term, M, 2, RP),
       merge_options([priority(RP)], OptL, OptL2),
       write_pos_lines(Pos2,
-                      ( write_q(Name, Opt2),
+                      ( write_q(Name, OptL2),
                         write_space(Space),
                         write_term(Right, OptL2)
                       ), Lines),
@@ -1950,7 +1950,7 @@ rportray(Term, OptL) :-
         atom_concat(Indent, Atom, Line),
         write_t(Atom, OptL2)
       ; write_pos_lines(Pos,
-                        ( write_q(Name, Opt2),
+                        ( write_q(Name, OptL2),
                           write_space(Space),
                           write_term(Right, OptL2)
                         ), Lines2),
