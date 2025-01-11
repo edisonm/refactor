@@ -1447,7 +1447,7 @@ substitute_term_list(Pos, M, [Elem|Tail], Data, Cmd) :-
              )),
     % Trick to avoid overlap:
     arg(1, STo, To1),
-    To1 < From,
+    To1 =< From,
     arg(2, TermPos, To),
     nb_setarg(1, STo, To).
 
