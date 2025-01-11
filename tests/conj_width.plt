@@ -6,22 +6,23 @@
 diff -ruN conj_width.pl -
 --- conj_width.pl (source)
 +++ conj_width.pl (target)
-@@ -1,4 +1,15 @@
+@@ -1,4 +1,16 @@
  
  p :-
 -    l1,
-+    a,
-+    b,
-+    c,
-+    d,
-+    e,
-+    f,
-+    g,
-+    h,
-+    i,
-+    j,
-+    k,
-+    l,
++    ( a,
++      b,
++      c,
++      d,
++      e,
++      f,
++      g,
++      h,
++      i,
++      j,
++      k,
++      l
++    ),
      l2.
 */
 
@@ -31,7 +32,7 @@ test(conj_width1) :-
                      l1,
                      (a,b,c,d,e,f,g,h,i,j,k,l)
                  ),
-                [file(conj_width), conj_width(38)]).
+                [file(conj_width), conj_width(39)]).
 
 /* $conj_width2$
 diff -ruN conj_width.pl -
@@ -41,7 +42,7 @@ diff -ruN conj_width.pl -
  
  p :-
 -    l1,
-+    a, b, c, d, e, f, g, h, i, j, k, l,
++    (a, b, c, d, e, f, g, h, i, j, k, l),
      l2.
 */
 
@@ -51,6 +52,6 @@ test(conj_width2) :-
                      l1,
                      (a,b,c,d,e,f,g,h,i,j,k,l)
                  ),
-                [file(conj_width), conj_width(39)]).
+                [file(conj_width), conj_width(40)]).
 
 :- end_tests(conj_width).

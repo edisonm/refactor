@@ -902,11 +902,12 @@ apply_commands_stream_each(RecNo1, FPTerm, File, CI, M, Max, Pos1, Command, Text
           ( atomics_to_string([Text1, "."], TextS),
             open_codes_stream(TextS, In),
             stream_property(In, position(Pos3)),
-            set_refactor_context(text, Text1),
             succ(RecNo1, RecNo)
           ),
-          apply_commands_stream(RecNo, FPTerm, GenModuleCommand, File,
-                                term, M, CS, Max, Pos3, In, Text1, Text2),
+          with_refactor_context(
+              apply_commands_stream(RecNo, FPTerm, GenModuleCommand, File,
+                                    term, M, CS, Max, Pos3, In, Text1, Text2),
+              [text], [TextS]),
           close(In))
     ->atomics_string([LeftText, PasteText2], Text2),
       FromToPText = t(From, To, PasteText2)
@@ -945,7 +946,7 @@ string_concat_to(RecNo, Text, t(From, To, Text2), IPos) :-
 
 %!  space_succ_operators(+RecNo, +Text1, +Text2) is semidet
 %
-%   Adds an extra space to avoid meling of successive operators
+%   Adds an extra space to avoid melting of successive operators
 space_succ_operators(RecNo, Text1, Text2) :-
     sub_string(Text1, _, 1, 0, Char1),
     sub_string(Text2, 0, 1, _, Char2),
@@ -1435,10 +1436,20 @@ substitute_term_args(PAL, M, Term, Data, Cmd) :-
     substitute_term_rec(M, Arg, PA, Priority, Data, Cmd).
 
 substitute_term_list(Pos, M, [Elem|Tail], Data, Cmd) :-
-    member(Loc-Term, [1-Elem, 2-Tail]),
-    subpos_location([Loc], Pos, SubPos),
-    term_priority([_|_], M, Loc, Priority),
-    substitute_term_rec(M, Term, SubPos, Priority, Data, Cmd).
+    STo = s(1),
+    order_by([asc(From)],
+             ( member(Loc-Term, [1-Elem, 2-Tail]),
+               subpos_location([Loc], Pos, SubPos),
+               term_priority([_|_], M, Loc, Priority),
+               substitute_term_rec(M, Term, SubPos, Priority, Data, Cmd),
+               arg(1, Cmd, TermPos),
+               arg(1, TermPos, From)
+             )),
+    % Trick to avoid overlap:
+    arg(1, STo, To1),
+    To1 < From,
+    arg(2, TermPos, To),
+    nb_setarg(1, STo, To).
 
 compound_positions(Line1, Pos2, Pos1, Pos) :- Line1 =< 1, !, Pos is Pos1+Pos2.
 compound_positions(_, Pos, _, Pos).
@@ -2002,7 +2013,7 @@ rportray_conj(A, B, Opt) :-
     offset_pos('$OUTPOS', Pos),
     term_priority((_, _), user, 1, Priority),
     option(priority(Pri), Opt),
-    ( Priority > Pri
+    ( Priority >= Pri
     ->Display = yes
     ; Display = no
     ),
