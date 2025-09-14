@@ -128,10 +128,15 @@ get_term_info_fd(In, Pattern, Term, Options1) :-
       ; true
       ),
       set_line(SetLine),
-      ( member(ModDecl, [(:- module(M, _)), (:- module(M, _, _))]),
+      ( member(ModDecl, [(:- module(M, ExL)), (:- module(M, ExL, _))]),
         subsumes_term(ModDecl, Term),
         Term = ModDecl
-      ->'$set_source_module'(_, M)
+      ->'$set_source_module'(_, M),
+        forall(member(op(A, B, C), ExL), op(A, B, OM:C))
+      ; member(ModDecl, [(:- op(A, B, C))]),
+        subsumes_term(ModDecl, Term),
+        Term = ModDecl
+      ->op(A, B, OM:C)
       ; true
       ),
       subsumes_term(Pattern, Term).
@@ -159,7 +164,7 @@ transverse_apply_2(Apply, ListH, ListT1, ListL, EL) :-
 get_term_info_each(In, Options, [T, S, P, V, C, M]) :-
     '$current_source_module'(OM),
     read_term(In, T, [subterm_positions(S), term_position(P), variable_names(V),
-                      comments(C), module(OM)|Options]),
+                       comments(C), module(OM)|Options]),
     T \== end_of_file,
     ( member(ModDecl, [(:- module(M, _)), (:- module(M, _, _))]),
       subsumes_term(ModDecl, T),
