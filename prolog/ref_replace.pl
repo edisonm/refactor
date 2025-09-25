@@ -1212,7 +1212,12 @@ with_context(Sub, M, Term1, TermPos1, TTermPos1, Priority, Sent1, SentPos1, Patt
 sleq(Term, Into, Term) :- Term == Into.
 
 subterm_location_same_term([], Term1, Term2, Term1) :-
-    same_term(Term1, Term2),
+    % For some reason, same_term doesn't work well with dictionaries:
+    ( is_dict(Term1, Tag),
+      var(Tag)
+    ->Term1==Term2
+    ; same_term(Term1, Term2)
+    ),
     !.
 subterm_location_same_term([N|L], Term1, Term2, SubTerm) :-
     compound(Term1),
@@ -1393,9 +1398,12 @@ substitute_term_into(Pos, M, Term, Data, Cmd) :-
                  sub_list_position(_, _, _, _, _, _, _)]),
     neck,
     substitute_term_list(Pos, M, Term, Data, Cmd).
-substitute_term_into(dict_position(_, _, _, _, PosL), M, Term, Data, Cmd) :-
-    member(Pos, PosL),
-    substitute_term_pair(M, Term, Pos, Data, Cmd).
+substitute_term_into(dict_position(_, _, From, To, PosL), M, Term, Data, Cmd) :-
+    is_dict(Term, Tag),
+    ( substitute_term_norec(sub, M, Tag, From-To, 999, Data, Cmd)
+    ; member(Pos, PosL),
+      substitute_term_pair(M, Term, Pos, Data, Cmd)
+    ).
 
 substitute_term_pair(M, Term, key_value_position(_, _, _, _, Key, PosK, PosV), Data, Cmd) :-
     ( substitute_term_rec(M, Key, PosK, 999, Data, Cmd)
@@ -2713,6 +2721,11 @@ normalize_pos(Pos, F-T) :-
     arg(1, Pos, F),
     arg(2, Pos, T).
 
+not_sub_term(Into, Term) :-
+    \+ ( sub_term(Sub, Into),
+         Sub =@= Term
+       ).
+
 print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT), Into, Term, Options, Text) :-
     compound(Into),
     Into \= [_|_],
@@ -2725,9 +2738,7 @@ print_expansion_pos(term_position(From, To, FFrom, FFTo, PosT), Into, Term, Opti
     functor(Into, FT, A),
     functor(Term, FP, A),
     % It is akward to follow the layout of Term if it is part of Into:
-    \+ ( sub_term(Sub, Into),
-         Sub =@= Term
-       ),
+    not_sub_term(Into, Term),
     option(module(M), Options),
     ( option(priority(Priority), Options),
       current_op(PrP, TypeOpP, M:FP),
