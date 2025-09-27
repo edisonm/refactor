@@ -1212,9 +1212,10 @@ with_context(Sub, M, Term1, TermPos1, TTermPos1, Priority, Sent1, SentPos1, Patt
 sleq(Term, Into, Term) :- Term == Into.
 
 subterm_location_same_term([], Term1, Term2, Term1) :-
-    % For some reason, same_term doesn't work well with dictionaries:
-    ( is_dict(Term1, Tag),
-      var(Tag)
+    % Non-ground dictionaries are not linked but duplicated, therefore we
+    % should use ==/2 instead of same_term
+    ( is_dict(Term1),
+      \+ ground(Term1)
     ->Term1==Term2
     ; same_term(Term1, Term2)
     ),
