@@ -3,21 +3,32 @@ refactor
 
 Refactoring Tools for SWI-Prolog
 
-Installation
-============
-
-To install the refactoring tools, just follow the next sequence of commands
-in your SWI-Prolog shell:
+## Installation
 
 ```prolog
-  $ swipl
-  
-  ?- pack_install('https://github.com/edisonm/refactor.git').
-  true.
+?- pack_install('https://github.com/edisonm/refactor.git').
+true.
 ```
 
-How it works
-============
+## How it works
+
+### Core predicates (ref_shell)
+
+| Predicate | Arity | Description |
+|-----------|-------|-------------|
+| `rshow/0` | 0 | Show a unified diff of all pending changes. |
+| `rsave/1` | 1 | Save the diff to a file (`rsave(File)`). |
+| `rdiff/0` | 0 | Show the diff of the most recent change. |
+| `rdiff/1` | 1 | Show the diff for a given index (or enumerate on backtracking). |
+| `rcommit/0` | 0 | Apply all pending changes and clear the stack. |
+| `rreset/0` | 0 | Discard all pending changes. |
+| `rundo/0` | 0 | Undo the most recent change. |
+| `rrewind/0` | 0 | Re‑apply pending commands after manual file edits. |
+| `rrewind/1` | 1 | Re‑apply commands with index greater than the argument. |
+| `rlist/0` | 0 | List pending commands. |
+| `rlist/1` | 1 | List pending commands with their index. |
+| `rdelete/1` | 1 | Undo and rewind a specific change. |
+
 
 There are two groups of predicates, one to rewrite the source code, and other
 one to manage such changes.  The basic predicate that performs the
@@ -27,8 +38,7 @@ which provides methods to keep track of the modifications and to make the
 changes to the files permanent.  To make things easy, you can download all the
 required libraries by loading library(refactor).
 
-Example of Usage
-================
+## Example of Usage
 
 This is more clear with an example.  First load the library:
 
@@ -44,7 +54,7 @@ there the module repl_conj.pl, and let's replace the term a(B) by aa(B):
 ?- cd(tests).
 true.
 
-?- replace_term(a(B), aa(B), [file(repl_conj)]).
+?- replace(term, a(B), aa(B), _, [file(repl_conj)]).
 % 3 changes of 3 attempts
 % Saved changes in index 1
 true.
@@ -52,7 +62,7 @@ true.
 
 In this example we use the options argument to say that we want to apply the
 changes to the file repl_conj.pl, but we can use other ways to define the scope
-of the chages, like the directory (dir option), list of directories (dirs
+of the changes, like the directory (dir option), list of directories (dirs
 option) and list of files (files option) to mention a few.
 
 The last information message shows in the first line the number of changes
@@ -64,7 +74,7 @@ that we want to perform such change in all places except in those where the
 clause doesn't have body:
 
 ```prolog
-?- replace_term(a(B), aa(B), (Sentence = (_ :- _)), [file(repl_conj), sentence(Sentence)]).
+?- replace(term, a(B), aa(B), (Sentence = (_ :- _)), [file(repl_conj), sentence(Sentence)]).
 % 2 changes of 3 attempts
 % Saved changes in index 1
 true.
@@ -108,23 +118,23 @@ true.
 Continuous calls to refactor predicates can be stacked so you could implement
 complex scenarios via small ones.  For instance, suppose you also want to change
 b(C) by bb(C) and c(DD) by cc(DD), then first we execute rreset just to be sure no
-changes are pending folowed with the calls to perform the changes:
+changes are pending followed with the calls to perform the changes:
 
 ```prolog
 ?- rreset.
 true.
 
-?- replace_term(a(B), aa(B), [file(repl_conj), sentence(Sentence)]).
+?- replace(term, a(B), aa(B), [file(repl_conj), sentence(Sentence)]).
 % 3 changes of 3 attempts
 % Saved changes in index 1
 true.
 
-?- replace_term(b(B), bb(B), [file(repl_conj), sentence(Sentence)]).
+?- replace(term, b(B), bb(B), [file(repl_conj), sentence(Sentence)]).
 % 3 changes of 3 attempts
 % Saved changes in index 2
 true.
 
-?- replace_term(c(D), cc(D), [file(repl_conj), sentence(Sentence)]).
+?- replace(term, c(D), cc(D), [file(repl_conj), sentence(Sentence)]).
 % 2 changes of 2 attempts
 % Saved changes in index 3
 true.
