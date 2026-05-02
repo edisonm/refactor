@@ -51,8 +51,28 @@
 
 /** <module> Pending changes management
 
-  This library provides tools to manage the stack of pending changes of the
-  refactoring tool, as well as to apply those changes to the files.
+   This module implements the interactive command‑line interface used by the
+   refactoring library.  It provides predicates to inspect, save, diff, and
+   finally commit the stack of pending changes that are produced by the
+   `replace/5` family of predicates.
+
+   Typical workflow:
+
+   1. Run a refactoring, e.g.
+      ```prolog
+      replace(sent, (:-use_module(X)), _, _, [file(F)])
+      ```
+   2. Inspect the pending modifications with `rshow/0` or `rdiff/0`.
+   3. Optionally write the diff to a file using `rsave/1`.
+   4. Apply the changes permanently with `rcommit/0`.
+   5. Reset the session with `rreset/0` to start a new refactoring.
+
+   The predicates are thin wrappers around the change stack maintained by
+   `library(ref_changes)`.  All options that control the behaviour of the
+   refactoring (e.g., `file/1`, `max_changes/1`, `linearize/1`) are passed to
+   `replace/5`; the shell itself does not introduce additional options.
+
+   @see replace/5 for the full list of supported options.
 */
 
 ref_commit :-
@@ -60,23 +80,45 @@ ref_commit :-
     rdiff(save, 0, Index),
     reset_changes.
 
+%!  rshow
+%   Show the list of pending changes.  If no change is pending the predicate fails.
+%   The output is a formatted diff printed to the current output stream.
 rshow :-
     once(pending_change(Index)),
     rdiff(show, 0, Index).
 
+%!  rsave(+Diff)
+%   Save the current diff (the pending changes) into the file named Diff.
+%   The predicate opens Diff for writing, prints the formatted diff using `rshow/0`,
+%   and then closes the file.
+%   It is a convenience wrapper around `tell/1`/`told/0`.
 rsave(Diff) :-
     tell(Diff),
     rshow,
     told.
 
+%!  rdiff
+%   Show the diff of the most recent pending change.  This predicate is a
+%   convenience wrapper that calls `rdiff/1` with the index of the latest
+%   change.
 rdiff :-
     once(rdiff(_)).
 
+%!  rdiff(+Index)
+%   Show the diff for the pending change identified by Index.  Index is the
+%   numeric identifier of a change as returned by `pending_change/1`.  The
+%   predicate prints a diff that includes all changes up to and including the
+%   specified Index.
 rdiff(Index) :-
     pending_change(Index),
     succ(Index1, Index),
     rdiff(show, Index1, Index).
 
+%!  rdiff(+Index1, +Index)
+%   Low‑level helper used by `rdiff/0`, `rdiff/1` and `rdiff/2`.  It prints the
+%   diff for all pending changes whose indices lie between `Index1` (exclusive)
+%   and `Index` (inclusive).  Normally callers compute `Index1` as `Index-1` to
+%   obtain the diff of a single change.
 rdiff(Index1, Index) :-
     rdiff(show, Index1, Index).
 
@@ -116,10 +158,21 @@ apply_diff(Action, Index1, File) :-
     ; true
     ).
 
+%!  rcommit
+%   Apply all pending changes to their respective source files and clear the
+%   change stack.  This is equivalent to calling `ref_commit/0` followed by
+%   `reset_commands/0`.
+%   @see rreset/0 to discard pending changes without applying them.
 rcommit :-
     ref_commit,
     reset_commands.
 
+%!  rreset
+%   Discard all pending changes and reset the command database.  The
+%   refactoring session returns to a clean state as if no `replace/5`
+%   operations had been performed.
+%   Use this after inspecting changes with `rshow/0` when you decide not to
+%   apply them.
 rreset :-
     reset_changes,
     reset_commands.
