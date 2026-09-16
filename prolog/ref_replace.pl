@@ -1628,6 +1628,11 @@ rportray('$sb'(TermPos), _) :-
     refactor_context(text, Text),
     print_subtext(TermPos, Text).
 */
+
+fixed_write_length(Term, Length, Options) :-
+    with_output_to(string(String), write_term(Term, Options)),
+    string_length(String, Length).
+
 rportray('$sb'(SubPos, _, RepL, Priority, Term), Options) :-
     \+ retract(rportray_skip),
     !,
@@ -1635,7 +1640,17 @@ rportray('$sb'(SubPos, _, RepL, Priority, Term), Options) :-
     select_option(portray_goal(PG), Options, Options2, PG),
     stream_property(current_output, position(S1)),
     write_term(Term, Options2),
+    stream_property(current_output, position(S2)),
+    fixed_write_length(Term, Length, Options2),
+    stream_position_data(char_count, S1, B1),
+    stream_position_data(char_count, S2, B2),
+    Offset is B2-B1-Length,
+    % Note: Offset could be > 0 because write_term/2 could be a continuation,
+    % and therefore could introduce a space to avoid melting of two operators
+    % (see add_operator2.plt test)
     set_stream_position(current_output, S1),
+    % to use seek, Offset must be positive, otherwise it will not work properly
+    seek(current_output, Offset, current, _),
     option(text(Text), Options),
     ignore(print_subtext_sb_2(Term, SubPos, RepL, Priority, Text, Options)).
 rportray('$@'(Term), Options) :-
