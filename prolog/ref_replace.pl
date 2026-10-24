@@ -1463,11 +1463,14 @@ substitute_term_list(Pos, M, [Elem|Tail], Data, Cmd) :-
 compound_positions(Line1, Pos2, Pos1, Pos) :- Line1 =< 1, !, Pos is Pos1+Pos2.
 compound_positions(_, Pos, _, Pos).
 
-get_output_position(Pos) :-
+get_current_from(From) :-
     ( refactor_context(from, From)
     ->true
     ; From = 0
-    ),
+    ).
+
+get_output_position(Pos) :-
+    get_current_from(From),
     get_output_position(From, Pos).
 
 get_output_position(From, Pos) :-
@@ -1477,6 +1480,15 @@ get_output_position(From, Pos) :-
     stream_position_data(line_count, StrPos, Line1),
     stream_position_data(line_position, StrPos, Pos2),
     compound_positions(Line1, Pos2, Pos1, Pos).
+
+get_output_count(Count) :-
+    get_current_from(From),
+    get_output_count(From, Count).
+
+get_output_count(From, Count) :-
+    stream_property(current_output, position(StrPos)),
+    stream_position_data(char_count, StrPos, Count1),
+    Count is From+Count1.
 
 write_term_dot_nl(Term, OptL) :-
     write_term(Term, OptL),
@@ -1573,7 +1585,10 @@ reindent(TermPos, Text, Goal) :-
     ( \+ sub_string(RawText, _, _, _, '\n') % No need to reindent
     ->SubText = RawText
     ; arg(1, TermPos, From),
-      ( seek1_char_left(Text, "\n", From, Distance1)
+      get_output_count(Count),
+      ( % if there is a new line between the current position (Count) and From:
+        seek1_char_left(Text, "\n", From, Distance1),
+        Distance1 >= Count
       ->CropLength1 is From - (Distance1 + 1)
       ; CropLength1 is From
       ),
